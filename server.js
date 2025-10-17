@@ -563,6 +563,45 @@ db.serialize(() => {
     }
   });
 
+  // Migrate menu_items table - add missing columns
+  db.all("PRAGMA table_info(menu_items)", (err, columns) => {
+    if (!err && columns) {
+      const hasTaxApplicable = columns.some(col => col.name === 'tax_applicable');
+      
+      if (!hasTaxApplicable) {
+        console.log('Adding tax_applicable column to menu_items table...');
+        db.run("ALTER TABLE menu_items ADD COLUMN tax_applicable BOOLEAN DEFAULT 1");
+      }
+    }
+  });
+
+  // Migrate order_items table - add missing columns
+  db.all("PRAGMA table_info(order_items)", (err, columns) => {
+    if (!err && columns) {
+      const hasVariantPriceAdjustment = columns.some(col => col.name === 'variant_price_adjustment');
+      const hasUnitPrice = columns.some(col => col.name === 'unit_price');
+      const hasVariantName = columns.some(col => col.name === 'variant_name');
+      const hasNotes = columns.some(col => col.name === 'notes');
+      
+      if (!hasVariantPriceAdjustment) {
+        console.log('Adding variant_price_adjustment column to order_items table...');
+        db.run("ALTER TABLE order_items ADD COLUMN variant_price_adjustment DECIMAL(10,2) DEFAULT 0");
+      }
+      if (!hasUnitPrice) {
+        console.log('Adding unit_price column to order_items table...');
+        db.run("ALTER TABLE order_items ADD COLUMN unit_price DECIMAL(10,2)");
+      }
+      if (!hasVariantName) {
+        console.log('Adding variant_name column to order_items table...');
+        db.run("ALTER TABLE order_items ADD COLUMN variant_name TEXT");
+      }
+      if (!hasNotes) {
+        console.log('Adding notes column to order_items table...');
+        db.run("ALTER TABLE order_items ADD COLUMN notes TEXT");
+      }
+    }
+  });
+
   // Create default owner account if no users exist
   db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
     if (err) {
