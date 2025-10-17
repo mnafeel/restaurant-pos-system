@@ -67,29 +67,32 @@ git push -u origin main
 Fill in these settings:
 
 **Basic:**
+
 - **Name:** `restaurant-pos-backend`
 - **Region:** `Singapore` (closest to India)
 - **Branch:** `main`
-- **Root Directory:** *(leave empty)*
+- **Root Directory:** _(leave empty)_
 
 **Build & Deploy:**
+
 - **Environment:** `Node`
 - **Build Command:** `npm install`
 - **Start Command:** `node server.js`
 
 **Instance:**
+
 - **Instance Type:** `Free` (select from dropdown)
 
 **Environment Variables** (Click "Add Environment Variable"):
 
 Add these one by one:
 
-| Key | Value |
-|-----|-------|
+| Key          | Value                           |
+| ------------ | ------------------------------- |
 | `JWT_SECRET` | `your-random-secret-key-123456` |
-| `PORT` | `5002` |
-| `TZ` | `Asia/Kolkata` |
-| `NODE_ENV` | `production` |
+| `PORT`       | `5002`                          |
+| `TZ`         | `Asia/Kolkata`                  |
+| `NODE_ENV`   | `production`                    |
 
 **Important:** Change `JWT_SECRET` to a random string!
 
@@ -102,6 +105,7 @@ Add these one by one:
 ### **Step 6: Get Backend URL**
 
 At the top of the page, you'll see:
+
 ```
 https://restaurant-pos-backend.onrender.com
 ```
@@ -115,18 +119,21 @@ https://restaurant-pos-backend.onrender.com
 ### **Step 1: Update API URL**
 
 On your computer, edit this file:
+
 ```
 /Users/admin/restaurant-billing-system/client/src/index.js
 ```
 
 Find line 9:
+
 ```javascript
-axios.defaults.baseURL = 'http://localhost:5002';
+axios.defaults.baseURL = "http://localhost:5002";
 ```
 
 Change to (use YOUR backend URL):
+
 ```javascript
-axios.defaults.baseURL = 'https://restaurant-pos-backend.onrender.com';
+axios.defaults.baseURL = "https://restaurant-pos-backend.onrender.com";
 ```
 
 ### **Step 2: Commit and Push**
@@ -155,11 +162,13 @@ git push origin main
 ### **Step 3: Configure Frontend**
 
 **Basic:**
+
 - **Name:** `restaurant-pos-frontend`
 - **Branch:** `main`
 - **Root Directory:** `client`
 
 **Build Settings:**
+
 - **Build Command:** `npm install && npm run build`
 - **Publish Directory:** `build`
 
@@ -172,6 +181,7 @@ git push origin main
 ### **Step 5: Get Frontend URL**
 
 You'll see:
+
 ```
 https://restaurant-pos-frontend.onrender.com
 ```
@@ -183,16 +193,19 @@ https://restaurant-pos-frontend.onrender.com
 ## 🎉 **SUCCESS! Your POS is Live!**
 
 **Access your POS at:**
+
 ```
 https://restaurant-pos-frontend.onrender.com
 ```
 
 ### **Login with:**
+
 - Username: `owner`
 - Password: `owner123`
 - **⚠️ Change password immediately!**
 
 ### **Works on:**
+
 - ✅ Any computer
 - ✅ Tablets
 - ✅ Mobile phones
@@ -212,6 +225,7 @@ git push origin main
 ```
 
 **Render automatically:**
+
 1. Detects the push
 2. Rebuilds your app
 3. Deploys new version
@@ -222,12 +236,14 @@ git push origin main
 ## ⚡ **Free Tier Performance**
 
 **What to expect:**
+
 - App **sleeps** after 15 min of inactivity
 - **Wakes up** on first request (15-30 sec wait)
 - After wake up: Normal speed
 - Good for: Testing, small restaurants, demos
 
 **To keep always-on:**
+
 - Upgrade to paid plan: $7/month
 - No sleep mode
 - Better performance
@@ -238,14 +254,18 @@ git push origin main
 ## 🔧 **Important Settings**
 
 ### **CORS (Already configured in server.js):**
+
 ```javascript
-app.use(cors({
-  origin: '*', // Allows all origins
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "*", // Allows all origins
+    credentials: true,
+  })
+);
 ```
 
 ### **Database:**
+
 - SQLite file stored on Render
 - Backed up on Render's disk
 - Consider PostgreSQL for production
@@ -255,6 +275,7 @@ app.use(cors({
 ## 📊 **Monitor Your Deployment**
 
 **Render Dashboard shows:**
+
 - Deployment status
 - Logs (live)
 - Resource usage
@@ -262,6 +283,7 @@ app.use(cors({
 - Latest deployments
 
 **Access logs:**
+
 - Click on your service
 - "Logs" tab
 - See real-time activity
@@ -299,21 +321,25 @@ After deployment:
 ## 🆘 **Troubleshooting**
 
 ### **Backend won't start:**
+
 - Check logs in Render dashboard
 - Verify environment variables are set
 - Check build command succeeded
 
 ### **Frontend shows blank page:**
+
 - Check if API URL is correct in `client/src/index.js`
 - Check browser console for errors
 - Verify backend is running
 
 ### **Can't connect to backend:**
+
 - Check CORS settings
 - Verify backend URL in frontend
 - Check if backend is sleeping (wait 30 seconds)
 
 ### **Database errors:**
+
 - Render creates disk storage automatically
 - Database persists between deploys
 - Check logs for SQLite errors
@@ -323,6 +349,7 @@ After deployment:
 ## 💰 **Cost Breakdown**
 
 **Free Tier:**
+
 - Backend: FREE (750 hours/month)
 - Frontend: FREE (unlimited)
 - SSL: FREE
@@ -330,6 +357,7 @@ After deployment:
 - **Total: $0/month** 🎉
 
 **Paid (if needed):**
+
 - Backend always-on: $7/month
 - More RAM: $7-25/month
 - PostgreSQL: $7/month
@@ -341,10 +369,12 @@ After deployment:
 Add your own domain:
 
 1. **On Render:**
+
    - Service Settings → Custom Domain
    - Add: `pos.yourrestaurant.com`
 
 2. **On your domain registrar:**
+
    - Add CNAME record
    - Point to Render URL
 
@@ -355,6 +385,7 @@ Add your own domain:
 ## ✅ **Summary**
 
 **What you get with Render:**
+
 - ✅ Your POS online 24/7
 - ✅ Accessible from anywhere
 - ✅ Secure HTTPS
@@ -362,6 +393,7 @@ Add your own domain:
 - ✅ FREE forever (free tier)
 
 **Time to deploy:**
+
 - Backend: 10 minutes
 - Frontend: 5 minutes
 - **Total: 15 minutes** ⏱️
@@ -382,4 +414,3 @@ Add your own domain:
 
 **Restaurant POS Pro v1.0.0**  
 **Deploy once, access forever!** ✨
-

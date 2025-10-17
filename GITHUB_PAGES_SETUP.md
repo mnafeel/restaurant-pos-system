@@ -5,6 +5,7 @@
 **GitHub Pages can ONLY host static HTML/CSS/JavaScript files.**
 
 Your Restaurant POS system has **TWO parts:**
+
 1. **Frontend** (React) - ✅ CAN host on GitHub Pages
 2. **Backend** (Node.js/Express) - ❌ CANNOT host on GitHub Pages
 
@@ -13,6 +14,7 @@ Your Restaurant POS system has **TWO parts:**
 ## 🎯 **What You're Seeing:**
 
 The error "does not contain the requested file" means:
+
 - GitHub Pages is looking for an `index.html` file
 - But your React app needs to be **built first**
 - And your **backend needs separate hosting**
@@ -22,6 +24,7 @@ The error "does not contain the requested file" means:
 ## ✅ **SOLUTION: Use Free Cloud Hosting**
 
 Instead of GitHub Pages, use **Render.com** (100% FREE tier):
+
 - ✅ Hosts BOTH frontend AND backend
 - ✅ Free SSL (HTTPS)
 - ✅ Auto-deploy from GitHub
@@ -51,21 +54,24 @@ git push -u origin main
 1. **Sign up:** https://render.com (use your GitHub account)
 
 2. **New Web Service:**
+
    - Click "New +" → "Web Service"
    - Connect GitHub → Select `restaurant-pos-system`
    - Click "Connect"
 
 3. **Configure:**
+
    - **Name:** `restaurant-pos-backend`
    - **Region:** Singapore (closest to India)
    - **Branch:** `main`
-   - **Root Directory:** *(leave empty)*
+   - **Root Directory:** _(leave empty)_
    - **Environment:** `Node`
    - **Build Command:** `npm install`
    - **Start Command:** `node server.js`
    - **Instance Type:** Free
 
 4. **Environment Variables** (Click "Add Environment Variable"):
+
    ```
    JWT_SECRET=change-this-to-your-secret-key-123456
    PORT=5002
@@ -88,17 +94,21 @@ git push -u origin main
 1. **Edit** `client/src/index.js`:
 
 Find this line:
+
 ```javascript
-axios.defaults.baseURL = 'http://localhost:5002';
+axios.defaults.baseURL = "http://localhost:5002";
 ```
 
 Change to:
+
 ```javascript
-axios.defaults.baseURL = 'https://restaurant-pos-backend.onrender.com';
+axios.defaults.baseURL = "https://restaurant-pos-backend.onrender.com";
 ```
-*(Use YOUR actual backend URL from Step 2)*
+
+_(Use YOUR actual backend URL from Step 2)_
 
 2. **Commit and push:**
+
 ```bash
 cd /Users/admin/restaurant-billing-system
 git add client/src/index.js
@@ -111,13 +121,16 @@ git push origin main
 ### **Step 4: Deploy Frontend on Render**
 
 1. **On Render dashboard:**
+
    - Click "New +" → "Static Site"
 
 2. **Connect repository:**
+
    - Select your `restaurant-pos-system` repo
    - Click "Connect"
 
 3. **Configure:**
+
    - **Name:** `restaurant-pos-frontend`
    - **Branch:** `main`
    - **Root Directory:** `client`
@@ -139,6 +152,7 @@ git push origin main
 **Backend URL:** `https://restaurant-pos-backend.onrender.com`
 
 ### **Access from anywhere:**
+
 - ✅ Desktop computers
 - ✅ Tablets
 - ✅ Mobile phones
@@ -150,6 +164,7 @@ git push origin main
 ## 🔄 **Auto-Deploy Feature:**
 
 Every time you push to GitHub:
+
 ```bash
 git add .
 git commit -m "Your changes"
@@ -163,6 +178,7 @@ Render **automatically re-deploys** your app! 🚀
 ## 💡 **Why Not GitHub Pages?**
 
 **GitHub Pages:**
+
 - ❌ Static files only (HTML/CSS/JS)
 - ❌ NO backend server support
 - ❌ NO Node.js/Express
@@ -170,6 +186,7 @@ Render **automatically re-deploys** your app! 🚀
 - ✅ Only good for simple websites
 
 **Render.com:**
+
 - ✅ Full backend support (Node.js)
 - ✅ Database support (SQLite/PostgreSQL)
 - ✅ Frontend hosting
@@ -182,6 +199,7 @@ Render **automatically re-deploys** your app! 🚀
 ## 🆓 **Render.com Free Tier:**
 
 **What you get:**
+
 - 750 hours/month (enough for testing)
 - Automatic HTTPS/SSL
 - Auto-deploy from GitHub
@@ -190,11 +208,13 @@ Render **automatically re-deploys** your app! 🚀
 - Perfect for small to medium usage
 
 **Limitations:**
+
 - App sleeps after 15 minutes of inactivity
 - Wakes up on first request (15-30 seconds)
 - Good for: Testing, small restaurants, demos
 
 **Upgrade if needed:**
+
 - $7/month for always-on service
 - More RAM and CPU
 - Better performance
@@ -206,6 +226,7 @@ Render **automatically re-deploys** your app! 🚀
 If you ONLY want to host the frontend on GitHub Pages:
 
 ### **Requirements:**
+
 - Backend hosted elsewhere (Render, Railway, Heroku)
 - Update `client/src/index.js` with backend URL
 
@@ -229,12 +250,14 @@ npm run deploy
 ```
 
 **Then:**
+
 - Go to repository Settings
 - Pages section
 - Source: gh-pages branch
 - Save
 
 **Result:**
+
 - Frontend: `https://mnafeel.github.io/restaurant-pos-system`
 - Backend: Still needs separate hosting (Render/Railway)
 
@@ -271,4 +294,3 @@ For your Restaurant POS system:
 ---
 
 **🚀 Use Render.com instead of GitHub Pages - it's free and supports your entire POS system!**
-
