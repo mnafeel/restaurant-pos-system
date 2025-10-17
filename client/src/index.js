@@ -6,9 +6,8 @@ import './index.css';
 import App from './App';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 
-// Configure axios base URL
-// Backend on Render, Frontend on Vercel
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'https://restaurant-pos-system-1-7h0m.onrender.com';
+// Configure axios base URL - Backend on Render
+axios.defaults.baseURL = 'https://restaurant-pos-system-1-7h0m.onrender.com';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
