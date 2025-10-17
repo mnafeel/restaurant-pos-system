@@ -1,19 +1,25 @@
 services:
-  # Backend API Service
+  # Backend API Service Only (Frontend is on Vercel)
   - type: web
     name: restaurant-pos-backend
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install --production
     startCommand: node server.js
     healthCheckPath: /api/debug/status
+    disk:
+      name: database-storage
+      mountPath: /opt/render/project/src
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 5002
+        value: 10000
       - key: JWT_SECRET
         generateValue: true
+      - key: TZ
+        value: Asia/Kolkata
       # Uncomment and add your MongoDB URI if using MongoDB
       # - key: MONGODB_URI
       #   value: mongodb+srv://username:password@cluster.mongodb.net/
