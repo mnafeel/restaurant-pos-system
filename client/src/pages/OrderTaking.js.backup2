@@ -1,0 +1,756 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import io from 'socket.io-client';
+import toast from 'react-hot-toast';
+import { FaPlus, FaMinus, FaTrash, FaShoppingCart, FaPaperPlane } from 'react-icons/fa';
+
+const OrderTaking = () => {
+  const [tables, setTables] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [cart, setCart] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [selectedMenuItem, setSelectedMenuItem] = useState(null);
+  const [orderType, setOrderType] = useState('Dine In');
+  const [paymentType, setPaymentType] = useState('Cash');
+  const [customerInfo, setCustomerInfo] = useState({
+    customer_name: '',
+    customer_phone: '',
+    notes: ''
+  });
+
+  useEffect(() => {
+    // Initialize socket connection
+    const newSocket = io('http://localhost:5002');
+    newSocket.emit('join-orders');
+
+    newSocket.on('table-status-updated', () => {
+      fetchTables();
+    });
+
+    // Fetch tables and menu
+    fetchTables();
+    fetchMenu();
+
+    return () => newSocket.close();
+  }, []);
+
+  const fetchTables = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/tables', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTables(response.data);
+    } catch (error) {
+      console.error('Error fetching tables:', error);
+      toast.error('Failed to fetch tables');
+    }
+  };
+
+  const fetchMenu = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/menu', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMenuItems(response.data);
+    } catch (error) {
+      console.error('Error fetching menu:', error);
+      toast.error('Failed to fetch menu');
+    }
+  };
+
+  const handleItemClick = (item) => {
+    if (item.variants && item.variants.length > 0) {
+      // Show variant selection modal
+      setSelectedMenuItem(item);
+      setShowVariantModal(true);
+    } else {
+      // Add directly to cart
+      addToCart(item, null);
+    }
+  };
+
+  const addToCart = (item, variant = null) => {
+    const cartItemKey = `${item.id}-${variant?.id || 'no-variant'}`;
+    const existingItem = cart.find(cartItem => cartItem.key === cartItemKey);
+    
+    if (existingItem) {
+      setCart(cart.map(cartItem =>
+        cartItem.key === cartItemKey
+          ? { ...cartItem, quantity: cartItem.quantity + 1 }
+          : cartItem
+      ));
+    } else {
+      const variantPriceAdjustment = variant ? variant.price_adjustment : 0;
+      setCart([...cart, {
+        key: cartItemKey,
+        menu_item_id: item.id,
+        variant_id: variant?.id || null,
+        name: item.name,
+        variant_name: variant?.name || null,
+        price: item.price,
+        variant_price_adjustment: variantPriceAdjustment,
+        quantity: 1,
+        special_instructions: ''
+      }]);
+    }
+    
+    setShowVariantModal(false);
+    setSelectedMenuItem(null);
+  };
+
+  const removeFromCart = (cartItemKey) => {
+    setCart(cart.filter(item => item.key !== cartItemKey));
+  };
+
+  const updateQuantity = (cartItemKey, quantity) => {
+    if (quantity <= 0) {
+      removeFromCart(cartItemKey);
+      return;
+    }
+    setCart(cart.map(item =>
+      item.key === cartItemKey
+        ? { ...item, quantity }
+        : item
+    ));
+  };
+
+  const updateSpecialInstructions = (cartItemKey, instructions) => {
+    setCart(cart.map(item =>
+      item.key === cartItemKey
+        ? { ...item, special_instructions: instructions }
+        : item
+    ));
+  };
+
+  const calculateTotal = () => {
+    return cart.reduce((total, item) => 
+      total + ((item.price + item.variant_price_adjustment) * item.quantity), 0
+    );
+  };
+
+  const submitOrder = async () => {
+    // Validation based on order type
+    if (orderType === 'Dine In' && !selectedTable) {
+      toast.error('Please select a table for Dine In orders');
+      return;
+    }
+    
+    if (cart.length === 0) {
+      toast.error('Please add items to cart');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/orders', {
+        tableNumber: orderType === 'Dine In' ? selectedTable : 'TAKEAWAY',
+        items: cart,
+        order_type: orderType,
+        payment_type: paymentType,
+        ...customerInfo
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success(`${orderType} order submitted! Payment: ${paymentType}`);
+      setCart([]);
+      setSelectedTable(null);
+      setOrderType('Dine In');
+      setPaymentType('Cash');
+      setCustomerInfo({ customer_name: '', customer_phone: '', notes: '' });
+      fetchTables();
+    } catch (error) {
+      console.error('Error submitting order:', error);
+      toast.error(error.response?.data?.error || 'Error submitting order');
+    }
+  };
+
+  const groupedMenuItems = menuItems.reduce((groups, item) => {
+    const category = item.category;
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(item);
+    return groups;
+  }, {});
+
+  const categories = ['All', ...Object.keys(groupedMenuItems)];
+  const filteredItems = selectedCategory === 'All' 
+    ? menuItems 
+    : menuItems.filter(item => item.category === selectedCategory);
+
+  const freeTables = tables.filter(t => t.status === 'Free');
+
+  return (
+    <div className="p-4 bg-gray-50 min-h-screen">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">🍽️ POS Billing System</h1>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left: Menu Items - 8 columns */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* Table Selection - Only for Dine In */}
+          {orderType === 'Dine In' && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">Select Table (Dine In)</h2>
+              <div className="grid grid-cols-3 gap-2">
+                {freeTables.map(table => (
+                  <button
+                    key={table.id}
+                    onClick={() => setSelectedTable(table.table_number)}
+                    className={`p-3 rounded-lg border-2 transition-colors ${
+                      selectedTable === table.table_number
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold">{table.table_number}</div>
+                    <div className="text-xs text-gray-600">{table.capacity} seats</div>
+                  </button>
+                ))}
+              </div>
+              
+              {freeTables.length === 0 && (
+                <p className="text-center text-gray-500 py-4">No free tables available</p>
+              )}
+            </div>
+          )}
+
+          {/* Take Away Message */}
+          {orderType === 'Take Away' && (
+            <div className="bg-green-50 rounded-lg shadow p-6 border-2 border-green-200">
+              <div className="text-center">
+                <div className="text-4xl mb-2">🥡</div>
+                <h2 className="text-lg font-semibold text-green-700 mb-1">Take Away Order</h2>
+                <p className="text-sm text-green-600">No table selection needed</p>
+              </div>
+            </div>
+          )}
+
+          {/* Customer Info */}
+          {(selectedTable || orderType === 'Take Away') && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">Customer Info (Optional)</h2>
+              
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Customer Name"
+                  value={customerInfo.customer_name}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, customer_name: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={customerInfo.customer_phone}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, customer_phone: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                
+                <textarea
+                  placeholder="Order Notes"
+                  value={customerInfo.notes}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, notes: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  rows="2"
+                />
+
+                {/* Order Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Order Type *</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrderType('Dine In');
+                        if (!selectedTable) {
+                          toast('Please select a table for Dine In', { icon: '🍽️' });
+                        }
+                      }}
+                      className={`px-4 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        orderType === 'Dine In'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      }`}
+                    >
+                      🍽️ Dine In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrderType('Take Away');
+                        setSelectedTable('TAKEAWAY');
+                      }}
+                      className={`px-4 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        orderType === 'Take Away'
+                          ? 'bg-green-600 text-white border-green-600 shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
+                      }`}
+                    >
+                      🥡 Take Away
+                    </button>
+                  </div>
+                  {orderType === 'Dine In' && !selectedTable && (
+                    <p className="text-xs text-blue-600 mt-2">👆 Please select a table above</p>
+                  )}
+                  {orderType === 'Take Away' && (
+                    <p className="text-xs text-green-600 mt-2">✅ No table selection needed for takeaway</p>
+                  )}
+                </div>
+
+                {/* Payment Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type *</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType('Cash')}
+                      className={`px-3 py-2 rounded-lg border-2 font-semibold text-sm transition-all ${
+                        paymentType === 'Cash'
+                          ? 'bg-green-600 text-white border-green-600 shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
+                      }`}
+                    >
+                      💵 Cash
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType('Card')}
+                      className={`px-3 py-2 rounded-lg border-2 font-semibold text-sm transition-all ${
+                        paymentType === 'Card'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+                      }`}
+                    >
+                      💳 Card
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType('UPI')}
+                      className={`px-3 py-2 rounded-lg border-2 font-semibold text-sm transition-all ${
+                        paymentType === 'UPI'
+                          ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'
+                      }`}
+                    >
+                      📱 UPI
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+          {/* Category Filter */}
+          <div className="bg-white rounded-lg shadow p-3">
+            <div className="flex flex-wrap gap-2">
+              {categories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    selectedCategory === category
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Menu Items Grid */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h2 className="text-lg font-semibold mb-3">Menu Items</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {filteredItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => handleItemClick(item)}
+                  disabled={!item.is_available}
+                  className="border-2 rounded-lg p-3 hover:shadow-md transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed hover:border-blue-400"
+                >
+                  <h4 className="font-semibold text-sm text-gray-900 mb-1">{item.name}</h4>
+                  <p className="text-green-600 font-bold text-lg">${item.price.toFixed(2)}</p>
+                  {!item.is_available && (
+                    <span className="text-xs text-red-600">Out of Stock</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Billing Panel - 4 columns */}
+        <div className="lg:col-span-4">
+          <div className="bg-white rounded-lg shadow-2xl sticky top-4">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-t-lg">
+              <h2 className="text-xl font-bold text-center">BILL</h2>
+              <div className="text-center text-sm mt-1">
+                {orderType === 'Dine In' && selectedTable && (
+                  <div className="bg-white bg-opacity-20 rounded px-3 py-1 inline-block mt-2">
+                    <span className="font-bold">Table: {selectedTable}</span>
+                  </div>
+                )}
+                {orderType === 'Take Away' && (
+                  <div className="bg-green-500 rounded px-3 py-1 inline-block mt-2">
+                    <span className="font-bold">🥡 TAKE AWAY</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bill Content */}
+            <div className="p-4">
+              {/* Order Type & Payment Buttons */}
+              <div className="mb-4 pb-4 border-b-2 border-dashed">
+                <label className="block text-xs font-semibold text-gray-600 mb-2">ORDER TYPE</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrderType('Dine In');
+                      if (!selectedTable) {
+                        setSelectedTable(null);
+                      }
+                    }}
+                    className={`px-3 py-2 rounded font-bold text-sm ${
+                      orderType === 'Dine In'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    🍽️ Dine In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrderType('Take Away');
+                      setSelectedTable('TAKEAWAY');
+                    }}
+                    className={`px-3 py-2 rounded font-bold text-sm ${
+                      orderType === 'Take Away'
+                        ? 'bg-green-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    🥡 Take Away
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-4 pb-4 border-b-2 border-dashed">
+                <label className="block text-xs font-semibold text-gray-600 mb-2">PAYMENT</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('Cash')}
+                    className={`px-2 py-2 rounded text-xs font-bold ${
+                      paymentType === 'Cash'
+                        ? 'bg-green-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    💵 Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('Card')}
+                    className={`px-2 py-2 rounded text-xs font-bold ${
+                      paymentType === 'Card'
+                        ? 'bg-purple-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    💳 Card
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('UPI')}
+                    className={`px-2 py-2 rounded text-xs font-bold ${
+                      paymentType === 'UPI'
+                        ? 'bg-orange-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    📱 UPI
+                  </button>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-bold text-sm text-gray-700">ITEMS</h3>
+                  {cart.length > 0 && (
+                    <button
+                      onClick={() => setCart([])}
+                      className="text-red-600 text-xs font-semibold hover:text-red-800"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                
+                {cart.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <FaShoppingCart className="mx-auto text-4xl mb-2" />
+                    <p className="text-sm">No items added yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {cart.map((item, index) => (
+                      <div key={item.key} className="border-b pb-2">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">{item.name}</p>
+                            {item.variant_name && (
+                              <p className="text-xs text-blue-600">• {item.variant_name}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(index)}
+                            className="text-red-500 hover:text-red-700 ml-2"
+                          >
+                            <FaTrash size={12} />
+                          </button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => updateQuantity(index, -1)}
+                              className="bg-gray-200 hover:bg-gray-300 rounded px-2 py-1"
+                            >
+                              <FaMinus size={10} />
+                            </button>
+                            <span className="font-bold text-sm w-8 text-center">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(index, 1)}
+                              className="bg-gray-200 hover:bg-gray-300 rounded px-2 py-1"
+                            >
+                              <FaPlus size={10} />
+                            </button>
+                            <span className="text-xs text-gray-600">
+                              × ${(item.price + item.variant_price_adjustment).toFixed(2)}
+                            </span>
+                          </div>
+                          <span className="font-bold text-green-600">
+                            ${((item.price + item.variant_price_adjustment) * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Totals */}
+              {cart.length > 0 && (
+                <div className="border-t-2 border-dashed pt-4 mt-4">
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Subtotal:</span>
+                      <span className="font-semibold">${calculateTotal().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold border-t-2 pt-2">
+                      <span>TOTAL:</span>
+                      <span className="text-green-600">${calculateTotal().toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Customer Info Inputs */}
+                  <div className="space-y-2 mb-4">
+                    <input
+                      type="text"
+                      placeholder="Customer Name"
+                      value={customerInfo.customer_name}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, customer_name: e.target.value })}
+                      className="w-full px-3 py-2 border rounded text-sm"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone Number"
+                      value={customerInfo.customer_phone}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, customer_phone: e.target.value })}
+                      className="w-full px-3 py-2 border rounded text-sm"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={submitOrder}
+                    disabled={orderType === 'Dine In' && !selectedTable}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-lg font-bold text-lg hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 shadow-lg"
+                  >
+                    <FaPaperPlane className="inline mr-2" />
+                    Submit Order
+                  </button>
+                  {orderType === 'Dine In' && !selectedTable && (
+                    <p className="text-xs text-red-600 mt-2 text-center">Please select a table first</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Variant Selection Modal */}
+      {showVariantModal && selectedMenuItem && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl lg:static lg:mt-6 lg:rounded-lg lg:shadow lg:border-0">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <FaShoppingCart className="mr-2 text-blue-600" />
+                Cart ({cart.length} items)
+              </h2>
+              <button
+                onClick={() => setCart([])}
+                className="text-red-600 hover:text-red-800 text-sm flex items-center"
+              >
+                <FaTrash className="mr-1" />
+                Clear Cart
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
+              {cart.map(item => (
+                <div key={item.key} className="flex items-center justify-between border-b pb-3">
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium">
+                        {item.name}
+                        {item.variant_name && (
+                          <span className="text-sm text-blue-600 ml-2">({item.variant_name})</span>
+                        )}
+                      </h4>
+                      <span className="text-green-600 font-semibold">
+                        ${(item.price + item.variant_price_adjustment).toFixed(2)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-4 mt-2">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => updateQuantity(item.key, item.quantity - 1)}
+                          className="bg-gray-200 text-gray-700 w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-300"
+                        >
+                          <FaMinus size={12} />
+                        </button>
+                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.key, item.quantity + 1)}
+                          className="bg-gray-200 text-gray-700 w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-300"
+                        >
+                          <FaPlus size={12} />
+                        </button>
+                      </div>
+                      
+                      <input
+                        type="text"
+                        placeholder="Special instructions..."
+                        value={item.special_instructions}
+                        onChange={(e) => updateSpecialInstructions(item.key, e.target.value)}
+                        className="flex-1 px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500"
+                      />
+                      
+                      <button
+                        onClick={() => removeFromCart(item.key)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex justify-between items-center pt-4 border-t-2">
+              <div className="text-xl font-bold text-gray-900">
+                Total: ${calculateTotal().toFixed(2)}
+              </div>
+              <button
+                onClick={submitOrder}
+                disabled={!selectedTable}
+                className="bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
+              >
+                <FaPaperPlane className="mr-2" />
+                Submit Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Variant Selection Modal */}
+      {showVariantModal && selectedMenuItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4">{selectedMenuItem.name}</h2>
+            <p className="text-gray-600 mb-4">Select a variant:</p>
+            
+            <div className="space-y-3">
+              {/* No variant option */}
+              <button
+                onClick={() => addToCart(selectedMenuItem, null)}
+                className="w-full p-4 border-2 rounded-lg text-left hover:border-blue-500 hover:bg-blue-50 transition-colors"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Regular (No variant)</span>
+                  <span className="text-green-600 font-semibold">${selectedMenuItem.price.toFixed(2)}</span>
+                </div>
+              </button>
+              
+              {/* Variant options */}
+              {selectedMenuItem.variants.map(variant => {
+                const finalPrice = selectedMenuItem.price + variant.price_adjustment;
+                return (
+                  <button
+                    key={variant.id}
+                    onClick={() => addToCart(selectedMenuItem, variant)}
+                    className="w-full p-4 border-2 rounded-lg text-left hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="font-medium">{variant.name}</div>
+                        {variant.price_adjustment !== 0 && (
+                          <div className="text-sm text-gray-600">
+                            {variant.price_adjustment > 0 ? '+' : ''}${variant.price_adjustment.toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-green-600 font-semibold">${finalPrice.toFixed(2)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowVariantModal(false);
+                setSelectedMenuItem(null);
+              }}
+              className="w-full mt-4 px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default OrderTaking;

@@ -1,0 +1,10 @@
+id,username,email,role,first_name,last_name,is_active,shop_id
+19,admin,admin@restaurant.com,admin,Admin,User,1,
+17,admin_shop2,shop@gmail.com,admin,shop1,Admin,1,2
+18,admin_shop3,rteygfghdfgh@fdgcgfhgncbvbn,admin,nafeel,Admin,1,3
+30,admin_shop4,mna@gmai.com,admin,nafeel,Admin,1,4
+2,cashier,cashier@restaurant.com,cashier,Cashier,User,1,
+26,sdvsdf,msn@gmail.com,cashier,dsffgferg,dgfsd,1,
+3,chef,chef@restaurant.com,chef,Chef,User,1,
+25,shop1man,nam@gmail.com,manager,dfgfd,dfd,1,
+4,owner,owner@restaurant.com,owner,Business,Owner,1,

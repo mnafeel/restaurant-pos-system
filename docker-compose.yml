@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Main API Server
+  api:
+    build: .
+    container_name: restaurant-pos-api
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./data:/app/data
+      - ./restaurant.db:/app/restaurant.db
+      - ./uploads:/app/uploads
+    environment:
+      - PORT=5002
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    command: node server.js
+    restart: unless-stopped
+    networks:
+      - pos-network
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5002/api/settings" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Print Service
+  print-service:
+    build: .
+    container_name: restaurant-pos-print
+    ports:
+      - "5003:5003"
+    environment:
+      - PRINT_PORT=5003
+      - NODE_ENV=production
+      - PRINT_SERVICE_TOKEN=${PRINT_SERVICE_TOKEN:-print-service-secret-token}
+    command: node print-service.js
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - pos-network
+    # For USB printer access (uncomment if using USB)
+    # devices:
+    #   - /dev/usb/lp0:/dev/usb/lp0
+    # privileged: true
+
+    # Frontend Web App
+  web:
+    build: ./client
+    container_name: restaurant-pos-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+      - print-service
+    restart: unless-stopped
+    networks:
+      - pos-network
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Kitchen Display System (KDS) - Separate instance
+  kds:
+    build: ./client
+    container_name: restaurant-pos-kds
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - pos-network
+    environment:
+      - KDS_MODE=true
+
+networks:
+  pos-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  uploads:
+    driver: local
