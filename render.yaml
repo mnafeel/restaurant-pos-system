@@ -1,0 +1,21 @@
+services:
+  # Backend API Service
+  - type: web
+    name: restaurant-pos-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/debug/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5002
+      - key: JWT_SECRET
+        generateValue: true
+      # Uncomment and add your MongoDB URI if using MongoDB
+      # - key: MONGODB_URI
+      #   value: mongodb+srv://username:password@cluster.mongodb.net/
+    autoDeploy: true
+
