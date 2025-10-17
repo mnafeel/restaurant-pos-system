@@ -540,6 +540,23 @@ db.serialize(() => {
     }
   });
 
+  // Migrate shops table - add missing columns
+  db.all("PRAGMA table_info(shops)", (err, columns) => {
+    if (!err && columns) {
+      const hasAdminUsername = columns.some(col => col.name === 'admin_username');
+      const hasAdminPassword = columns.some(col => col.name === 'admin_password');
+      
+      if (!hasAdminUsername) {
+        console.log('Adding admin_username column to shops table...');
+        db.run("ALTER TABLE shops ADD COLUMN admin_username TEXT");
+      }
+      if (!hasAdminPassword) {
+        console.log('Adding admin_password column to shops table...');
+        db.run("ALTER TABLE shops ADD COLUMN admin_password TEXT");
+      }
+    }
+  });
+
   // Create default owner account if no users exist
   db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
     if (err) {
