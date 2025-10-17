@@ -567,10 +567,15 @@ db.serialize(() => {
   db.all("PRAGMA table_info(menu_items)", (err, columns) => {
     if (!err && columns) {
       const hasTaxApplicable = columns.some(col => col.name === 'tax_applicable');
+      const hasShopId = columns.some(col => col.name === 'shop_id');
       
       if (!hasTaxApplicable) {
         console.log('Adding tax_applicable column to menu_items table...');
         db.run("ALTER TABLE menu_items ADD COLUMN tax_applicable BOOLEAN DEFAULT 1");
+      }
+      if (!hasShopId) {
+        console.log('Adding shop_id column to menu_items table...');
+        db.run("ALTER TABLE menu_items ADD COLUMN shop_id INTEGER");
       }
     }
   });
@@ -598,6 +603,18 @@ db.serialize(() => {
       if (!hasNotes) {
         console.log('Adding notes column to order_items table...');
         db.run("ALTER TABLE order_items ADD COLUMN notes TEXT");
+      }
+    }
+  });
+
+  // Migrate tables table - add missing columns
+  db.all("PRAGMA table_info(tables)", (err, columns) => {
+    if (!err && columns) {
+      const hasShopId = columns.some(col => col.name === 'shop_id');
+      
+      if (!hasShopId) {
+        console.log('Adding shop_id column to tables table...');
+        db.run("ALTER TABLE tables ADD COLUMN shop_id INTEGER");
       }
     }
   });
