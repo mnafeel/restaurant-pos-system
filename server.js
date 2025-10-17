@@ -3349,9 +3349,22 @@ app.get('/api/reports/export/sales', authenticateToken, authorize(['manager', 'a
   });
 });
 
-// Serve React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+// Serve React app (only in development, not on Render)
+// On Render, frontend is deployed separately as Static Site
+if (process.env.NODE_ENV !== 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  });
+}
+
+// Health check endpoint for production
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Restaurant POS Backend API',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: getCurrentISTTime().format('DD/MM/YYYY hh:mm A')
+  });
 });
 
 server.listen(PORT, () => {
