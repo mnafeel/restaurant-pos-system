@@ -1,8 +1,8 @@
 {
-  "version": 2,
-  "buildCommand": "cd client && npm install && npm run build",
-  "outputDirectory": "client/build",
-  "devCommand": "cd client && npm start",
-  "installCommand": "cd client && npm install"
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  }
 }
 
