@@ -39,9 +39,41 @@ app.set('trust proxy', 1);
 app.use(helmet({
   contentSecurityPolicy: false,
 }));
+// CORS configuration - allow Vercel and Render domains
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://restaurant-pos-frontend.onrender.com',
+  'https://restaurant-pos-system.vercel.app',
+  'https://restaurant-pos-system-mnafeel.vercel.app',
+  /\.vercel\.app$/,  // Any Vercel domain
+  /\.onrender\.com$/ // Any Render domain
+];
+
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Allow anyway for now (can restrict later)
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Rate limiting
