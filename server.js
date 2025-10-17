@@ -723,6 +723,27 @@ app.post('/api/debug/create-accounts', (req, res) => {
   });
 });
 
+// Delete all non-owner users (for clean setup)
+app.post('/api/debug/delete-non-owners', (req, res) => {
+  const { secret } = req.body;
+  
+  if (secret !== 'create-accounts-now-2024') {
+    return res.status(403).json({ error: 'Invalid secret' });
+  }
+  
+  db.run('DELETE FROM users WHERE role != ?', ['owner'], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    res.json({ 
+      success: true,
+      message: `Deleted ${this.changes} non-owner users`,
+      deleted_count: this.changes
+    });
+  });
+});
+
 // Get system version (no auth required)
 app.get('/api/version', (req, res) => {
   const version = require('./version.json');
