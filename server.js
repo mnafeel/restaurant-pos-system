@@ -477,6 +477,28 @@ db.serialize(() => {
     ('auto_print_bill', 'false'),
     ('default_payment_method', 'cash')`);
 
+  // Database migrations - add missing columns if they don't exist
+  db.all("PRAGMA table_info(orders)", (err, columns) => {
+    if (!err && columns) {
+      const hasPaymentStatus = columns.some(col => col.name === 'payment_status');
+      const hasPaymentMethod = columns.some(col => col.name === 'payment_method');
+      const hasOrderType = columns.some(col => col.name === 'order_type');
+      
+      if (!hasPaymentStatus) {
+        console.log('Adding payment_status column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN payment_status TEXT DEFAULT 'pending'");
+      }
+      if (!hasPaymentMethod) {
+        console.log('Adding payment_method column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'cash'");
+      }
+      if (!hasOrderType) {
+        console.log('Adding order_type column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT 'dine_in'");
+      }
+    }
+  });
+
   // Create default owner account if no users exist
   db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
     if (err) {
