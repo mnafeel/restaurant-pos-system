@@ -499,6 +499,28 @@ db.serialize(() => {
     }
   });
 
+  // Migrate users table - add missing columns
+  db.all("PRAGMA table_info(users)", (err, columns) => {
+    if (!err && columns) {
+      const hasCompanyName = columns.some(col => col.name === 'company_name');
+      const hasAvatarUrl = columns.some(col => col.name === 'avatar_url');
+      const hasShopId = columns.some(col => col.name === 'shop_id');
+      
+      if (!hasCompanyName) {
+        console.log('Adding company_name column to users table...');
+        db.run("ALTER TABLE users ADD COLUMN company_name TEXT");
+      }
+      if (!hasAvatarUrl) {
+        console.log('Adding avatar_url column to users table...');
+        db.run("ALTER TABLE users ADD COLUMN avatar_url TEXT");
+      }
+      if (!hasShopId) {
+        console.log('Adding shop_id column to users table...');
+        db.run("ALTER TABLE users ADD COLUMN shop_id INTEGER");
+      }
+    }
+  });
+
   // Create default owner account if no users exist
   db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
     if (err) {
