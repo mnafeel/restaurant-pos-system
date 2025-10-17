@@ -43,7 +43,7 @@ const OrderTaking = () => {
   });
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5002');
+    const newSocket = io('https://restaurant-pos-system-1-7h0m.onrender.com');
     newSocket.emit('join-orders');
 
     newSocket.on('table-status-updated', () => {
@@ -757,7 +757,7 @@ const OrderTaking = () => {
                     <div className="aspect-square bg-gray-100 relative">
                       {item.image_url ? (
                         <img 
-                          src={`http://localhost:5002${item.image_url}`}
+                          src={`https://restaurant-pos-system-1-7h0m.onrender.com${item.image_url}`}
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />

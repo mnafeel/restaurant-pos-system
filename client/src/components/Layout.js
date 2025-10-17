@@ -191,7 +191,7 @@ const Layout = () => {
                 <div className="flex-shrink-0">
                   {user?.avatar_url ? (
                     <img
-                      src={`http://localhost:5002${user.avatar_url}`}
+                      src={`https://restaurant-pos-system-1-7h0m.onrender.com${user.avatar_url}`}
                       alt="Avatar"
                       className="h-8 w-8 rounded-full object-cover border-2 border-blue-200"
                     />

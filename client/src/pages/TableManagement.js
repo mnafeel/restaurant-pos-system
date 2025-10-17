@@ -18,7 +18,7 @@ const TableManagement = () => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5002');
+    const newSocket = io('https://restaurant-pos-system-1-7h0m.onrender.com');
     setSocket(newSocket);
 
     newSocket.on('table-status-updated', (data) => {

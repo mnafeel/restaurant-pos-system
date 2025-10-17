@@ -3,7 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiPlus, FiEdit, FiTrash, FiX, FiCheckCircle, FiAlertCircle, FiPackage, FiFilter, FiFolder } from 'react-icons/fi';
 
-const API_BASE_URL = 'http://localhost:5002';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://restaurant-pos-system-1-7h0m.onrender.com';
 
 const MenuManager = () => {
   const [menuItems, setMenuItems] = useState([]);

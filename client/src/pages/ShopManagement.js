@@ -237,7 +237,7 @@ const ShopManagement = () => {
                   {shop.logo_url ? (
                     <div className="relative">
                       <img
-                        src={`http://localhost:5002${shop.logo_url}`}
+                        src={`https://restaurant-pos-system-1-7h0m.onrender.com${shop.logo_url}`}
                         alt={shop.name}
                         className="h-12 w-12 rounded-full object-cover border-2 border-gray-300 mr-3"
                       />

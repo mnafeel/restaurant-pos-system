@@ -513,7 +513,7 @@ const OwnerPortal = () => {
               <div className="relative">
                 {user?.avatar_url ? (
                   <img
-                    src={`http://localhost:5002${user.avatar_url}`}
+                    src={`https://restaurant-pos-system-1-7h0m.onrender.com${user.avatar_url}`}
                     alt="Company Logo"
                     className="w-20 h-20 rounded-2xl object-cover border-4 border-white/30 shadow-xl"
                     onError={(e) => {
@@ -786,7 +786,7 @@ const OwnerPortal = () => {
                     <div className="flex-shrink-0">
                       {shop.logo_url ? (
                         <img
-                          src={`http://localhost:5002${shop.logo_url}`}
+                          src={`https://restaurant-pos-system-1-7h0m.onrender.com${shop.logo_url}`}
                           alt={shop.name}
                           className="w-16 h-16 rounded-xl object-cover border-2 border-gray-200"
                         />
@@ -1532,7 +1532,7 @@ const OwnerPortal = () => {
                   <div className="relative">
                     {previewLogo ? (
                       <img
-                        src={previewLogo.startsWith('blob:') || previewLogo.startsWith('data:') ? previewLogo : `http://localhost:5002${previewLogo}`}
+                        src={previewLogo.startsWith('blob:') || previewLogo.startsWith('data:') ? previewLogo : `https://restaurant-pos-system-1-7h0m.onrender.com${previewLogo}`}
                         alt="Company Logo"
                         className="w-24 h-24 rounded-full object-cover border-4 border-purple-200"
                       />
@@ -1621,7 +1621,7 @@ const OwnerPortal = () => {
                   <div className="relative">
                     {editShopLogoPreview ? (
                       <img
-                        src={editShopLogoPreview.startsWith('blob:') || editShopLogoPreview.startsWith('data:') ? editShopLogoPreview : `http://localhost:5002${editShopLogoPreview}`}
+                        src={editShopLogoPreview.startsWith('blob:') || editShopLogoPreview.startsWith('data:') ? editShopLogoPreview : `https://restaurant-pos-system-1-7h0m.onrender.com${editShopLogoPreview}`}
                         alt="Shop Logo"
                         className="w-20 h-20 rounded-xl object-cover border-2 border-blue-200"
                       />
@@ -1781,7 +1781,7 @@ const OwnerPortal = () => {
                         <div className="aspect-square bg-gray-100 relative">
                           {item.image_url ? (
                             <img 
-                              src={`http://localhost:5002${item.image_url}`}
+                              src={`https://restaurant-pos-system-1-7h0m.onrender.com${item.image_url}`}
                               alt={item.name}
                               className="w-full h-full object-cover"
                             />
