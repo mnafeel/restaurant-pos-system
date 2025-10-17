@@ -57,6 +57,7 @@ node server.js
 ```
 
 **Output:**
+
 ```
 Server running on port 5002
 Database initialized
@@ -72,6 +73,7 @@ npm start
 ```
 
 **Output:**
+
 ```
 Compiled successfully!
 Local:   http://localhost:3000
@@ -100,16 +102,16 @@ git push -u origin main
 
 When creating **Web Service** on Render:
 
-| Setting | Value |
-|---------|-------|
-| **Name** | `restaurant-pos-backend` |
-| **Region** | `Singapore` |
-| **Branch** | `main` |
-| **Root Directory** | *(leave empty)* |
-| **Environment** | `Node` |
-| **Build Command** | `npm install` |
-| **Start Command** | `node server.js` |
-| **Plan** | `Free` |
+| Setting            | Value                    |
+| ------------------ | ------------------------ |
+| **Name**           | `restaurant-pos-backend` |
+| **Region**         | `Singapore`              |
+| **Branch**         | `main`                   |
+| **Root Directory** | _(leave empty)_          |
+| **Environment**    | `Node`                   |
+| **Build Command**  | `npm install`            |
+| **Start Command**  | `node server.js`         |
+| **Plan**           | `Free`                   |
 
 **Environment Variables:**
 
@@ -130,13 +132,14 @@ After backend is deployed, update `client/src/index.js`:
 
 ```javascript
 // Change this line:
-axios.defaults.baseURL = 'http://localhost:5002';
+axios.defaults.baseURL = "http://localhost:5002";
 
 // To your backend URL:
-axios.defaults.baseURL = 'https://restaurant-pos-backend.onrender.com';
+axios.defaults.baseURL = "https://restaurant-pos-backend.onrender.com";
 ```
 
 **Push to GitHub:**
+
 ```bash
 git add client/src/index.js
 git commit -m "Update API URL for production"
@@ -145,13 +148,13 @@ git push origin main
 
 When creating **Static Site** on Render:
 
-| Setting | Value |
-|---------|-------|
-| **Name** | `restaurant-pos-frontend` |
-| **Branch** | `main` |
-| **Root Directory** | `client` |
-| **Build Command** | `npm install && npm run build` |
-| **Publish Directory** | `build` |
+| Setting               | Value                          |
+| --------------------- | ------------------------------ |
+| **Name**              | `restaurant-pos-frontend`      |
+| **Branch**            | `main`                         |
+| **Root Directory**    | `client`                       |
+| **Build Command**     | `npm install && npm run build` |
+| **Publish Directory** | `build`                        |
 
 **No manual install needed!** Render runs the build command automatically.
 
@@ -170,6 +173,7 @@ npm run build
 ```
 
 **Output:**
+
 ```
 Creating an optimized production build...
 Compiled successfully!
@@ -197,18 +201,18 @@ npx serve -s build -p 3000
 
 ```json
 {
-  "express": "^4.18.2",           // Web framework
-  "sqlite3": "^5.1.6",            // Database
-  "socket.io": "^4.6.1",          // Real-time
-  "bcryptjs": "^2.4.3",           // Password hashing
-  "jsonwebtoken": "^9.0.0",       // JWT auth
-  "cors": "^2.8.5",               // CORS handling
-  "moment-timezone": "^0.5.43",   // Timezone
-  "multer": "^1.4.5-lts.1",       // File upload
-  "helmet": "^7.0.0",             // Security
+  "express": "^4.18.2", // Web framework
+  "sqlite3": "^5.1.6", // Database
+  "socket.io": "^4.6.1", // Real-time
+  "bcryptjs": "^2.4.3", // Password hashing
+  "jsonwebtoken": "^9.0.0", // JWT auth
+  "cors": "^2.8.5", // CORS handling
+  "moment-timezone": "^0.5.43", // Timezone
+  "multer": "^1.4.5-lts.1", // File upload
+  "helmet": "^7.0.0", // Security
   "express-rate-limit": "^6.7.0", // Rate limiting
-  "express-validator": "^7.0.1",  // Validation
-  "uuid": "^9.0.0"                // UUID generation
+  "express-validator": "^7.0.1", // Validation
+  "uuid": "^9.0.0" // UUID generation
 }
 ```
 
@@ -220,25 +224,26 @@ npx serve -s build -p 3000
 
 ```json
 {
-  "react": "^18.2.0",              // React framework
-  "react-dom": "^18.2.0",          // React DOM
-  "react-router-dom": "^6.10.0",   // Routing
-  "axios": "^1.4.0",               // HTTP client
-  "socket.io-client": "^4.6.1",    // Real-time
-  "chart.js": "^4.2.1",            // Charts
-  "react-chartjs-2": "^5.2.0",     // React charts
-  "react-hot-toast": "^2.4.1",     // Notifications
-  "react-icons": "^4.8.0",         // Icons
-  "date-fns": "^2.30.0"            // Date utilities
+  "react": "^18.2.0", // React framework
+  "react-dom": "^18.2.0", // React DOM
+  "react-router-dom": "^6.10.0", // Routing
+  "axios": "^1.4.0", // HTTP client
+  "socket.io-client": "^4.6.1", // Real-time
+  "chart.js": "^4.2.1", // Charts
+  "react-chartjs-2": "^5.2.0", // React charts
+  "react-hot-toast": "^2.4.1", // Notifications
+  "react-icons": "^4.8.0", // Icons
+  "date-fns": "^2.30.0" // Date utilities
 }
 ```
 
 **Plus dev dependencies:**
+
 ```json
 {
-  "tailwindcss": "^3.3.2",         // CSS framework
-  "postcss": "^8.4.24",            // CSS processing
-  "autoprefixer": "^10.4.14"       // CSS prefixing
+  "tailwindcss": "^3.3.2", // CSS framework
+  "postcss": "^8.4.24", // CSS processing
+  "autoprefixer": "^10.4.14" // CSS prefixing
 }
 ```
 
@@ -249,11 +254,13 @@ npx serve -s build -p 3000
 ## ⏱️ **Installation Time:**
 
 ### **First Time Install:**
+
 - Backend: 3-5 minutes (downloads ~50 packages)
 - Frontend: 5-8 minutes (downloads ~1500 packages)
 - **Total: 10-15 minutes**
 
 ### **Subsequent Installs:**
+
 - Much faster (uses cache)
 - Backend: 1-2 minutes
 - Frontend: 2-3 minutes
@@ -368,10 +375,12 @@ npx serve -s build -p 3000
 ### **Deploy on Render (No manual commands needed):**
 
 **Backend:**
+
 - Build Command: `npm install`
 - Start Command: `node server.js`
 
 **Frontend:**
+
 - Build Command: `npm install && npm run build`
 - Publish Directory: `build`
 
@@ -454,11 +463,13 @@ npm run build
 ## 📊 **Package Sizes:**
 
 **Backend node_modules:**
+
 - Size: ~50-80 MB
 - Packages: ~200
 - Install time: 3 minutes
 
 **Frontend node_modules:**
+
 - Size: ~300-400 MB
 - Packages: ~1500
 - Install time: 5 minutes
@@ -470,6 +481,7 @@ npm run build
 ## ✅ **Installation Checklist:**
 
 **Local Development:**
+
 - [ ] Node.js installed (v14+)
 - [ ] npm installed (v6+)
 - [ ] Backend dependencies installed
@@ -479,12 +491,14 @@ npm run build
 - [ ] Can access http://localhost:3000
 
 **Production Build:**
+
 - [ ] Frontend builds successfully
 - [ ] No build errors
 - [ ] Build folder created
 - [ ] Can serve build folder
 
 **Render Deployment:**
+
 - [ ] Code on GitHub
 - [ ] Backend deployed (build successful)
 - [ ] Frontend deployed (build successful)
@@ -498,11 +512,13 @@ npm run build
 ### **Backend (Web Service):**
 
 **Build Command:**
+
 ```
 npm install
 ```
 
 **Start Command:**
+
 ```
 node server.js
 ```
@@ -512,11 +528,13 @@ node server.js
 ### **Frontend (Static Site):**
 
 **Build Command:**
+
 ```
 npm install && npm run build
 ```
 
 **Publish Directory:**
+
 ```
 build
 ```
@@ -551,4 +569,3 @@ No need to run install manually - Render does it automatically! ✨
 
 **Restaurant POS Pro v1.0.0**  
 **All Install Commands Ready!** 🎉
-

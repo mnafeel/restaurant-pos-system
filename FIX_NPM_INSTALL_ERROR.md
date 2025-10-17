@@ -7,7 +7,7 @@
 ## ❌ **Error Message:**
 
 ```
-Failed to solve: process "/bin/sh -c npm install --production" 
+Failed to solve: process "/bin/sh -c npm install --production"
 did not complete successfully: exit code: 1
 ```
 
@@ -18,6 +18,7 @@ did not complete successfully: exit code: 1
 The build failed when trying to install your dependencies.
 
 **Common Causes:**
+
 1. Missing or corrupted `package.json`
 2. Network issues
 3. Incompatible package versions
@@ -37,16 +38,19 @@ The `--production` flag skips dev dependencies, which might be needed!
 ### **Fix:**
 
 **Change Build Command from:**
+
 ```
 npm install --production
 ```
 
 **To:**
+
 ```
 npm install
 ```
 
 **Why?**
+
 - Removes the `--production` flag
 - Installs ALL dependencies (including dev)
 - Works better for build process
@@ -58,12 +62,15 @@ npm install
 ### **For BACKEND (Web Service):**
 
 **Build Command:**
+
 ```
 npm install
 ```
+
 **NOT:** `npm install --production`
 
 **Start Command:**
+
 ```
 node server.js
 ```
@@ -73,12 +80,15 @@ node server.js
 ### **For FRONTEND (Static Site):**
 
 **Build Command:**
+
 ```
 npm install && npm run build
 ```
+
 **NOT:** `npm install --production`
 
 **Publish Directory:**
+
 ```
 build
 ```
@@ -92,6 +102,7 @@ Make sure your `package.json` files are correct:
 ### **Backend package.json** (root folder):
 
 Must have:
+
 ```json
 {
   "name": "restaurant-billing-system",
@@ -112,6 +123,7 @@ Must have:
 ### **Frontend package.json** (client folder):
 
 Must have:
+
 ```json
 {
   "name": "client",
@@ -138,6 +150,7 @@ Some packages require specific Node.js versions.
 ### **Add engines to package.json:**
 
 **Backend package.json**, add:
+
 ```json
 {
   "name": "restaurant-billing-system",
@@ -153,6 +166,7 @@ Some packages require specific Node.js versions.
 ```
 
 **On Render:**
+
 - Will use Node 14 or higher
 - Should fix version issues
 
@@ -169,18 +183,22 @@ Some packages require specific Node.js versions.
 **Common errors in logs:**
 
 **Error: "Cannot find module 'xxx'"**
+
 - Missing dependency
 - Add to package.json
 
 **Error: "ENOTFOUND" or "Network error"**
+
 - Network issue during install
 - Click "Manual Deploy" to retry
 
 **Error: "Python not found"**
+
 - Some packages need Python (like sqlite3)
 - Render usually has Python installed
 
 **Error: "node-gyp rebuild failed"**
+
 - Native module compilation issue
 - Usually with sqlite3
 - Should work on Render automatically
@@ -227,16 +245,17 @@ git push origin main
 
 ### **BACKEND (Web Service):**
 
-| Field | Value |
-|-------|-------|
-| **Name** | `restaurant-pos-backend` |
-| **Environment** | `Node` |
-| **Root Directory** | *(leave empty)* |
-| **Build Command** | `npm install` |
-| **Start Command** | `node server.js` |
-| **Plan** | `Free` |
+| Field              | Value                    |
+| ------------------ | ------------------------ |
+| **Name**           | `restaurant-pos-backend` |
+| **Environment**    | `Node`                   |
+| **Root Directory** | _(leave empty)_          |
+| **Build Command**  | `npm install`            |
+| **Start Command**  | `node server.js`         |
+| **Plan**           | `Free`                   |
 
 **Environment Variables:**
+
 ```
 JWT_SECRET = your-random-secret-key-123456
 PORT = 5002
@@ -250,12 +269,12 @@ NODE_ENV = production
 
 ### **FRONTEND (Static Site):**
 
-| Field | Value |
-|-------|-------|
-| **Name** | `restaurant-pos-frontend` |
-| **Root Directory** | `client` |
-| **Build Command** | `npm install && npm run build` |
-| **Publish Directory** | `build` |
+| Field                 | Value                          |
+| --------------------- | ------------------------------ |
+| **Name**              | `restaurant-pos-frontend`      |
+| **Root Directory**    | `client`                       |
+| **Build Command**     | `npm install && npm run build` |
+| **Publish Directory** | `build`                        |
 
 **NO --production flag!**
 
@@ -266,21 +285,25 @@ NODE_ENV = production
 ### **Check These:**
 
 **1. Node Version:**
+
 - Render uses Node 14+ by default
 - Your code works with Node 14+
 - Should be fine ✓
 
 **2. Python (for sqlite3):**
+
 - Render has Python pre-installed
 - sqlite3 needs it to compile
 - Should work automatically ✓
 
 **3. Build Logs:**
+
 - Read the complete error message
 - Look for specific package causing issue
 - Google the specific error
 
 **4. Package Versions:**
+
 - All your packages are compatible
 - Should install fine ✓
 
@@ -289,11 +312,13 @@ NODE_ENV = production
 ## 💡 **Most Common Fix:**
 
 **Change build command from:**
+
 ```
 npm install --production
 ```
 
 **To:**
+
 ```
 npm install
 ```
@@ -305,16 +330,19 @@ npm install
 ## 🎯 **Platform-Specific Notes:**
 
 ### **On Render.com (Recommended):**
+
 - Use: `npm install`
 - Don't use: `--production` flag
 - Works perfectly!
 
 ### **On Vercel (Not Recommended):**
+
 - Wrong platform for your POS
 - Will have multiple issues
 - Use Render instead!
 
 ### **On Railway.app (Alternative):**
+
 - Use: `npm install`
 - Works similar to Render
 - Also a good option
@@ -326,20 +354,24 @@ npm install
 **If deploying on Render:**
 
 1. **Check Build Command:**
+
    - Should be: `npm install`
    - NOT: `npm install --production`
 
 2. **Check Root Directory:**
-   - Backend: *(empty)*
+
+   - Backend: _(empty)_
    - Frontend: `client`
 
 3. **Check Environment Variables:**
+
    - JWT_SECRET ✓
    - PORT = 5002 ✓
    - TZ = Asia/Kolkata ✓
    - NODE_ENV = production ✓
 
 4. **Try Manual Deploy:**
+
    - Clear build cache
    - Deploy again
 
@@ -352,11 +384,13 @@ npm install
 ## 📞 **Need More Help?**
 
 **Share the complete error from logs:**
+
 - What package failed?
 - What's the exact error message?
 - Full build log output
 
 **Common packages that might fail:**
+
 - `sqlite3` - Needs Python (Render has it)
 - `bcrypt` - Needs compilation (Render handles it)
 - `sharp` - Image processing (not used in your POS)
@@ -379,6 +413,7 @@ npm install
 **Remove the `--production` flag from build command!**
 
 **Use:**
+
 - Backend: `npm install`
 - Frontend: `npm install && npm run build`
 
@@ -390,4 +425,3 @@ npm install
 
 **Restaurant POS Pro v1.0.0**  
 **Build Error Fix Guide** ✨
-

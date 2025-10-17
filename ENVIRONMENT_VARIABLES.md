@@ -10,12 +10,12 @@
 
 You need **4 environment variables**:
 
-| Key | Value | Required |
-|-----|-------|----------|
-| `JWT_SECRET` | `your-random-secret-key-here` | ✅ YES |
-| `PORT` | `5002` | ✅ YES |
-| `TZ` | `Asia/Kolkata` | ✅ YES |
-| `NODE_ENV` | `production` | ✅ YES |
+| Key          | Value                         | Required |
+| ------------ | ----------------------------- | -------- |
+| `JWT_SECRET` | `your-random-secret-key-here` | ✅ YES   |
+| `PORT`       | `5002`                        | ✅ YES   |
+| `TZ`         | `Asia/Kolkata`                | ✅ YES   |
+| `NODE_ENV`   | `production`                  | ✅ YES   |
 
 ### **For FRONTEND on Render:**
 
@@ -32,6 +32,7 @@ The frontend gets the backend URL from the code (not environment variable).
 **What:** Secret key for JWT authentication
 
 **Purpose:**
+
 - Encrypts login tokens
 - Keeps users logged in securely
 - Signs and verifies JWTs
@@ -39,6 +40,7 @@ The frontend gets the backend URL from the code (not environment variable).
 **Value:** Any random string (32+ characters recommended)
 
 **Examples:**
+
 ```
 JWT_SECRET = my-super-secret-restaurant-pos-key-2024
 JWT_SECRET = kJ8n3Lm9Pq2Rt5Vw8Xy1Az4Bc7De0Fg3Hj6K
@@ -46,12 +48,14 @@ JWT_SECRET = change-this-to-something-random-and-long
 ```
 
 **⚠️ IMPORTANT:**
+
 - Must be secret (don't share!)
 - Change from default
 - Use random characters
 - Different for each deployment
 
 **How to generate random secret:**
+
 ```bash
 # On Mac/Linux
 openssl rand -base64 32
@@ -64,17 +68,20 @@ openssl rand -base64 32
 **What:** Port number for backend server
 
 **Purpose:**
+
 - Where your backend listens
 - Render uses this port
 
 **Value:** `5002`
 
 **Why 5002?**
+
 - Your code uses port 5002
 - Render expects this port
 - Don't change it!
 
 **In your code (server.js):**
+
 ```javascript
 const PORT = process.env.PORT || 5002;
 ```
@@ -86,6 +93,7 @@ const PORT = process.env.PORT || 5002;
 **What:** Timezone for the server
 
 **Purpose:**
+
 - Sets server timezone to Indian Standard Time
 - All timestamps use IST
 - Dates in DD/MM/YYYY format
@@ -93,11 +101,13 @@ const PORT = process.env.PORT || 5002;
 **Value:** `Asia/Kolkata`
 
 **Why Asia/Kolkata?**
+
 - India's timezone
 - IST = UTC +5:30
 - Your bills show correct Indian time
 
 **Alternatives (if needed):**
+
 - `Asia/Kolkata` - India (IST) ✅
 - `America/New_York` - US Eastern
 - `Europe/London` - UK
@@ -111,6 +121,7 @@ const PORT = process.env.PORT || 5002;
 **What:** Environment mode
 
 **Purpose:**
+
 - Tells Node.js this is production
 - Optimizes performance
 - Disables debug features
@@ -118,11 +129,13 @@ const PORT = process.env.PORT || 5002;
 **Value:** `production`
 
 **Options:**
+
 - `production` - For live deployment ✅
 - `development` - For local testing
 - `test` - For automated tests
 
 **Why production?**
+
 - Faster performance
 - Better error handling
 - Security optimizations
@@ -139,6 +152,7 @@ const PORT = process.env.PORT || 5002;
 2. **Click "Add Environment Variable"**
 
 3. **Add Variable 1:**
+
    - Key: `JWT_SECRET`
    - Value: `your-random-secret-key-here`
    - Click outside or press Tab
@@ -146,18 +160,21 @@ const PORT = process.env.PORT || 5002;
 4. **Click "Add Environment Variable"** again
 
 5. **Add Variable 2:**
+
    - Key: `PORT`
    - Value: `5002`
 
 6. **Click "Add Environment Variable"** again
 
 7. **Add Variable 3:**
+
    - Key: `TZ`
    - Value: `Asia/Kolkata`
 
 8. **Click "Add Environment Variable"** again
 
 9. **Add Variable 4:**
+
    - Key: `NODE_ENV`
    - Value: `production`
 
@@ -192,24 +209,28 @@ const PORT = process.env.PORT || 5002;
 ## ✅ **COPY-PASTE READY:**
 
 ### **Environment Variable 1:**
+
 ```
 Key:   JWT_SECRET
 Value: change-this-to-random-secret-key-123456
 ```
 
 ### **Environment Variable 2:**
+
 ```
 Key:   PORT
 Value: 5002
 ```
 
 ### **Environment Variable 3:**
+
 ```
 Key:   TZ
 Value: Asia/Kolkata
 ```
 
 ### **Environment Variable 4:**
+
 ```
 Key:   NODE_ENV
 Value: production
@@ -222,6 +243,7 @@ Value: production
 ### **For JWT_SECRET:**
 
 **❌ BAD (Don't use):**
+
 ```
 JWT_SECRET = secret
 JWT_SECRET = 123456
@@ -229,6 +251,7 @@ JWT_SECRET = password
 ```
 
 **✅ GOOD (Use these):**
+
 ```
 JWT_SECRET = kJ8n3Lm9Pq2Rt5Vw8Xy1Az4Bc7De0Fg3Hj6K
 JWT_SECRET = restaurant-pos-secure-key-2024-mnafeel
@@ -236,6 +259,7 @@ JWT_SECRET = randomly-generated-long-string-here
 ```
 
 **Generate random secret:**
+
 ```bash
 # On Mac (Terminal)
 openssl rand -base64 32
@@ -251,12 +275,14 @@ openssl rand -base64 32
 ### **Additional (if needed in future):**
 
 **Database URL (if using PostgreSQL):**
+
 ```
 Key:   DATABASE_URL
 Value: postgresql://user:password@host:5432/dbname
 ```
 
 **API Keys (if integrating services):**
+
 ```
 Key:   STRIPE_API_KEY
 Value: sk_live_xxxxxxxxxxxxx
@@ -266,6 +292,7 @@ Value: SG.xxxxxxxxxxxxx
 ```
 
 **File Storage (if using S3/cloud storage):**
+
 ```
 Key:   AWS_ACCESS_KEY_ID
 Value: AKIAxxxxxxxxxxxxx
@@ -301,11 +328,11 @@ Value: my-restaurant-uploads
 **In your backend code (server.js), add:**
 
 ```javascript
-console.log('Environment Check:');
-console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Set ✓' : 'Missing ✗');
-console.log('PORT:', process.env.PORT);
-console.log('TZ:', process.env.TZ);
-console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log("Environment Check:");
+console.log("JWT_SECRET:", process.env.JWT_SECRET ? "Set ✓" : "Missing ✗");
+console.log("PORT:", process.env.PORT);
+console.log("TZ:", process.env.TZ);
+console.log("NODE_ENV:", process.env.NODE_ENV);
 ```
 
 **Check Render logs to verify!**
@@ -315,12 +342,15 @@ console.log('NODE_ENV:', process.env.NODE_ENV);
 ## ⚠️ **Common Mistakes:**
 
 ### **❌ WRONG - Missing JWT_SECRET:**
+
 ```
 (no JWT_SECRET variable)
 ```
+
 **Result:** Authentication fails! Login won't work!
 
 ### **✅ CORRECT:**
+
 ```
 JWT_SECRET = your-secret-key
 ```
@@ -328,12 +358,15 @@ JWT_SECRET = your-secret-key
 ---
 
 ### **❌ WRONG - Wrong PORT:**
+
 ```
 PORT = 3000
 ```
+
 **Result:** Backend won't start! Port mismatch!
 
 ### **✅ CORRECT:**
+
 ```
 PORT = 5002
 ```
@@ -341,12 +374,15 @@ PORT = 5002
 ---
 
 ### **❌ WRONG - Wrong Timezone:**
+
 ```
 TZ = UTC
 ```
+
 **Result:** Wrong time on bills!
 
 ### **✅ CORRECT:**
+
 ```
 TZ = Asia/Kolkata
 ```
@@ -355,30 +391,32 @@ TZ = Asia/Kolkata
 
 ## 📊 **Environment Variables Summary Table:**
 
-| Variable | Value | Purpose | Required |
-|----------|-------|---------|----------|
-| **JWT_SECRET** | Random string 32+ chars | JWT encryption | ✅ YES |
-| **PORT** | `5002` | Server port | ✅ YES |
-| **TZ** | `Asia/Kolkata` | Indian timezone | ✅ YES |
-| **NODE_ENV** | `production` | Production mode | ✅ YES |
+| Variable       | Value                   | Purpose         | Required |
+| -------------- | ----------------------- | --------------- | -------- |
+| **JWT_SECRET** | Random string 32+ chars | JWT encryption  | ✅ YES   |
+| **PORT**       | `5002`                  | Server port     | ✅ YES   |
+| **TZ**         | `Asia/Kolkata`          | Indian timezone | ✅ YES   |
+| **NODE_ENV**   | `production`            | Production mode | ✅ YES   |
 
 ---
 
 ## 💡 **Why Environment Variables?**
 
 **Benefits:**
+
 - ✅ Keep secrets out of code
 - ✅ Different values for dev/prod
 - ✅ Easy to change without code changes
 - ✅ Secure (not in GitHub)
 
 **Example:**
+
 ```javascript
 // In code - uses environment variable
 const secret = process.env.JWT_SECRET;
 
 // NOT hardcoded - bad!
-const secret = 'my-secret-key';
+const secret = "my-secret-key";
 ```
 
 ---
@@ -386,6 +424,7 @@ const secret = 'my-secret-key';
 ## 🎯 **Final Checklist:**
 
 **Before deploying backend on Render:**
+
 - [ ] JWT_SECRET set (random, 32+ characters)
 - [ ] PORT set to 5002
 - [ ] TZ set to Asia/Kolkata
@@ -394,6 +433,7 @@ const secret = 'my-secret-key';
 - [ ] Values checked (no typos)
 
 **For frontend:**
+
 - [ ] No environment variables needed ✅
 
 ---
@@ -409,7 +449,7 @@ TZ = Asia/Kolkata
 NODE_ENV = production
 ```
 
-*(Change JWT_SECRET to your own random value!)*
+_(Change JWT_SECRET to your own random value!)_
 
 ---
 
@@ -424,6 +464,7 @@ NODE_ENV = production
 ## ✅ **Summary:**
 
 **Environment Variables Needed:**
+
 - **Backend:** 4 variables (JWT_SECRET, PORT, TZ, NODE_ENV)
 - **Frontend:** None!
 
@@ -433,4 +474,3 @@ NODE_ENV = production
 
 **Restaurant POS Pro v1.0.0**  
 **Environment Configuration Ready!** ✨
-
