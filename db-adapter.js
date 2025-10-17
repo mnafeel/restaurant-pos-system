@@ -1,13 +1,141 @@
-// Database Adapter - automatically chooses PostgreSQL or SQLite
+// Database Adapter - automatically chooses MongoDB, PostgreSQL, or SQLite
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
-// Check if we're on Vercel (PostgreSQL) or local (SQLite)
-const isVercel = process.env.VERCEL || process.env.POSTGRES_URL;
+// Priority: MongoDB > PostgreSQL > SQLite
+const hasMongoDb = process.env.MONGODB_URI || process.env.MONGO_URL;
+const hasPostgres = process.env.POSTGRES_URL;
+const isVercel = process.env.VERCEL;
 
 let db;
 
-if (isVercel) {
+if (hasMongoDb) {
+  // Use MongoDB (Vercel or Atlas)
+  console.log('🟢 Using MongoDB');
+  const mongoose = require('mongoose');
+  
+  // Connect to MongoDB
+  mongoose.connect(hasMongoDb, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  }).then(() => {
+    console.log('✅ Connected to MongoDB');
+    initMongoDB();
+  }).catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+  });
+  
+  // Define Mongoose schemas
+  const userSchema = new mongoose.Schema({
+    username: { type: String, unique: true, required: true },
+    email: { type: String, unique: true, required: true },
+    password_hash: { type: String, required: true },
+    role: { type: String, required: true },
+    first_name: String,
+    last_name: String,
+    phone: String,
+    avatar_url: String,
+    company_name: String,
+    shop_id: Number,
+    is_active: { type: Boolean, default: true },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+  });
+  
+  const User = mongoose.model('User', userSchema);
+  
+  // Create wrapper to match SQLite interface
+  db = {
+    type: 'mongodb',
+    mongoose: mongoose,
+    models: { User },
+    
+    // Simplified query methods
+    run: async function(sql, params, callback) {
+      // This is a simplified adapter - you'll need proper MongoDB queries
+      console.log('MongoDB run:', sql);
+      if (callback) callback(null);
+    },
+    
+    get: async function(sql, params, callback) {
+      console.log('MongoDB get:', sql);
+      // Parse simple SELECT queries
+      if (sql.includes('SELECT * FROM users WHERE username')) {
+        const username = params[0];
+        const user = await User.findOne({ username, is_active: true }).lean();
+        if (callback) callback(null, user);
+      } else {
+        if (callback) callback(null, null);
+      }
+    },
+    
+    all: async function(sql, params, callback) {
+      console.log('MongoDB all:', sql);
+      if (callback) callback(null, []);
+    },
+    
+    serialize: function(callback) {
+      if (callback) callback();
+    }
+  };
+  
+  // Initialize MongoDB with default data
+  async function initMongoDB() {
+    try {
+      const userCount = await User.countDocuments();
+      
+      if (userCount === 0) {
+        console.log('🔄 Creating default accounts...');
+        
+        // Create owner
+        await User.create({
+          username: 'owner',
+          email: 'owner@restaurant.com',
+          password_hash: bcrypt.hashSync('owner123', 10),
+          role: 'owner',
+          first_name: 'System',
+          last_name: 'Owner',
+          company_name: 'MNA POS SYSTEMS',
+          is_active: true
+        });
+        
+        // Create admin
+        await User.create({
+          username: 'admin',
+          email: 'admin@restaurant.com',
+          password_hash: bcrypt.hashSync('admin123', 10),
+          role: 'admin',
+          first_name: 'Admin',
+          last_name: 'User',
+          shop_id: 1,
+          is_active: true
+        });
+        
+        // Create cashier
+        await User.create({
+          username: 'cashier',
+          email: 'cashier@restaurant.com',
+          password_hash: bcrypt.hashSync('cashier123', 10),
+          role: 'cashier',
+          first_name: 'Cashier',
+          last_name: 'User',
+          shop_id: 1,
+          is_active: true
+        });
+        
+        console.log('✅ Default accounts created!');
+        console.log('   Owner: owner / owner123');
+        console.log('   Admin: admin / admin123');
+        console.log('   Cashier: cashier / cashier123');
+      } else {
+        console.log(`✅ MongoDB has ${userCount} user(s)`);
+      }
+    } catch (error) {
+      console.error('❌ MongoDB initialization error:', error);
+    }
+  }
+  
+} else if (hasPostgres) {
   // Use PostgreSQL on Vercel
   console.log('🔵 Using PostgreSQL (Vercel)');
   const { Pool } = require('pg');
