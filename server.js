@@ -619,6 +619,18 @@ db.serialize(() => {
     }
   });
 
+  // Migrate bills table - add missing columns
+  db.all("PRAGMA table_info(bills)", (err, columns) => {
+    if (!err && columns) {
+      const hasShopId = columns.some(col => col.name === 'shop_id');
+      
+      if (!hasShopId) {
+        console.log('Adding shop_id column to bills table...');
+        db.run("ALTER TABLE bills ADD COLUMN shop_id INTEGER");
+      }
+    }
+  });
+
   // Create default owner account if no users exist
   db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
     if (err) {
