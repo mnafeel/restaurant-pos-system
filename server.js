@@ -586,6 +586,99 @@ app.get('/api/server-time', (req, res) => {
   });
 });
 
+// Debug endpoint - check database status (no auth required)
+app.get('/api/debug/status', (req, res) => {
+  db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
+    if (err) {
+      return res.json({ 
+        status: 'error', 
+        message: err.message,
+        database: 'error'
+      });
+    }
+    
+    db.all('SELECT username, role FROM users', (err, users) => {
+      res.json({
+        status: 'ok',
+        database: 'connected',
+        user_count: result.count,
+        users: users || [],
+        deployment: 'Render',
+        timestamp: new Date().toISOString()
+      });
+    });
+  });
+});
+
+// Force create default accounts (no auth required - temporary for setup)
+app.post('/api/debug/create-accounts', (req, res) => {
+  const { secret } = req.body;
+  
+  // Simple secret key check (replace with your own secret)
+  if (secret !== 'create-accounts-now-2024') {
+    return res.status(403).json({ error: 'Invalid secret' });
+  }
+  
+  db.get('SELECT COUNT(*) as count FROM users WHERE username = ?', ['owner'], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (result.count > 0) {
+      return res.json({ 
+        message: 'Owner account already exists',
+        existing_count: result.count
+      });
+    }
+    
+    // Create owner
+    const ownerPasswordHash = bcrypt.hashSync('owner123', 10);
+    db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, company_name, is_active) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['owner', 'owner@restaurant.com', ownerPasswordHash, 'owner', 'System', 'Owner', 'MNA POS SYSTEMS', 1],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: 'Failed to create owner: ' + err.message });
+        }
+        
+        // Create admin
+        const adminPasswordHash = bcrypt.hashSync('admin123', 10);
+        db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          ['admin', 'admin@restaurant.com', adminPasswordHash, 'admin', 'Admin', 'User', 1, 1],
+          function(err) {
+            if (err) {
+              return res.status(500).json({ error: 'Failed to create admin: ' + err.message });
+            }
+            
+            // Create cashier
+            const cashierPasswordHash = bcrypt.hashSync('cashier123', 10);
+            db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              ['cashier', 'cashier@restaurant.com', cashierPasswordHash, 'cashier', 'Cashier', 'User', 1, 1],
+              function(err) {
+                if (err) {
+                  return res.status(500).json({ error: 'Failed to create cashier: ' + err.message });
+                }
+                
+                res.json({ 
+                  success: true,
+                  message: 'All accounts created successfully!',
+                  accounts: [
+                    { username: 'owner', password: 'owner123', role: 'owner' },
+                    { username: 'admin', password: 'admin123', role: 'admin' },
+                    { username: 'cashier', password: 'cashier123', role: 'cashier' }
+                  ]
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+});
+
 // Get system version (no auth required)
 app.get('/api/version', (req, res) => {
   const version = require('./version.json');
