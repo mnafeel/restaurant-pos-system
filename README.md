@@ -37,19 +37,19 @@
 
 ### Installation
 
-   ```bash
+```bash
 # Clone the repository
 git clone https://github.com/YOUR_USERNAME/restaurant-pos-system.git
 cd restaurant-pos-system
 
 # Install backend dependencies
-   npm install
+npm install
 
 # Install frontend dependencies
-   cd client
-   npm install
-   cd ..
-   ```
+cd client
+npm install
+cd ..
+```
 
 ### Running the Application
 
@@ -69,7 +69,7 @@ npm start
 
 #### **Production Mode:**
 
-   ```bash
+```bash
 # Build frontend
 cd client
 npm run build
@@ -88,6 +88,7 @@ npx serve -s build -p 3000
 ## 👤 Default Login Credentials
 
 **Owner Account:**
+
 - Username: `owner`
 - Password: `owner123`
 - Access: Full system access, shop management
@@ -97,6 +98,7 @@ npx serve -s build -p 3000
 ## 📦 Tech Stack
 
 ### **Frontend:**
+
 - React 18
 - React Router v6
 - Axios (HTTP client)
@@ -106,6 +108,7 @@ npx serve -s build -p 3000
 - Socket.io Client (real-time updates)
 
 ### **Backend:**
+
 - Node.js
 - Express.js
 - SQLite3 (database)
@@ -142,6 +145,7 @@ restaurant-pos-system/
 ## 🌟 Main Features
 
 ### 👑 **Owner Portal**
+
 - Create and manage multiple shop locations
 - Manage staff across all shops
 - View consolidated analytics
@@ -149,12 +153,14 @@ restaurant-pos-system/
 - Change shop admin passwords
 
 ### 🏪 **Shop Management**
+
 - Each shop has its own admin account
 - Complete data isolation between shops
 - Shop-specific staff management
 - Individual shop settings
 
 ### 🍽️ **Menu Management**
+
 - Add items with images
 - Category organization
 - Stock tracking
@@ -163,6 +169,7 @@ restaurant-pos-system/
 - Category sorting and filtering
 
 ### 📱 **Order Taking**
+
 - Dine-In, Takeaway order types
 - Table selection (when enabled)
 - Visual menu grid
@@ -173,6 +180,7 @@ restaurant-pos-system/
 - Pending orders management
 
 ### 🧾 **Billing**
+
 - Professional bill generation
 - Tax and service charge calculation
 - Discount management
@@ -181,6 +189,7 @@ restaurant-pos-system/
 - Bill history and reprinting
 
 ### 📊 **Reports & Analytics**
+
 - Sales reports (daily, weekly, monthly)
 - Payment breakdown (Cash, Card, UPI)
 - Top selling items analysis
@@ -189,6 +198,7 @@ restaurant-pos-system/
 - CSV export functionality
 
 ### ⚙️ **Settings**
+
 - Currency selection (30+ currencies)
 - Table management toggle
 - Kitchen display system toggle
@@ -215,6 +225,7 @@ restaurant-pos-system/
 See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
 
 ### Quick Deploy Options:
+
 - **Render.com** - Free tier available, auto-deploy from GitHub
 - **Railway.app** - Simple deployment, good free tier
 - **Heroku** - Traditional PaaS option
@@ -229,13 +240,14 @@ See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed deployment instruc
 
 ```javascript
 const PORT = process.env.PORT || 5002;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 ```
 
 ### **Frontend (client/src/index.js)**
 
 ```javascript
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5002';
+axios.defaults.baseURL =
+  process.env.REACT_APP_API_URL || "http://localhost:5002";
 ```
 
 ---
@@ -243,33 +255,39 @@ axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5002
 ## 🔧 API Documentation
 
 ### **Public Endpoints (No Auth Required):**
+
 - `GET /api/version` - System version info
 - `GET /api/server-time` - Current IST time
 - `GET /api/public/branding` - Company branding
 
 ### **Authentication:**
+
 - `POST /api/auth/login` - User login
 - `GET /api/auth/me` - Get current user
 
 ### **Orders:**
+
 - `GET /api/orders` - List orders
 - `POST /api/orders` - Create order
 - `PUT /api/orders/:id` - Update order
 - `PUT /api/orders/:id/status` - Update order status
 
 ### **Bills:**
+
 - `GET /api/bills` - List bills
 - `GET /api/bills/:id` - Get bill details
 - `POST /api/bills` - Generate bill
 - `PUT /api/bills/:id` - Update bill
 
 ### **Menu:**
+
 - `GET /api/menu` - List menu items
 - `POST /api/menu` - Add menu item
 - `PUT /api/menu/:id` - Update menu item
 - `DELETE /api/menu/:id` - Delete menu item
 
 ### **Reports:**
+
 - `GET /api/reports/sales` - Sales report
 - `GET /api/reports/top-items` - Top selling items
 - `GET /api/reports/daily-payments` - Payment breakdown
@@ -280,6 +298,7 @@ axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5002
 ## 📊 Database Schema
 
 ### **Main Tables:**
+
 - `users` - User accounts and authentication
 - `shops` - Restaurant shop locations
 - `tables` - Table management
@@ -296,12 +315,15 @@ axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5002
 ## 🎨 Screenshots
 
 ### Dashboard
+
 ![Dashboard](https://via.placeholder.com/800x400?text=Dashboard+Analytics)
 
 ### Order Taking
+
 ![Order Taking](https://via.placeholder.com/800x400?text=Order+Taking+Screen)
 
 ### Menu Management
+
 ![Menu](https://via.placeholder.com/800x400?text=Menu+Management)
 
 ---
@@ -344,6 +366,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🗓️ Version History
 
 ### v1.0.0 (2025-10-17)
+
 - ✅ Initial release
 - ✅ Multi-shop management
 - ✅ Dynamic currency support
@@ -357,6 +380,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔮 Roadmap
 
 ### Future Enhancements:
+
 - [ ] Mobile app (React Native)
 - [ ] Online ordering integration
 - [ ] Customer loyalty program
