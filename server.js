@@ -2344,7 +2344,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
 });
 
 // Get all bills
-app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin']), (req, res) => {
+app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin', 'owner']), (req, res) => {
   const query = `
     SELECT 
       b.*,
