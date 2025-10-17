@@ -195,8 +195,8 @@ const formatIndianDate = (date) => {
   return moment(date).tz('Asia/Kolkata').format('DD/MM/YYYY hh:mm A');
 };
 
-// Database setup
-const db = new sqlite3.Database('./restaurant.db');
+// Database setup - automatically uses PostgreSQL on Vercel, SQLite locally
+const db = require('./db-adapter');
 
 // Initialize database tables
 db.serialize(() => {
