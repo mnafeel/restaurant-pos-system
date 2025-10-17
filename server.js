@@ -476,6 +476,70 @@ db.serialize(() => {
     ('enable_kds', 'true'),
     ('auto_print_bill', 'false'),
     ('default_payment_method', 'cash')`);
+
+  // Create default owner account if no users exist
+  db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
+    if (err) {
+      console.error('Error checking users:', err);
+      return;
+    }
+    
+    if (result.count === 0) {
+      console.log('🔄 No users found. Creating default accounts...');
+      
+      // Create owner account
+      const ownerPasswordHash = bcrypt.hashSync('owner123', 10);
+      db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, company_name, is_active) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['owner', 'owner@restaurant.com', ownerPasswordHash, 'owner', 'System', 'Owner', 'MNA POS SYSTEMS', 1],
+        function(err) {
+          if (err) {
+            console.error('❌ Error creating owner account:', err);
+          } else {
+            console.log('✅ Owner account created!');
+            console.log('   Username: owner');
+            console.log('   Password: owner123');
+          }
+        }
+      );
+      
+      // Create admin account for default shop
+      const adminPasswordHash = bcrypt.hashSync('admin123', 10);
+      db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['admin', 'admin@restaurant.com', adminPasswordHash, 'admin', 'Admin', 'User', 1, 1],
+        function(err) {
+          if (err) {
+            console.error('❌ Error creating admin account:', err);
+          } else {
+            console.log('✅ Admin account created!');
+            console.log('   Username: admin');
+            console.log('   Password: admin123');
+          }
+        }
+      );
+      
+      // Create cashier account
+      const cashierPasswordHash = bcrypt.hashSync('cashier123', 10);
+      db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['cashier', 'cashier@restaurant.com', cashierPasswordHash, 'cashier', 'Cashier', 'User', 1, 1],
+        function(err) {
+          if (err) {
+            console.error('❌ Error creating cashier account:', err);
+          } else {
+            console.log('✅ Cashier account created!');
+            console.log('   Username: cashier');
+            console.log('   Password: cashier123');
+            console.log('');
+            console.log('⚠️  IMPORTANT: Change all passwords after first login!');
+          }
+        }
+      );
+    } else {
+      console.log(`✅ Database has ${result.count} user(s)`);
+    }
+  });
 });
 
 // Socket.io connection handling
