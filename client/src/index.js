@@ -7,7 +7,9 @@ import App from './App';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 
 // Configure axios base URL
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'https://restaurant-pos-system-tuc6.onrender.com';
+// On Vercel, both frontend and backend are on same domain, so use relative URL
+// For local development, use localhost
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5002');
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
