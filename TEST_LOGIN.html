@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Restaurant POS Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Test Restaurant POS Login</h1>
+    
+    <div class="info">
+        <strong>Backend URL:</strong><br>
+        https://restaurant-pos-system-1-7h0m.onrender.com
+    </div>
+    
+    <form id="loginForm">
+        <h3>Login</h3>
+        <input type="text" id="username" placeholder="Username" value="owner" required>
+        <input type="password" id="password" placeholder="Password" value="owner123" required>
+        <button type="submit">Login</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        const API_URL = 'https://restaurant-pos-system-1-7h0m.onrender.com';
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.innerHTML = '<div class="info">⏳ Logging in...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Login Successful!</h3>
+                            <p><strong>Username:</strong> ${data.user.username}</p>
+                            <p><strong>Role:</strong> ${data.user.role}</p>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                            <p><strong>Name:</strong> ${data.user.firstName} ${data.user.lastName}</p>
+                            <p><strong>Company:</strong> ${data.user.company_name || 'N/A'}</p>
+                            <hr>
+                            <p><strong>Token:</strong> ${data.token.substring(0, 50)}...</p>
+                            <hr>
+                            <p>✅ Backend connection works!</p>
+                            <p>✅ Owner account exists!</p>
+                            <p>✅ Login successful!</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Login Failed</h3>
+                            <p>${data.error || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Network Error</h3>
+                        <p>${error.message}</p>
+                        <p>Make sure backend is running at:<br>${API_URL}</p>
+                    </div>
+                `;
+            }
+        });
+        
+        // Test backend on page load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/debug/status`);
+                const data = await response.json();
+                console.log('Backend status:', data);
+            } catch (error) {
+                console.error('Backend not reachable:', error);
+            }
+        });
+    </script>
+</body>
+</html>
+
