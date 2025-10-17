@@ -9,6 +9,7 @@
 ✅ Your code should be on GitHub first!
 
 **Not on GitHub yet?** Do this first:
+
 ```bash
 # 1. Create repo: https://github.com/new
 # 2. Then push:
@@ -31,12 +32,14 @@ Click **"Get Started for Free"** (big button in center)
 **Choose sign up method:**
 
 **Option A - GitHub (EASIEST):**
+
 1. Click **"GitHub"** button
 2. It will ask: "Authorize Render?"
 3. Click **"Authorize render"**
 4. ✅ You're signed up!
 
 **Option B - Email:**
+
 1. Enter your email
 2. Create password
 3. Verify email
@@ -51,15 +54,18 @@ You'll see the Render **Dashboard** (empty at first)
 ## 🔗 **PART 2: Connect GitHub to Render**
 
 ### **If you used GitHub to sign up:**
+
 ✅ Already connected! Skip to Part 3.
 
 ### **If you used email:**
 
 1. **In Render Dashboard:**
+
    - Look for "Connect Account" or "Account Settings"
    - Click **"Connect GitHub"**
 
 2. **GitHub Authorization:**
+
    - GitHub will ask: "Authorize Render?"
    - Click **"Authorize render"**
    - Enter your GitHub password if asked
@@ -93,52 +99,68 @@ You'll see a list of your GitHub repositories.
 Fill in the form:
 
 **Name:**
+
 ```
 restaurant-pos-backend
 ```
-*(Can be anything, but keep it simple)*
+
+_(Can be anything, but keep it simple)_
 
 **Region:**
+
 ```
 Singapore
 ```
-*(Drop down menu - closest to India)*
+
+_(Drop down menu - closest to India)_
 
 **Branch:**
+
 ```
 main
 ```
-*(Should be auto-selected)*
+
+_(Should be auto-selected)_
 
 **Root Directory:**
+
 ```
 (leave empty)
 ```
-*(The root of your repository)*
+
+_(The root of your repository)_
 
 **Environment:**
+
 ```
 Node
 ```
-*(Select from dropdown)*
+
+_(Select from dropdown)_
 
 **Build Command:**
+
 ```
 npm install
 ```
-*(Installs your dependencies)*
+
+_(Installs your dependencies)_
 
 **Start Command:**
+
 ```
 node server.js
 ```
-*(Starts your backend server)*
+
+_(Starts your backend server)_
 
 **Plan:**
+
 ```
 Free
 ```
-*(Select "Free" from dropdown)*
+
+_(Select "Free" from dropdown)_
 
 ### **Step 4: Add Environment Variables**
 
@@ -149,21 +171,25 @@ Click **"Add Environment Variable"** button.
 Add these one by one:
 
 **Variable 1:**
+
 - Key: `JWT_SECRET`
 - Value: `your-super-secret-random-key-12345678`
 - Click "Add"
 
 **Variable 2:**
+
 - Key: `PORT`
 - Value: `5002`
 - Click "Add"
 
 **Variable 3:**
+
 - Key: `TZ`
 - Value: `Asia/Kolkata`
 - Click "Add"
 
 **Variable 4:**
+
 - Key: `NODE_ENV`
 - Value: `production`
 - Click "Add"
@@ -175,6 +201,7 @@ Add these one by one:
 3. **Wait!** Deployment takes 5-10 minutes
 
 **You'll see logs scrolling:**
+
 ```
 Installing dependencies...
 Building...
@@ -182,14 +209,17 @@ Starting server...
 ```
 
 **Wait for:**
+
 ```
 ✅ Live
 ```
-*(Green checkmark at top)*
+
+_(Green checkmark at top)_
 
 ### **Step 6: Copy Backend URL**
 
 At the top of the page, you'll see your URL:
+
 ```
 https://restaurant-pos-backend.onrender.com
 ```
@@ -205,18 +235,21 @@ https://restaurant-pos-backend.onrender.com
 ### **Step 1: Update API URL**
 
 On your **LOCAL computer**, open this file:
+
 ```
 /Users/admin/restaurant-billing-system/client/src/index.js
 ```
 
 **Find line 9:**
+
 ```javascript
-axios.defaults.baseURL = 'http://localhost:5002';
+axios.defaults.baseURL = "http://localhost:5002";
 ```
 
 **Change to (use YOUR backend URL):**
+
 ```javascript
-axios.defaults.baseURL = 'https://restaurant-pos-backend.onrender.com';
+axios.defaults.baseURL = "https://restaurant-pos-backend.onrender.com";
 ```
 
 **Save the file!**
@@ -255,31 +288,38 @@ git push origin main
 Fill in:
 
 **Name:**
+
 ```
 restaurant-pos-frontend
 ```
 
 **Branch:**
+
 ```
 main
 ```
 
 **Root Directory:**
+
 ```
 client
 ```
-*(Important! This is where your React app is)*
+
+_(Important! This is where your React app is)_
 
 **Build Command:**
+
 ```
 npm install && npm run build
 ```
 
 **Publish Directory:**
+
 ```
 build
 ```
-*(Where React builds to)*
+
+_(Where React builds to)_
 
 ### **Step 4: Create Static Site**
 
@@ -288,6 +328,7 @@ build
 3. Watch the logs
 
 **Wait for:**
+
 ```
 ✅ Live
 ```
@@ -295,6 +336,7 @@ build
 ### **Step 5: Get Frontend URL**
 
 You'll see:
+
 ```
 https://restaurant-pos-frontend.onrender.com
 ```
@@ -310,6 +352,7 @@ https://restaurant-pos-frontend.onrender.com
 **URL:** `https://restaurant-pos-frontend.onrender.com`
 
 **Login:**
+
 - Username: `owner`
 - Password: `owner123`
 
@@ -320,6 +363,7 @@ https://restaurant-pos-frontend.onrender.com
 ## 📱 **Access from Anywhere:**
 
 Now you can access your POS from:
+
 - ✅ Your computer
 - ✅ Tablets (perfect for waiters!)
 - ✅ Mobile phones
@@ -346,6 +390,7 @@ git push origin main
 ```
 
 **Render will automatically:**
+
 1. Detect the push
 2. Rebuild your app
 3. Deploy new version
@@ -356,17 +401,20 @@ git push origin main
 ## ⚡ **Free Tier Performance**
 
 **What to expect:**
+
 - First load: Fast
 - After 15 min idle: App sleeps 😴
 - Next request: 15-30 sec wake up
 - Then: Fast again
 
 **Good for:**
+
 - Testing and development
 - Small restaurants (low traffic)
 - Demos and presentations
 
 **Upgrade to $7/month for:**
+
 - Always-on (no sleep)
 - Faster performance
 - More resources
@@ -378,11 +426,13 @@ git push origin main
 **On Render Dashboard:**
 
 **Backend Service:**
+
 - Status: Should show "Live" (green)
 - Logs: Click "Logs" to see activity
 - Events: See deployment history
 
 **Frontend Static Site:**
+
 - Status: Should show "Live" (green)
 - Deploys: See build history
 
@@ -393,6 +443,7 @@ git push origin main
 ### **Issue: Backend shows "Deploy failed"**
 
 **Fix:**
+
 1. Click "Logs" tab
 2. Look for error messages
 3. Usually missing environment variables
@@ -404,6 +455,7 @@ git push origin main
 ### **Issue: Frontend shows blank page**
 
 **Fix:**
+
 1. Check if you updated `client/src/index.js` with backend URL
 2. Open browser console (F12)
 3. Look for CORS or network errors
@@ -414,6 +466,7 @@ git push origin main
 ### **Issue: "Authentication failed" when logging in**
 
 **Fix:**
+
 1. Wait 30 seconds (backend might be waking up)
 2. Check backend logs for errors
 3. Verify JWT_SECRET is set
@@ -424,6 +477,7 @@ git push origin main
 ### **Issue: Backend keeps sleeping**
 
 **Solution:**
+
 - Free tier sleeps after 15 min
 - Upgrade to $7/month for always-on
 - Or accept 30-sec wake time
@@ -433,6 +487,7 @@ git push origin main
 ## 📊 **Monitor Your Deployment**
 
 **Render Dashboard shows:**
+
 - ✅ CPU usage
 - ✅ Memory usage
 - ✅ Request count
@@ -440,6 +495,7 @@ git push origin main
 - ✅ Error rates
 
 **Access:**
+
 - Click on service name
 - View metrics
 - Check logs
@@ -451,12 +507,14 @@ git push origin main
 ### **IMPORTANT - Do These Now:**
 
 1. **Change Owner Password:**
+
    - Login to your live POS
    - Click profile
    - Change password from `owner123`
    - Use strong password!
 
 2. **Update JWT Secret:**
+
    - On Render dashboard
    - Go to backend service
    - Environment → Edit JWT_SECRET
@@ -472,6 +530,7 @@ git push origin main
 ## 🎯 **Quick Summary**
 
 **What you did:**
+
 1. ✅ Signed up on Render.com
 2. ✅ Connected GitHub
 3. ✅ Deployed backend (Node.js)
@@ -479,12 +538,14 @@ git push origin main
 5. ✅ Deployed frontend (React)
 
 **What you have:**
+
 - ✅ Live POS system online
 - ✅ Accessible from anywhere
 - ✅ Free HTTPS/SSL
 - ✅ Auto-deploy from GitHub
 
 **URLs:**
+
 - Frontend: `https://restaurant-pos-frontend.onrender.com`
 - Backend: `https://restaurant-pos-backend.onrender.com`
 
@@ -493,10 +554,12 @@ git push origin main
 ## 📞 **Need Help?**
 
 **Render Support:**
+
 - Docs: https://render.com/docs
 - Community: https://community.render.com
 
 **Your Guides:**
+
 - DEPLOY_ON_RENDER.md - This file
 - DEPLOYMENT_GUIDE.md - Full guide
 - README.md - Project overview
@@ -506,6 +569,7 @@ git push origin main
 ## ✅ **Deployment Checklist**
 
 **Initial Setup:**
+
 - [ ] Signed up on Render.com
 - [ ] Connected GitHub account
 - [ ] Backend deployed (Live)
@@ -516,6 +580,7 @@ git push origin main
 - [ ] Frontend URL working
 
 **Post-Deployment:**
+
 - [ ] Can access login page
 - [ ] Can login as owner
 - [ ] Changed owner password
@@ -525,6 +590,7 @@ git push origin main
 - [ ] Tested from mobile
 
 **Security:**
+
 - [ ] Changed JWT_SECRET
 - [ ] Changed owner password
 - [ ] Removed test accounts
@@ -535,6 +601,7 @@ git push origin main
 ## 🎉 **You're Done!**
 
 Your Restaurant POS Pro is now:
+
 - ✅ Live online
 - ✅ Accessible 24/7
 - ✅ Secure with HTTPS
@@ -546,4 +613,3 @@ Your Restaurant POS Pro is now:
 
 **Restaurant POS Pro v1.0.0**  
 **Deployed on Render.com** ✨
-
