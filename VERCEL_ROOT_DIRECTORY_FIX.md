@@ -47,7 +47,7 @@ While you're in Settings, verify:
 **Framework Preset:** Create React App (or auto-detect)
 
 **Build Command:** (leave empty for auto-detect)
-- Vercel will auto-detect: `npm run build`
+- Vercel will auto-detect: `npm run buildnpm run build`
 
 **Output Directory:** (leave empty for auto-detect)
 - Vercel will auto-detect: `build`

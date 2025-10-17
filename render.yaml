@@ -4,13 +4,9 @@ services:
     name: restaurant-pos-backend
     env: node
     plan: free
-    buildCommand: npm install --production
+    buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /api/debug/status
-    disk:
-      name: database-storage
-      mountPath: /opt/render/project/src
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
@@ -20,8 +16,5 @@ services:
         generateValue: true
       - key: TZ
         value: Asia/Kolkata
-      # Uncomment and add your MongoDB URI if using MongoDB
-      # - key: MONGODB_URI
-      #   value: mongodb+srv://username:password@cluster.mongodb.net/
     autoDeploy: true
 
