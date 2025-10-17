@@ -412,24 +412,18 @@ db.serialize(() => {
     FOREIGN KEY (user_id) REFERENCES users (id)
   )`);
 
-  // Insert default OWNER user only
-  const ownerPassword = bcrypt.hashSync('owner123', 10);
-  
-  db.run(`INSERT OR IGNORE INTO users (username, email, password_hash, role, first_name, last_name, company_name) VALUES 
-    ('owner', 'owner@restaurant.com', ?, 'owner', 'System', 'Owner', 'MNA POS SYSTEMS')`, [ownerPassword]);
-
-  // Insert default categories
+  // Insert default categories (safe, no new columns needed)
   db.run(`INSERT OR IGNORE INTO categories (name, display_order) VALUES 
     ('Appetizers', 1), ('Main Course', 2), ('Pizza', 3), ('Pasta', 4), ('Salads', 5), ('Desserts', 6), ('Beverages', 7)`);
 
-  // Insert sample tables
+  // Insert sample tables (safe, no new columns needed)
   const tableNumbers = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'];
   tableNumbers.forEach((num, idx) => {
     db.run(`INSERT OR IGNORE INTO tables (table_number, capacity, location) VALUES (?, ?, ?)`, 
       [num, idx % 3 === 0 ? 6 : 4, idx < 5 ? 'main' : 'patio']);
   });
 
-  // Insert sample menu items
+  // Insert sample menu items (safe, no new columns needed)
   db.run(`INSERT OR IGNORE INTO menu_items (name, description, price, category, preparation_time, stock_quantity) VALUES 
     ('Margherita Pizza', 'Classic tomato and mozzarella pizza', 12.99, 'Pizza', 20, 50),
     ('Pepperoni Pizza', 'Pepperoni with mozzarella cheese', 14.99, 'Pizza', 20, 45),
@@ -444,16 +438,16 @@ db.serialize(() => {
     ('Coke', 'Coca-Cola 330ml', 2.99, 'Beverages', 1, 200),
     ('Orange Juice', 'Freshly squeezed orange juice', 3.99, 'Beverages', 3, 100)`);
 
-  // Insert default taxes
+  // Insert default taxes (safe, no new columns needed)
   db.run(`INSERT OR IGNORE INTO taxes (name, rate, is_inclusive, is_active) VALUES 
     ('GST', 9.00, 0, 1),
     ('Service Tax', 5.00, 0, 1)`);
 
-  // Insert default shop
+  // Insert default shop (safe, no new columns needed)
   db.run(`INSERT OR IGNORE INTO shops (id, name, address, city, state, zip_code, phone, email, tax_id, is_primary) VALUES 
     (1, 'Restaurant POS Main', '123 Main Street', 'New York', 'NY', '10001', '+1234567890', 'info@restaurant.com', 'TAX123456', 1)`);
 
-  // Insert default settings
+  // Insert default settings (safe, no new columns needed)
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES 
     ('shop_name', 'Restaurant POS'),
     ('shop_address', '123 Main Street, City, State'),
@@ -471,7 +465,13 @@ db.serialize(() => {
     ('auto_print_bill', 'false'),
     ('default_payment_method', 'cash')`);
 
-  // Database migrations - add missing columns if they don't exist
+  // Insert default OWNER user WITHOUT company_name (will be added by migration)
+  const ownerPassword = bcrypt.hashSync('owner123', 10);
+  db.run(`INSERT OR IGNORE INTO users (username, email, password_hash, role, first_name, last_name) VALUES 
+    ('owner', 'owner@restaurant.com', ?, 'owner', 'System', 'Owner')`, [ownerPassword]);
+
+  // Database migrations - add missing columns AFTER base inserts
+  // Migrate orders table
   db.all("PRAGMA table_info(orders)", (err, columns) => {
     if (!err && columns) {
       const hasPaymentStatus = columns.some(col => col.name === 'payment_status');
@@ -527,7 +527,13 @@ db.serialize(() => {
       
       if (!hasCompanyName) {
         console.log('Adding company_name column to users table...');
-        db.run("ALTER TABLE users ADD COLUMN company_name TEXT");
+        db.run("ALTER TABLE users ADD COLUMN company_name TEXT", (err) => {
+          if (!err) {
+            // Update owner with company name after column is added
+            db.run("UPDATE users SET company_name = ? WHERE role = 'owner' AND company_name IS NULL", 
+              ['MNA POS SYSTEMS']);
+          }
+        });
       }
       if (!hasAvatarUrl) {
         console.log('Adding avatar_url column to users table...');
