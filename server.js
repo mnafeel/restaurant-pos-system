@@ -483,6 +483,11 @@ db.serialize(() => {
       const hasPaymentStatus = columns.some(col => col.name === 'payment_status');
       const hasPaymentMethod = columns.some(col => col.name === 'payment_method');
       const hasOrderType = columns.some(col => col.name === 'order_type');
+      const hasShopId = columns.some(col => col.name === 'shop_id');
+      const hasSubtotal = columns.some(col => col.name === 'subtotal');
+      const hasTaxAmount = columns.some(col => col.name === 'tax_amount');
+      const hasServiceCharge = columns.some(col => col.name === 'service_charge');
+      const hasDiscountAmount = columns.some(col => col.name === 'discount_amount');
       
       if (!hasPaymentStatus) {
         console.log('Adding payment_status column to orders table...');
@@ -495,6 +500,26 @@ db.serialize(() => {
       if (!hasOrderType) {
         console.log('Adding order_type column to orders table...');
         db.run("ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT 'dine_in'");
+      }
+      if (!hasShopId) {
+        console.log('Adding shop_id column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN shop_id INTEGER");
+      }
+      if (!hasSubtotal) {
+        console.log('Adding subtotal column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN subtotal DECIMAL(10,2) DEFAULT 0");
+      }
+      if (!hasTaxAmount) {
+        console.log('Adding tax_amount column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN tax_amount DECIMAL(10,2) DEFAULT 0");
+      }
+      if (!hasServiceCharge) {
+        console.log('Adding service_charge column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN service_charge DECIMAL(10,2) DEFAULT 0");
+      }
+      if (!hasDiscountAmount) {
+        console.log('Adding discount_amount column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN discount_amount DECIMAL(10,2) DEFAULT 0");
       }
     }
   });
