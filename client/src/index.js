@@ -7,7 +7,7 @@ import App from './App';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 
 // Configure axios base URL
-axios.defaults.baseURL = 'http://localhost:5002';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'https://restaurant-pos-system-tuc6.onrender.com';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
