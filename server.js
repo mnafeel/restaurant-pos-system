@@ -412,17 +412,11 @@ db.serialize(() => {
     FOREIGN KEY (user_id) REFERENCES users (id)
   )`);
 
-  // Insert default users
-  const adminPassword = bcrypt.hashSync('admin123', 10);
-  const cashierPassword = bcrypt.hashSync('cashier123', 10);
-  const chefPassword = bcrypt.hashSync('chef123', 10);
+  // Insert default OWNER user only
+  const ownerPassword = bcrypt.hashSync('owner123', 10);
   
-  db.run(`INSERT OR IGNORE INTO users (username, email, password_hash, role, first_name, last_name) VALUES 
-    ('admin', 'admin@restaurant.com', ?, 'admin', 'Admin', 'User')`, [adminPassword]);
-  db.run(`INSERT OR IGNORE INTO users (username, email, password_hash, role, first_name, last_name) VALUES 
-    ('cashier', 'cashier@restaurant.com', ?, 'cashier', 'Cashier', 'User')`, [cashierPassword]);
-  db.run(`INSERT OR IGNORE INTO users (username, email, password_hash, role, first_name, last_name) VALUES 
-    ('chef', 'chef@restaurant.com', ?, 'chef', 'Chef', 'User')`, [chefPassword]);
+  db.run(`INSERT OR IGNORE INTO users (username, email, password_hash, role, first_name, last_name, company_name) VALUES 
+    ('owner', 'owner@restaurant.com', ?, 'owner', 'System', 'Owner', 'MNA POS SYSTEMS')`, [ownerPassword]);
 
   // Insert default categories
   db.run(`INSERT OR IGNORE INTO categories (name, display_order) VALUES 
