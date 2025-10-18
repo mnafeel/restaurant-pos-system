@@ -57,6 +57,8 @@ const OwnerPortal = () => {
   const [currentShop, setCurrentShop] = useState(null);
   const [selectedShopForStaff, setSelectedShopForStaff] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showClearDemoMenu, setShowClearDemoMenu] = useState(false);
+  const [demoMenuPassword, setDemoMenuPassword] = useState('');
   
   const [companyName, setCompanyName] = useState(user?.company_name || '');
   const [ownerUsername, setOwnerUsername] = useState(user?.username || '');
@@ -532,6 +534,30 @@ const OwnerPortal = () => {
   const getShopName = (shopId) => {
     const shop = shops.find(s => s.id === shopId);
     return shop ? shop.name : 'No Shop';
+  };
+
+  const handleClearDemoMenu = async () => {
+    if (!demoMenuPassword) {
+      toast.error('Please enter your owner password');
+      return;
+    }
+
+    try {
+      const response = await axios.post('/api/debug/clear-demo-menu', {
+        password: demoMenuPassword
+      });
+
+      toast.success(response.data.message);
+      toast.info(`Deleted ${response.data.deleted_count} demo items. Your custom menus are safe!`);
+      
+      setShowClearDemoMenu(false);
+      setDemoMenuPassword('');
+      
+      // Refresh data
+      fetchAllData();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to clear demo menu');
+    }
   };
 
   if (loading) {
@@ -1217,6 +1243,46 @@ const OwnerPortal = () => {
               </div>
               <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
                 <p className="font-semibold">✓ Full Analytics Access</p>
+              </div>
+            </div>
+          </div>
+
+          {/* System Maintenance */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-900">
+              <FiDatabase className="text-red-600" />
+              System Maintenance
+            </h3>
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 mb-4">
+              <h4 className="font-bold text-yellow-800 mb-2">🧹 Clear Demo Menu Data</h4>
+              <p className="text-sm text-yellow-700 mb-3">
+                Remove the default demo menu items (Pizza, Salad, etc.) from the system. 
+                <strong className="block mt-1">✅ Your custom menu items will be preserved!</strong>
+              </p>
+              <button
+                onClick={() => setShowClearDemoMenu(true)}
+                className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl hover:from-red-700 hover:to-red-800 shadow-lg transition-all transform hover:scale-105 font-semibold flex items-center gap-2"
+              >
+                <FiTrash2 className="h-5 w-5" />
+                Clear Demo Menu Items
+              </button>
+            </div>
+
+            <div className="text-sm text-gray-600 space-y-2">
+              <p><strong>Demo items that will be deleted:</strong></p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                <div>🍕 Margherita Pizza</div>
+                <div>🍕 Pepperoni Pizza</div>
+                <div>🥗 Caesar Salad</div>
+                <div>🍗 Grilled Chicken</div>
+                <div>🍝 Pasta Carbonara</div>
+                <div>🐟 Fish and Chips</div>
+                <div>🍰 Chocolate Cake</div>
+                <div>🍦 Ice Cream</div>
+                <div>🥟 Spring Rolls</div>
+                <div>🍞 Garlic Bread</div>
+                <div>🥤 Coke</div>
+                <div>🍊 Orange Juice</div>
               </div>
             </div>
           </div>
@@ -2047,6 +2113,76 @@ const OwnerPortal = () => {
                   className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl hover:from-red-700 hover:to-red-800 shadow-lg transition font-semibold"
                 >
                   Delete Shop
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Demo Menu Confirmation */}
+      {showClearDemoMenu && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-2xl">
+              <h2 className="text-2xl font-bold">🧹 Clear Demo Menu Items</h2>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2">
+                <p className="text-green-800 text-sm font-semibold">
+                  ✅ Your custom menu items will NOT be deleted!
+                </p>
+              </div>
+
+              <p className="text-gray-700">
+                This will remove <strong>only the 12 default demo items</strong> from the system:
+              </p>
+              
+              <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>• Margherita Pizza</div>
+                  <div>• Pepperoni Pizza</div>
+                  <div>• Caesar Salad</div>
+                  <div>• Grilled Chicken</div>
+                  <div>• Pasta Carbonara</div>
+                  <div>• Fish and Chips</div>
+                  <div>• Chocolate Cake</div>
+                  <div>• Ice Cream</div>
+                  <div>• Spring Rolls</div>
+                  <div>• Garlic Bread</div>
+                  <div>• Coke</div>
+                  <div>• Orange Juice</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Enter Owner Password to Confirm *</label>
+                <input
+                  type="password"
+                  value={demoMenuPassword}
+                  onChange={(e) => setDemoMenuPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Your owner password"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowClearDemoMenu(false);
+                    setDemoMenuPassword('');
+                  }}
+                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleClearDemoMenu}
+                  className="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-orange-800 shadow-lg transition font-semibold"
+                >
+                  Clear Demo Items
                 </button>
               </div>
             </div>
