@@ -87,7 +87,8 @@ export const formatIndianDate = (dateInput) => {
   // Handle different date formats
   let d;
   if (typeof dateInput === 'string') {
-    // Parse the date string - database returns UTC timestamps
+    // SQLite CURRENT_TIMESTAMP stores UTC time (e.g., '2025-10-18 13:55:30')
+    // Parse as UTC by adding 'Z' suffix
     d = new Date(dateInput + (dateInput.includes('Z') ? '' : 'Z'));
   } else if (dateInput instanceof Date) {
     d = dateInput;
@@ -101,11 +102,12 @@ export const formatIndianDate = (dateInput) => {
     return 'Invalid Date';
   }
   
-  // Get UTC timestamp and add IST offset (UTC+5:30 = 330 minutes)
-  const istOffset = 330 * 60 * 1000; // 330 minutes in milliseconds
+  // Convert UTC to IST (UTC+5:30 = 330 minutes)
+  const istOffset = 330 * 60 * 1000;
   const istTime = new Date(d.getTime() + istOffset);
   
-  // Use UTC methods on the adjusted time to get IST values
+  // Extract IST date/time components using UTC methods
+  // (since we've already added the offset)
   const day = String(istTime.getUTCDate()).padStart(2, '0');
   const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
   const year = istTime.getUTCFullYear();
