@@ -764,7 +764,7 @@ app.get('/api/debug/status', (req, res) => {
       });
     }
     
-    db.all('SELECT username, role FROM users', (err, users) => {
+    db.all('SELECT username, role FROM users', [], (err, users) => {
       res.json({
         status: 'ok',
         database: 'connected',
@@ -875,27 +875,27 @@ app.get('/api/debug/backup-all-data', authenticateToken, authorize(['owner']), (
   };
   
   // Get all shops
-  db.all('SELECT * FROM shops', (err, shops) => {
+  db.all('SELECT * FROM shops', [], (err, shops) => {
     if (err) return res.status(500).json({ error: err.message });
-    backupData.shops = shops;
+    backupData.shops = shops || [];
     
     // Get all users (excluding passwords)
-    db.all('SELECT id, username, email, role, first_name, last_name, phone, shop_id, company_name, is_active, created_at FROM users', (err, users) => {
+    db.all('SELECT id, username, email, role, first_name, last_name, phone, shop_id, company_name, is_active, created_at FROM users', [], (err, users) => {
       if (err) return res.status(500).json({ error: err.message });
-      backupData.users = users;
+      backupData.users = users || [];
       
       // Get all menu items
-      db.all('SELECT * FROM menu_items', (err, menuItems) => {
+      db.all('SELECT * FROM menu_items', [], (err, menuItems) => {
         if (err) return res.status(500).json({ error: err.message });
-        backupData.menu_items = menuItems;
+        backupData.menu_items = menuItems || [];
         
         // Get all tables
-        db.all('SELECT * FROM tables', (err, tables) => {
+        db.all('SELECT * FROM tables', [], (err, tables) => {
           if (err) return res.status(500).json({ error: err.message });
-          backupData.tables = tables;
+          backupData.tables = tables || [];
           
           // Get all settings
-          db.all('SELECT * FROM settings', (err, settings) => {
+          db.all('SELECT * FROM settings', [], (err, settings) => {
             if (err) return res.status(500).json({ error: err.message });
             backupData.settings = settings;
             
@@ -1129,11 +1129,11 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 
 app.get('/api/users', authenticateToken, authorize(['admin', 'manager', 'owner']), (req, res) => {
   db.all('SELECT id, username, email, role, first_name, last_name, phone, is_active, created_at, shop_id FROM users ORDER BY created_at DESC', 
-    (err, users) => {
+    [], (err, users) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
-      res.json(users);
+      res.json(users || []);
     });
 });
 
@@ -1345,7 +1345,7 @@ app.get('/api/tables', authenticateToken, (req, res) => {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -1472,11 +1472,11 @@ app.delete('/api/tables/:id', authenticateToken, authorize(['admin', 'manager'])
 
 // Get all categories
 app.get('/api/categories', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM categories WHERE is_active = 1 ORDER BY display_order, name', (err, rows) => {
+  db.all('SELECT * FROM categories WHERE is_active = 1 ORDER BY display_order, name', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -1773,7 +1773,7 @@ app.get('/api/menu/:id/variants', authenticateToken, (req, res) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -2273,11 +2273,11 @@ app.get('/api/kitchen/orders', authenticateToken, authorize(['chef', 'cashier', 
   
 // Get all taxes
 app.get('/api/taxes', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM taxes WHERE is_active = 1 ORDER BY name', (err, rows) => {
+  db.all('SELECT * FROM taxes WHERE is_active = 1 ORDER BY name', [], (err, rows) => {
       if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -2405,7 +2405,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
         const serviceCharge = (afterDiscount * serviceChargeRate) / 100;
         
         // Calculate tax
-        db.all('SELECT * FROM taxes WHERE is_active = 1', (err, taxes) => {
+        db.all('SELECT * FROM taxes WHERE is_active = 1', [], (err, taxes) => {
         if (err) {
             return res.status(500).json({ error: err.message });
           }
@@ -2573,7 +2573,7 @@ app.get('/api/bills/:billId', authenticateToken, (req, res) => {
         }
         
         // Get shop settings
-        db.all('SELECT key, value FROM settings', (err, settings) => {
+        db.all('SELECT key, value FROM settings', [], (err, settings) => {
           if (err) {
             return res.status(500).json({ error: err.message });
           }
@@ -2805,7 +2805,7 @@ app.get('/api/reports/sales', authenticateToken, authorize(['manager', 'admin'])
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -2845,7 +2845,7 @@ app.get('/api/reports/top-items', authenticateToken, authorize(['manager', 'admi
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -2882,7 +2882,7 @@ app.get('/api/reports/staff-performance', authenticateToken, authorize(['manager
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -2918,7 +2918,7 @@ app.get('/api/reports/daily-payments', authenticateToken, authorize(['manager', 
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -3004,12 +3004,12 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
 
 // Inventory Management
 app.get('/api/inventory', authenticateToken, authorize(['manager', 'admin']), (req, res) => {
-  db.all('SELECT * FROM menu_items ORDER BY category, name', (err, rows) => {
+  db.all('SELECT * FROM menu_items ORDER BY category, name', [], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
@@ -3058,11 +3058,11 @@ app.put('/api/inventory/:id', authenticateToken, authorize(['manager', 'admin'])
 
 // Get all shops
 app.get('/api/shops', authenticateToken, authorize(['admin', 'manager', 'owner']), (req, res) => {
-  db.all('SELECT * FROM shops ORDER BY is_primary DESC, created_at DESC', (err, rows) => {
+  db.all('SELECT * FROM shops ORDER BY is_primary DESC, created_at DESC', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
