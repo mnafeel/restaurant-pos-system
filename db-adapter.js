@@ -424,36 +424,24 @@ if (hasMongoDb) {
   initPostgres().catch(console.error);
   
 } else {
-  // Use SQLite for local development or Render
-  console.log('🟢 Using SQLite');
+  // Use SQLite for local development
+  // Note: On Render free tier, SQLite is ephemeral (deleted on restart)
+  // For production, use PostgreSQL instead (set POSTGRES_URL environment variable)
+  console.log('🟢 Using SQLite (ephemeral - use PostgreSQL for production)');
   const sqlite3 = require('sqlite3').verbose();
-  const fs = require('fs');
   
-  // Use /data directory on Render (persistent disk), otherwise local directory
-  let dbPath;
-  if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-    // Production: Use persistent disk at /data
-    const dataDir = '/data';
-    
-    // Create /data directory if it doesn't exist
-    if (!fs.existsSync(dataDir)) {
-      console.log('📁 Creating /data directory...');
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    
-    dbPath = path.join(dataDir, 'restaurant.db');
-    console.log('📂 Database location (Production):', dbPath);
-  } else {
-    // Development: Use local directory
-    dbPath = path.join(__dirname, 'restaurant.db');
-    console.log('📂 Database location (Local):', dbPath);
-  }
+  const dbPath = path.join(__dirname, 'restaurant.db');
+  console.log('📂 Database location:', dbPath);
   
   db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
       console.error('❌ SQLite connection error:', err.message);
     } else {
       console.log('✅ Connected to SQLite database at:', dbPath);
+      if (process.env.RENDER) {
+        console.log('⚠️  WARNING: SQLite on Render is ephemeral (data will be lost on restart)');
+        console.log('💡 TIP: Set POSTGRES_URL environment variable to use persistent PostgreSQL database');
+      }
     }
   });
   

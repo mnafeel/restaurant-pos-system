@@ -94,17 +94,10 @@ app.use(cors({
 app.use(bodyParser.json());
 
 // Create uploads directory if it doesn't exist
-// Use /data/uploads on Render (persistent disk), otherwise local ./uploads
-let uploadsDir;
-if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-  // Production: Use persistent disk at /data/uploads
-  uploadsDir = '/data/uploads';
-  console.log('📂 Uploads location (Production):', uploadsDir);
-} else {
-  // Development: Use local directory
-  uploadsDir = path.join(__dirname, 'uploads');
-  console.log('📂 Uploads location (Local):', uploadsDir);
-}
+// Note: On Render free tier without persistent disk, uploads are ephemeral (temporary)
+// For persistent uploads, use PostgreSQL with cloud storage (S3, Cloudinary, etc.)
+const uploadsDir = path.join(__dirname, 'uploads');
+console.log('📂 Uploads location:', uploadsDir);
 
 if (!fs.existsSync(uploadsDir)) {
   console.log('📁 Creating uploads directory:', uploadsDir);
