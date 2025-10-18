@@ -17,9 +17,6 @@ services:
       - key: TZ
         value: Asia/Kolkata
     autoDeploy: true
-    # CRITICAL: Persistent disk for SQLite database
-    disk:
-      name: restaurant-pos-data
-      mountPath: /data
-      sizeGB: 1
+    # Note: Free tier doesn't support persistent disks
+    # Use PostgreSQL instead (see SWITCH_TO_POSTGRESQL_RENDER.md)
 
