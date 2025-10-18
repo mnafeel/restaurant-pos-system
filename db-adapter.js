@@ -151,12 +151,18 @@ if (hasMongoDb) {
     
     // Query wrapper to convert SQLite-style queries to PostgreSQL
     run: function(sql, params = [], callback) {
+      // Handle both SQLite styles: (sql, callback) and (sql, params, callback)
+      if (typeof params === 'function') {
+        callback = params;
+        params = [];
+      }
+      
       // Convert ? placeholders to $1, $2, etc.
       let paramIndex = 1;
       const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
       
       // Filter out undefined values from params
-      const cleanParams = params.map(p => p === undefined ? null : p);
+      const cleanParams = Array.isArray(params) ? params.map(p => p === undefined ? null : p) : [];
       
       pool.query(pgSql, cleanParams, (err, result) => {
         if (callback) {
@@ -171,11 +177,17 @@ if (hasMongoDb) {
     },
     
     get: function(sql, params = [], callback) {
+      // Handle both SQLite styles: (sql, callback) and (sql, params, callback)
+      if (typeof params === 'function') {
+        callback = params;
+        params = [];
+      }
+      
       let paramIndex = 1;
       const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
       
       // Filter out undefined values from params
-      const cleanParams = params.map(p => p === undefined ? null : p);
+      const cleanParams = Array.isArray(params) ? params.map(p => p === undefined ? null : p) : [];
       
       pool.query(pgSql, cleanParams, (err, result) => {
         if (callback) {
@@ -185,11 +197,17 @@ if (hasMongoDb) {
     },
     
     all: function(sql, params = [], callback) {
+      // Handle both SQLite styles: (sql, callback) and (sql, params, callback)
+      if (typeof params === 'function') {
+        callback = params;
+        params = [];
+      }
+      
       let paramIndex = 1;
       const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
       
       // Filter out undefined values from params
-      const cleanParams = params.map(p => p === undefined ? null : p);
+      const cleanParams = Array.isArray(params) ? params.map(p => p === undefined ? null : p) : [];
       
       pool.query(pgSql, cleanParams, (err, result) => {
         if (callback) {
