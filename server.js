@@ -2233,35 +2233,37 @@ app.get('/api/kitchen/orders', authenticateToken, authorize(['chef', 'cashier', 
     ORDER BY o.created_at ASC, oi.id ASC
   `;
   
-  db.all(query, (err, rows) => {
+  db.all(query, [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     
     // Group items by order
     const orders = {};
-    rows.forEach(row => {
-      if (!orders[row.order_id]) {
-        orders[row.order_id] = {
-          order_id: row.order_id,
-          table_number: row.table_number,
-          created_at: row.created_at,
-          notes: row.notes,
-          items: []
-        };
-      }
-      orders[row.order_id].items.push({
-        item_id: row.item_id,
-        item_name: row.item_name,
-        category: row.category,
-        variant_name: row.variant_name,
-        quantity: row.quantity,
-        special_instructions: row.special_instructions,
-        status: row.item_status,
-        kds_status: row.kds_status,
-        created_at: row.item_created_at
+    if (rows && Array.isArray(rows)) {
+      rows.forEach(row => {
+        if (!orders[row.order_id]) {
+          orders[row.order_id] = {
+            order_id: row.order_id,
+            table_number: row.table_number,
+            created_at: row.created_at,
+            notes: row.notes,
+            items: []
+          };
+        }
+        orders[row.order_id].items.push({
+          item_id: row.item_id,
+          item_name: row.item_name,
+          category: row.category,
+          variant_name: row.variant_name,
+          quantity: row.quantity,
+          special_instructions: row.special_instructions,
+          status: row.item_status,
+          kds_status: row.kds_status,
+          created_at: row.item_created_at
+        });
       });
-    });
+    }
     
     res.json(Object.values(orders));
   });
@@ -3676,15 +3678,17 @@ app.put('/api/users/:id/password', authenticateToken, authorize(['admin', 'owner
 
 // Get all settings
 app.get('/api/settings', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM settings', (err, rows) => {
+  db.all('SELECT * FROM settings', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     
     const settings = {};
-    rows.forEach(row => {
-      settings[row.key] = row.value;
-    });
+    if (rows && Array.isArray(rows)) {
+      rows.forEach(row => {
+        settings[row.key] = row.value;
+      });
+    }
     
     res.json(settings);
   });
@@ -3906,7 +3910,7 @@ app.get('/api/reports/export/sales', authenticateToken, authorize(['manager', 'a
     ORDER BY b.created_at DESC
   `;
   
-  db.all(query, (err, rows) => {
+  db.all(query, [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -3915,22 +3919,24 @@ app.get('/api/reports/export/sales', authenticateToken, authorize(['manager', 'a
     const headers = ['Bill ID', 'Date', 'Table', 'Subtotal', 'Tax', 'Service Charge', 'Discount', 'Total', 'Payment Method', 'Status', 'Staff'];
     const csvRows = [headers.join(',')];
     
-    rows.forEach(row => {
-      const values = [
-        row.bill_id,
-        row.created_at,
-        row.table_number,
-        row.subtotal,
-        row.tax_amount,
-        row.service_charge,
-        row.discount_amount,
-        row.total_amount,
-        row.payment_method,
-        row.payment_status,
-        row.staff || ''
-      ];
-      csvRows.push(values.join(','));
-    });
+    if (rows && Array.isArray(rows)) {
+      rows.forEach(row => {
+        const values = [
+          row.bill_id,
+          row.created_at,
+          row.table_number,
+          row.subtotal,
+          row.tax_amount,
+          row.service_charge,
+          row.discount_amount,
+          row.total_amount,
+          row.payment_method,
+          row.payment_status,
+          row.staff || ''
+        ];
+        csvRows.push(values.join(','));
+      });
+    }
     
     const csvContent = csvRows.join('\n');
     
