@@ -2752,9 +2752,9 @@ app.get('/api/reports/sales', authenticateToken, authorize(['manager', 'admin'])
     dateFilter = `WHERE DATE(b.created_at) BETWEEN '${startDate}' AND '${endDate}'`;
   }
   
-  // Add shop filter
+  // Add shop filter - JOIN with orders to get shop_id
   if (userShopId) {
-    dateFilter = dateFilter ? `${dateFilter} AND (b.shop_id = ${userShopId} OR b.shop_id IS NULL)` : `WHERE (b.shop_id = ${userShopId} OR b.shop_id IS NULL)`;
+    dateFilter = dateFilter ? `${dateFilter} AND o.shop_id = ${userShopId}` : `WHERE o.shop_id = ${userShopId}`;
   }
   
   switch (period) {
@@ -2785,6 +2785,7 @@ app.get('/api/reports/sales', authenticateToken, authorize(['manager', 'admin'])
       SUM(b.tax_amount) as total_tax,
       SUM(b.discount_amount) as total_discounts
     FROM bills b
+    JOIN orders o ON b.order_id = o.id
     JOIN order_items oi ON b.order_id = oi.order_id
     ${whereClause}
     GROUP BY ${groupBy}
@@ -2809,9 +2810,9 @@ app.get('/api/reports/top-items', authenticateToken, authorize(['manager', 'admi
     dateFilter = `AND DATE(b.created_at) BETWEEN '${startDate}' AND '${endDate}'`;
   }
   
-  // Add shop filter
+  // Add shop filter - JOIN with orders to get shop_id
   if (userShopId) {
-    dateFilter += ` AND (b.shop_id = ${userShopId} OR b.shop_id IS NULL)`;
+    dateFilter += ` AND o.shop_id = ${userShopId}`;
   }
   
   const query = `
@@ -2824,6 +2825,7 @@ app.get('/api/reports/top-items', authenticateToken, authorize(['manager', 'admi
     FROM order_items oi
     JOIN menu_items mi ON oi.menu_item_id = mi.id
     JOIN bills b ON oi.order_id = b.order_id
+    JOIN orders o ON b.order_id = o.id
     WHERE b.payment_status = 'paid' ${dateFilter}
     GROUP BY mi.id, mi.name, mi.category
     ORDER BY total_quantity DESC
@@ -2841,8 +2843,11 @@ app.get('/api/reports/top-items', authenticateToken, authorize(['manager', 'admi
 
 app.get('/api/reports/staff-performance', authenticateToken, authorize(['manager', 'admin']), (req, res) => {
   const { startDate, endDate } = req.query;
+  const userShopId = req.user.shop_id;
   
   let dateFilter = '';
+  let shopFilter = userShopId ? `AND u.shop_id = ${userShopId}` : '';
+  
   if (startDate && endDate) {
     dateFilter = `WHERE DATE(b.created_at) BETWEEN '${startDate}' AND '${endDate}'`;
   }
@@ -2858,8 +2863,8 @@ app.get('/api/reports/staff-performance', authenticateToken, authorize(['manager
       COUNT(DISTINCT o.id) as orders_taken
     FROM users u
     LEFT JOIN bills b ON u.id = b.staff_id ${dateFilter ? `AND DATE(b.created_at) BETWEEN '${startDate}' AND '${endDate}'` : ''}
-    LEFT JOIN orders o ON u.id = o.staff_id ${dateFilter ? `AND DATE(o.created_at) BETWEEN '${startDate}' AND '${endDate}'` : ''}
-    WHERE u.role IN ('cashier', 'chef', 'manager', 'admin')
+    LEFT JOIN orders o ON u.id = o.staff_id ${dateFilter ? `AND DATE(o.created_at) BETWEEN '${startDate}' AND '${endDate}'` : ''} ${shopFilter ? `AND o.shop_id = ${userShopId}` : ''}
+    WHERE u.role IN ('cashier', 'chef', 'manager', 'admin') ${shopFilter}
     GROUP BY u.id, u.first_name, u.last_name, u.username
     ORDER BY total_sales DESC
   `;
@@ -2914,55 +2919,60 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
   const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
   const thisMonth = moment().format('YYYY-MM');
   const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
+  const shopId = req.user.shop_id; // Filter by user's shop
   
-  // Today's sales
+  // Today's sales - SHOP FILTERED
   db.get(`SELECT 
-    COALESCE(SUM(total_amount), 0) as today_sales,
+    COALESCE(SUM(b.total_amount), 0) as today_sales,
     COALESCE(COUNT(*), 0) as today_orders
-    FROM bills 
-    WHERE DATE(created_at) = ? AND payment_status = 'paid'`, [today], (err, todayData) => {
+    FROM bills b
+    JOIN orders o ON b.order_id = o.id
+    WHERE DATE(b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
-    // Yesterday's sales
+    // Yesterday's sales - SHOP FILTERED
     db.get(`SELECT 
-      COALESCE(SUM(total_amount), 0) as yesterday_sales,
+      COALESCE(SUM(b.total_amount), 0) as yesterday_sales,
       COALESCE(COUNT(*), 0) as yesterday_orders
-      FROM bills 
-      WHERE DATE(created_at) = ? AND payment_status = 'paid'`, [yesterday], (err, yesterdayData) => {
+      FROM bills b
+      JOIN orders o ON b.order_id = o.id
+      WHERE DATE(b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterday, shopId], (err, yesterdayData) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
       
-      // This month's sales
+      // This month's sales - SHOP FILTERED
       db.get(`SELECT 
-        COALESCE(SUM(total_amount), 0) as month_sales,
+        COALESCE(SUM(b.total_amount), 0) as month_sales,
         COALESCE(COUNT(*), 0) as month_orders
-        FROM bills 
-        WHERE strftime("%Y-%m", created_at) = ? AND payment_status = 'paid'`, [thisMonth], (err, monthData) => {
+        FROM bills b
+        JOIN orders o ON b.order_id = o.id
+        WHERE strftime("%Y-%m", b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [thisMonth, shopId], (err, monthData) => {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
         
-        // Last month's sales
+        // Last month's sales - SHOP FILTERED
         db.get(`SELECT 
-          COALESCE(SUM(total_amount), 0) as last_month_sales,
+          COALESCE(SUM(b.total_amount), 0) as last_month_sales,
           COALESCE(COUNT(*), 0) as last_month_orders
-          FROM bills 
-          WHERE strftime("%Y-%m", created_at) = ? AND payment_status = 'paid'`, [lastMonth], (err, lastMonthData) => {
+          FROM bills b
+          JOIN orders o ON b.order_id = o.id
+          WHERE strftime("%Y-%m", b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [lastMonth, shopId], (err, lastMonthData) => {
           if (err) {
             res.status(500).json({ error: err.message });
             return;
           }
           
-          // Low stock items
+          // Low stock items - SHOP FILTERED
           db.all(`SELECT name, stock_quantity, low_stock_threshold 
             FROM menu_items 
-            WHERE stock_quantity <= low_stock_threshold AND is_available = 1`, (err, lowStockItems) => {
+            WHERE stock_quantity <= low_stock_threshold AND is_available = 1 AND shop_id = ?`, [shopId], (err, lowStockItems) => {
             if (err) {
               res.status(500).json({ error: err.message });
               return;
