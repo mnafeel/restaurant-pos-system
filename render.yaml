@@ -17,4 +17,9 @@ services:
       - key: TZ
         value: Asia/Kolkata
     autoDeploy: true
+    # CRITICAL: Persistent disk for SQLite database
+    disk:
+      name: restaurant-pos-data
+      mountPath: /opt/render/project/src
+      sizeGB: 1
 
