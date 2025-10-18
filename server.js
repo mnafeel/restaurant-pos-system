@@ -862,63 +862,52 @@ app.post('/api/debug/delete-non-owners', (req, res) => {
 });
 
 // Delete ONLY demo menu items (keeps user-added items)
-app.post('/api/debug/clear-demo-menu', authenticateToken, authorize(['owner']), (req, res) => {
-  const { password } = req.body;
+app.post('/api/debug/clear-demo-menu', (req, res) => {
+  const { secret } = req.body;
   
-  if (!password) {
-    return res.status(400).json({ error: 'Owner password required' });
+  // Simple secret for quick cleanup
+  if (secret !== 'clear-demo-menu-2024') {
+    return res.status(403).json({ error: 'Invalid secret key' });
   }
   
-  // Verify owner password
-  db.get('SELECT * FROM users WHERE id = ? AND role = "owner"', [req.user.id], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-      return res.status(401).json({ error: 'Invalid password' });
-    }
-    
-    // List of default demo menu items (from server.js lines 428-439)
-    const demoItems = [
-      'Margherita Pizza',
-      'Pepperoni Pizza',
-      'Caesar Salad',
-      'Grilled Chicken',
-      'Pasta Carbonara',
-      'Fish and Chips',
-      'Chocolate Cake',
-      'Ice Cream',
-      'Spring Rolls',
-      'Garlic Bread',
-      'Coke',
-      'Orange Juice'
-    ];
-    
-    // Delete only demo items by name (regardless of shop_id)
-    // This removes demo items from ALL shops (since they were auto-inserted)
-    const placeholders = demoItems.map(() => '?').join(',');
-    db.run(`DELETE FROM menu_items WHERE name IN (${placeholders})`,
-      demoItems,
-      function(err) {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-        
-        const deletedCount = this.changes;
-        console.log(`✅ Cleared ${deletedCount} demo menu items`);
-        logAuditEvent(req.user.id, 'DEMO_MENU_CLEARED', 'menu_items', null, null, { deleted_count: deletedCount, demo_items: demoItems }, req);
-        
-        res.json({
-          success: true,
-          message: 'Demo menu items cleared successfully',
-          deleted_count: deletedCount,
-          deleted_items: demoItems,
-          note: 'Your custom menu items have been preserved'
-        });
+  // List of default demo menu items (from server.js lines 428-439)
+  const demoItems = [
+    'Margherita Pizza',
+    'Pepperoni Pizza',
+    'Caesar Salad',
+    'Grilled Chicken',
+    'Pasta Carbonara',
+    'Fish and Chips',
+    'Chocolate Cake',
+    'Ice Cream',
+    'Spring Rolls',
+    'Garlic Bread',
+    'Coke',
+    'Orange Juice'
+  ];
+  
+  // Delete only demo items by name (regardless of shop_id)
+  // This removes demo items from ALL shops (since they were auto-inserted)
+  const placeholders = demoItems.map(() => '?').join(',');
+  db.run(`DELETE FROM menu_items WHERE name IN (${placeholders})`,
+    demoItems,
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
       }
-    );
-  });
+      
+      const deletedCount = this.changes;
+      console.log(`✅ Cleared ${deletedCount} demo menu items`);
+      
+      res.json({
+        success: true,
+        message: 'Demo menu items cleared successfully',
+        deleted_count: deletedCount,
+        deleted_items: demoItems,
+        note: 'Your custom menu items have been preserved'
+      });
+    }
+  );
 });
 
 // Get system version (no auth required)

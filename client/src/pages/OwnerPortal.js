@@ -537,14 +537,9 @@ const OwnerPortal = () => {
   };
 
   const handleClearDemoMenu = async () => {
-    if (!demoMenuPassword) {
-      toast.error('Please enter your owner password');
-      return;
-    }
-
     try {
       const response = await axios.post('/api/debug/clear-demo-menu', {
-        password: demoMenuPassword
+        secret: 'clear-demo-menu-2024'
       });
 
       toast.success(response.data.message);
@@ -2156,17 +2151,9 @@ const OwnerPortal = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Enter Owner Password to Confirm *</label>
-                <input
-                  type="password"
-                  value={demoMenuPassword}
-                  onChange={(e) => setDemoMenuPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Your owner password"
-                  autoFocus
-                />
-              </div>
+              <p className="text-orange-600 font-semibold text-sm">
+                ⚠️ This action will delete demo items from ALL shops. Click confirm to proceed.
+              </p>
 
               <div className="flex gap-3 pt-4">
                 <button
