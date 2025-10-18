@@ -545,8 +545,7 @@ const OwnerPortal = () => {
         secret: 'clear-demo-menu-2024'
       });
 
-      toast.success(response.data.message);
-      toast.info(`Deleted ${response.data.deleted_count} demo items. Your custom menus are safe!`);
+      toast.success(`${response.data.message} - Deleted ${response.data.deleted_count} demo items. Your custom menus are safe!`);
       
       setShowClearDemoMenu(false);
       setDemoMenuPassword('');
@@ -560,7 +559,7 @@ const OwnerPortal = () => {
 
   const handleDownloadBackup = async () => {
     try {
-      toast.info('Creating backup...');
+      toast.loading('Creating backup...', { id: 'backup' });
       const response = await axios.get('/api/debug/backup-all-data');
       
       // Create downloadable file
@@ -574,9 +573,9 @@ const OwnerPortal = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      toast.success(`Backup downloaded! ${response.data.shops?.length || 0} shops, ${response.data.users?.length || 0} users, ${response.data.menu_items?.length || 0} menu items`);
+      toast.success(`Backup downloaded! ${response.data.shops?.length || 0} shops, ${response.data.users?.length || 0} users, ${response.data.menu_items?.length || 0} menu items`, { id: 'backup' });
     } catch (error) {
-      toast.error('Failed to create backup');
+      toast.error('Failed to create backup', { id: 'backup' });
       console.error('Backup error:', error);
     }
   };
