@@ -989,7 +989,7 @@ app.post('/api/auth/login', [
 
   const { username, password } = req.body;
 
-  db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], (err, user) => {
+  db.get('SELECT * FROM users WHERE username = ? AND is_active = true', [username], (err, user) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
     }
@@ -1472,7 +1472,7 @@ app.delete('/api/tables/:id', authenticateToken, authorize(['admin', 'manager'])
 
 // Get all categories
 app.get('/api/categories', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM categories WHERE is_active = 1 ORDER BY display_order, name', [], (err, rows) => {
+  db.all('SELECT * FROM categories WHERE is_active = true ORDER BY display_order, name', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -1541,7 +1541,7 @@ app.get('/api/shops/:shopId/menu', authenticateToken, authorize(['owner']), (req
   
   db.all(`SELECT m.*, GROUP_CONCAT(v.id || ':' || v.name || ':' || v.price_adjustment) as variants
     FROM menu_items m
-    LEFT JOIN menu_variants v ON m.id = v.menu_item_id AND v.is_available = 1
+    LEFT JOIN menu_variants v ON m.id = v.menu_item_id AND v.is_available = true
     WHERE m.shop_id = ? OR m.shop_id IS NULL
     GROUP BY m.id
     ORDER BY m.category, m.name`, [shopId], (err, rows) => {
@@ -1626,7 +1626,7 @@ app.get('/api/menu', authenticateToken, (req, res) => {
   // Build WHERE clause with shop filtering
   let whereConditions = [];
   if (!include_unavailable) {
-    whereConditions.push('m.is_available = 1');
+    whereConditions.push('m.is_available = true');
   }
   if (userShopId) {
     whereConditions.push(`(m.shop_id = ${userShopId} OR m.shop_id IS NULL)`);
@@ -1635,7 +1635,7 @@ app.get('/api/menu', authenticateToken, (req, res) => {
   
   db.all(`SELECT m.*, GROUP_CONCAT(v.id || ':' || v.name || ':' || v.price_adjustment) as variants
     FROM menu_items m
-    LEFT JOIN menu_variants v ON m.id = v.menu_item_id AND v.is_available = 1
+    LEFT JOIN menu_variants v ON m.id = v.menu_item_id AND v.is_available = true
     ${whereClause}
     GROUP BY m.id
     ORDER BY m.category, m.name`, (err, rows) => {
@@ -1769,7 +1769,7 @@ app.delete('/api/menu/:id', authenticateToken, authorize(['admin', 'manager', 'o
 app.get('/api/menu/:id/variants', authenticateToken, (req, res) => {
   const { id } = req.params;
   
-  db.all('SELECT * FROM menu_variants WHERE menu_item_id = ? AND is_available = 1', [id], (err, rows) => {
+  db.all('SELECT * FROM menu_variants WHERE menu_item_id = ? AND is_available = true', [id], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -2273,7 +2273,7 @@ app.get('/api/kitchen/orders', authenticateToken, authorize(['chef', 'cashier', 
   
 // Get all taxes
 app.get('/api/taxes', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM taxes WHERE is_active = 1 ORDER BY name', [], (err, rows) => {
+  db.all('SELECT * FROM taxes WHERE is_active = true ORDER BY name', [], (err, rows) => {
       if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -2405,7 +2405,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
         const serviceCharge = (afterDiscount * serviceChargeRate) / 100;
         
         // Calculate tax
-        db.all('SELECT * FROM taxes WHERE is_active = 1', [], (err, taxes) => {
+        db.all('SELECT * FROM taxes WHERE is_active = true', [], (err, taxes) => {
         if (err) {
             return res.status(500).json({ error: err.message });
           }
@@ -2460,7 +2460,7 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
   const userShopId = req.user.shop_id;
   
   // Add shop filter - only show bills for user's shop (or all if owner/no shop_id)
-  let whereClause = 'WHERE b.voided = 0';
+  let whereClause = 'WHERE b.voided = false';
   const params = [];
   
   if (userShopId) {
@@ -2550,7 +2550,7 @@ app.get('/api/bills/:billId', authenticateToken, (req, res) => {
     FROM bills b
     JOIN orders o ON b.order_id = o.id
     LEFT JOIN users u ON b.staff_id = u.id
-    WHERE b.id = ? AND b.voided = 0
+    WHERE b.id = ? AND b.voided = false
   `;
   
   db.get(query, [billId], (err, bill) => {
@@ -2605,7 +2605,7 @@ app.put('/api/bills/:billId/payment', authenticateToken, (req, res) => {
   const { billId } = req.params;
   const { payment_method, payment_status } = req.body;
   
-  db.run('UPDATE bills SET payment_method = ?, payment_status = ? WHERE id = ? AND voided = 0',
+  db.run('UPDATE bills SET payment_method = ?, payment_status = ? WHERE id = ? AND voided = false',
     [payment_method, payment_status, billId], function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
@@ -2625,7 +2625,7 @@ app.put('/api/bills/:billId/payment', authenticateToken, (req, res) => {
 app.post('/api/bills/:billId/reprint', authenticateToken, (req, res) => {
   const { billId } = req.params;
   
-  db.run('UPDATE bills SET printed_count = printed_count + 1, last_printed_at = CURRENT_TIMESTAMP WHERE id = ? AND voided = 0',
+  db.run('UPDATE bills SET printed_count = printed_count + 1, last_printed_at = CURRENT_TIMESTAMP WHERE id = ? AND voided = false',
     [billId], function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
@@ -2658,7 +2658,7 @@ app.post('/api/bills/:billId/void', authenticateToken, authorize(['manager', 'ad
       return res.status(400).json({ error: 'Bill already voided' });
     }
     
-    db.run('UPDATE bills SET voided = 1, void_reason = ?, voided_by = ?, voided_at = CURRENT_TIMESTAMP WHERE id = ?',
+    db.run('UPDATE bills SET voided = true, void_reason = ?, voided_by = ?, voided_at = CURRENT_TIMESTAMP WHERE id = ?',
       [void_reason, req.user.id, billId], function(err) {
         if (err) {
           return res.status(500).json({ error: err.message });
@@ -2683,7 +2683,7 @@ app.post('/api/bills/:billId/split', authenticateToken, authorize(['cashier', 'm
     return res.status(400).json({ error: 'Split count must be at least 2' });
   }
   
-  db.get('SELECT * FROM bills WHERE id = ? AND voided = 0', [billId], (err, bill) => {
+  db.get('SELECT * FROM bills WHERE id = ? AND voided = false', [billId], (err, bill) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -2780,8 +2780,8 @@ app.get('/api/reports/sales', authenticateToken, authorize(['manager', 'admin'])
   }
   
   const whereClause = dateFilter 
-    ? `${dateFilter} AND b.payment_status = 'paid' AND b.voided = 0`
-    : `WHERE b.payment_status = 'paid' AND b.voided = 0`;
+    ? `${dateFilter} AND b.payment_status = 'paid' AND b.voided = false`
+    : `WHERE b.payment_status = 'paid' AND b.voided = false`;
   
   const query = `
     SELECT 
@@ -2891,9 +2891,9 @@ app.get('/api/reports/daily-payments', authenticateToken, authorize(['manager', 
   const { startDate, endDate } = req.query;
   const userShopId = req.user.shop_id;
   
-  let whereClause = 'WHERE payment_status = \'paid\' AND voided = 0';
+  let whereClause = 'WHERE payment_status = \'paid\' AND voided = false';
   if (startDate && endDate) {
-    whereClause = `WHERE DATE(created_at) BETWEEN '${startDate}' AND '${endDate}' AND payment_status = 'paid' AND voided = 0`;
+    whereClause = `WHERE DATE(created_at) BETWEEN '${startDate}' AND '${endDate}' AND payment_status = 'paid' AND voided = false`;
   }
   
   // Add shop filter
@@ -2980,7 +2980,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
           // Low stock items - SHOP FILTERED
           db.all(`SELECT name, stock_quantity, low_stock_threshold 
             FROM menu_items 
-            WHERE stock_quantity <= low_stock_threshold AND is_available = 1 AND shop_id = ?`, [shopId], (err, lowStockItems) => {
+            WHERE stock_quantity <= low_stock_threshold AND is_available = true AND shop_id = ?`, [shopId], (err, lowStockItems) => {
             if (err) {
               res.status(500).json({ error: err.message });
               return;
@@ -3102,7 +3102,7 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
     
     // If setting as primary, unset other primary shops
     if (is_primary) {
-      db.run('UPDATE shops SET is_primary = 0', (err) => {
+      db.run('UPDATE shops SET is_primary = false', (err) => {
         if (err) {
           db.run('ROLLBACK');
           return res.status(500).json({ error: err.message });
@@ -3205,7 +3205,7 @@ app.put('/api/shops/:id', authenticateToken, authorize(['admin', 'manager', 'own
     
     // If setting as primary, unset other primary shops
     if (is_primary) {
-      db.run('UPDATE shops SET is_primary = 0 WHERE id != ?', [id], (err) => {
+      db.run('UPDATE shops SET is_primary = false WHERE id != ?', [id], (err) => {
         if (err) {
           db.run('ROLLBACK');
           return res.status(500).json({ error: err.message });
@@ -3906,7 +3906,7 @@ app.get('/api/reports/export/sales', authenticateToken, authorize(['manager', 'a
     FROM bills b
     LEFT JOIN users u ON b.staff_id = u.id
     ${dateFilter}
-    WHERE b.voided = 0
+    WHERE b.voided = false
     ORDER BY b.created_at DESC
   `;
   
