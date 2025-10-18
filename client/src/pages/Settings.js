@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FaSave, FaCog, FaPrint, FaStore, FaTags, FaEdit, FaTrash } from 'react-icons/fa';
+import { useAuth } from '../contexts/AuthContext';
 
 const Settings = () => {
+  const { user } = useAuth();
   const [settings, setSettings] = useState({});
+  const [shopData, setShopData] = useState(null);
   const [taxes, setTaxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('shop');
@@ -20,7 +23,10 @@ const Settings = () => {
   useEffect(() => {
     fetchSettings();
     fetchTaxes();
-  }, []);
+    if (user?.shop_id) {
+      fetchShopData();
+    }
+  }, [user]);
 
   const fetchSettings = async () => {
     try {
@@ -34,6 +40,18 @@ const Settings = () => {
       console.error('Error fetching settings:', error);
       toast.error('Failed to fetch settings');
       setLoading(false);
+    }
+  };
+
+  const fetchShopData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/shops/${user.shop_id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShopData(response.data);
+    } catch (error) {
+      console.error('Error fetching shop data:', error);
     }
   };
 
@@ -275,45 +293,61 @@ const Settings = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Currency
+                Shop Currency {user?.shop_id && '(Updates Your Shop)'}
               </label>
               <select
-                value={settings.currency_symbol || '$'}
-                onChange={(e) => handleUpdateSetting('currency_symbol', e.target.value)}
+                value={shopData?.currency || 'INR'}
+                onChange={async (e) => {
+                  const newCurrency = e.target.value;
+                  if (user?.shop_id) {
+                    // Update shop currency
+                    try {
+                      await axios.put(`/api/shops/${user.shop_id}`, { currency: newCurrency });
+                      toast.success('Shop currency updated!');
+                      fetchShopData();
+                      window.dispatchEvent(new Event('currencyChanged'));
+                    } catch (error) {
+                      toast.error('Failed to update currency');
+                    }
+                  } else {
+                    // Fallback to global settings for users without shop
+                    handleUpdateSetting('currency_symbol', newCurrency);
+                  }
+                }}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               >
-                <option value="$">$ - US Dollar (USD)</option>
-                <option value="€">€ - Euro (EUR)</option>
-                <option value="£">£ - British Pound (GBP)</option>
-                <option value="¥">¥ - Japanese Yen / Chinese Yuan (JPY/CNY)</option>
-                <option value="₹">₹ - Indian Rupee (INR)</option>
-                <option value="₨">₨ - Pakistani Rupee (PKR)</option>
-                <option value="৳">৳ - Bangladeshi Taka (BDT)</option>
-                <option value="රු">රු - Sri Lankan Rupee (LKR)</option>
-                <option value="₱">₱ - Philippine Peso (PHP)</option>
-                <option value="฿">฿ - Thai Baht (THB)</option>
-                <option value="₫">₫ - Vietnamese Dong (VND)</option>
-                <option value="₩">₩ - South Korean Won (KRW)</option>
-                <option value="R$">R$ - Brazilian Real (BRL)</option>
-                <option value="R">R - South African Rand (ZAR)</option>
-                <option value="₽">₽ - Russian Ruble (RUB)</option>
-                <option value="zł">zł - Polish Zloty (PLN)</option>
-                <option value="₺">₺ - Turkish Lira (TRY)</option>
-                <option value="﷼">﷼ - Saudi Riyal (SAR)</option>
-                <option value="د.إ">د.إ - UAE Dirham (AED)</option>
-                <option value="RM">RM - Malaysian Ringgit (MYR)</option>
-                <option value="S$">S$ - Singapore Dollar (SGD)</option>
-                <option value="HK$">HK$ - Hong Kong Dollar (HKD)</option>
-                <option value="A$">A$ - Australian Dollar (AUD)</option>
-                <option value="C$">C$ - Canadian Dollar (CAD)</option>
-                <option value="CHF">CHF - Swiss Franc (CHF)</option>
-                <option value="kr">kr - Swedish/Norwegian/Danish Krone (SEK/NOK/DKK)</option>
-                <option value="Ksh">Ksh - Kenyan Shilling (KES)</option>
-                <option value="₦">₦ - Nigerian Naira (NGN)</option>
-                <option value="GH₵">GH₵ - Ghanaian Cedi (GHS)</option>
+                <option value="INR">₹ INR - Indian Rupee</option>
+                <option value="USD">$ USD - US Dollar</option>
+                <option value="EUR">€ EUR - Euro</option>
+                <option value="GBP">£ GBP - British Pound</option>
+                <option value="JPY">¥ JPY - Japanese Yen</option>
+                <option value="CNY">¥ CNY - Chinese Yuan</option>
+                <option value="PKR">₨ PKR - Pakistani Rupee</option>
+                <option value="BDT">৳ BDT - Bangladeshi Taka</option>
+                <option value="LKR">රු LKR - Sri Lankan Rupee</option>
+                <option value="PHP">₱ PHP - Philippine Peso</option>
+                <option value="THB">฿ THB - Thai Baht</option>
+                <option value="VND">₫ VND - Vietnamese Dong</option>
+                <option value="KRW">₩ KRW - South Korean Won</option>
+                <option value="BRL">R$ BRL - Brazilian Real</option>
+                <option value="ZAR">R ZAR - South African Rand</option>
+                <option value="RUB">₽ RUB - Russian Ruble</option>
+                <option value="TRY">₺ TRY - Turkish Lira</option>
+                <option value="SAR">﷼ SAR - Saudi Riyal</option>
+                <option value="AED">د.إ AED - UAE Dirham</option>
+                <option value="MYR">RM MYR - Malaysian Ringgit</option>
+                <option value="SGD">S$ SGD - Singapore Dollar</option>
+                <option value="HKD">HK$ HKD - Hong Kong Dollar</option>
+                <option value="AUD">A$ AUD - Australian Dollar</option>
+                <option value="CAD">C$ CAD - Canadian Dollar</option>
+                <option value="CHF">CHF CHF - Swiss Franc</option>
+                <option value="KES">Ksh KES - Kenyan Shilling</option>
+                <option value="NGN">₦ NGN - Nigerian Naira</option>
               </select>
               <p className="text-sm text-gray-500 mt-1">
-                This currency will be used throughout the system for pricing and billing
+                {user?.shop_id 
+                  ? '💡 This updates your shop\'s default currency. Changes apply immediately to all pages.'
+                  : 'This currency will be used throughout the system for pricing and billing'}
               </p>
             </div>
 
