@@ -52,3 +52,9 @@ temp/
 # Process files
 *.pid
 pids/
+
+# Google Drive Backup Credentials (SENSITIVE - DO NOT COMMIT!)
+credentials.json
+token.json
+temp-backup.json
+backup.log
