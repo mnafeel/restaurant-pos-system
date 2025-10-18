@@ -196,6 +196,28 @@ if (hasMongoDb) {
     try {
       console.log('🔄 Initializing PostgreSQL database...');
       
+      // Check if shops table exists and has all columns
+      try {
+        const checkColumn = await pool.query(`
+          SELECT column_name FROM information_schema.columns 
+          WHERE table_name = 'shops' AND column_name = 'country'
+        `);
+        
+        if (!checkColumn.rows || checkColumn.rows.length === 0) {
+          console.log('⚠️  Shops table missing columns, adding them...');
+          
+          // Add missing columns to shops table
+          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'USA'`).catch(() => {});
+          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS admin_username TEXT`).catch(() => {});
+          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS admin_password TEXT`).catch(() => {});
+          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'INR'`).catch(() => {});
+          
+          console.log('✅ Shops table columns added');
+        }
+      } catch (err) {
+        console.log('Note: Shops table might not exist yet, will be created below');
+      }
+      
       // Create tables
       await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
@@ -220,14 +242,18 @@ if (hasMongoDb) {
         CREATE TABLE IF NOT EXISTS shops (
           id SERIAL PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
+          logo_url TEXT,
           address TEXT,
           city VARCHAR(255),
           state VARCHAR(255),
           zip_code VARCHAR(20),
+          country VARCHAR(100) DEFAULT 'USA',
           phone VARCHAR(50),
           email VARCHAR(255),
           tax_id VARCHAR(100),
-          logo_url TEXT,
+          admin_username TEXT,
+          admin_password TEXT,
+          currency TEXT DEFAULT 'INR',
           is_primary BOOLEAN DEFAULT false,
           is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -242,9 +268,11 @@ if (hasMongoDb) {
           description TEXT,
           price DECIMAL(10, 2) NOT NULL,
           category VARCHAR(100),
+          image_url TEXT,
           preparation_time INTEGER,
           stock_quantity INTEGER DEFAULT 0,
-          image_url TEXT,
+          low_stock_threshold INTEGER DEFAULT 10,
+          tax_applicable BOOLEAN DEFAULT true,
           is_available BOOLEAN DEFAULT true,
           shop_id INTEGER,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
