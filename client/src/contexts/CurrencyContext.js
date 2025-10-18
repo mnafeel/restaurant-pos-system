@@ -14,9 +14,19 @@ export const useCurrency = () => {
 export const CurrencyProvider = ({ children }) => {
   const [currency, setCurrency] = useState('₹'); // Default to Rupee
   const [currencyCode, setCurrencyCode] = useState('INR');
+  const [lastUserId, setLastUserId] = useState(null);
 
   useEffect(() => {
+    // Initial fetch
     fetchCurrency();
+    
+    // Also fetch when user changes (login/logout)
+    const intervalId = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchCurrency();
+      }
+    }, 5000); // Check every 5 seconds
     
     // Listen for currency changes (when shop settings are updated)
     const handleCurrencyChange = () => {
@@ -27,6 +37,7 @@ export const CurrencyProvider = ({ children }) => {
     window.addEventListener('currencyChanged', handleCurrencyChange);
     
     return () => {
+      clearInterval(intervalId);
       window.removeEventListener('currencyChanged', handleCurrencyChange);
     };
   }, []);
@@ -34,7 +45,11 @@ export const CurrencyProvider = ({ children }) => {
   const fetchCurrency = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setCurrency('₹');
+        setCurrencyCode('INR');
+        return;
+      }
 
       // First, get user info to determine shop_id
       const userResponse = await axios.get('/api/auth/me', {
@@ -44,6 +59,8 @@ export const CurrencyProvider = ({ children }) => {
       const user = userResponse.data;
       let selectedCurrency = 'INR'; // Default
       
+      console.log('👤 User:', user.username, 'Role:', user.role, 'Shop ID:', user.shop_id);
+      
       // If user belongs to a shop, get shop's currency
       if (user.shop_id) {
         try {
@@ -51,8 +68,10 @@ export const CurrencyProvider = ({ children }) => {
             headers: { Authorization: `Bearer ${token}` }
           });
           selectedCurrency = shopResponse.data.currency || 'INR';
+          console.log('🏪 Shop currency:', selectedCurrency);
         } catch (shopErr) {
-          console.log('Could not fetch shop currency, using default');
+          console.log('⚠️ Could not fetch shop currency, using default INR');
+          selectedCurrency = 'INR';
         }
       } else {
         // If owner or no shop, check global settings
@@ -61,15 +80,20 @@ export const CurrencyProvider = ({ children }) => {
             headers: { Authorization: `Bearer ${token}` }
           });
           selectedCurrency = settingsResponse.data.currency || 'INR';
+          console.log('⚙️ Global currency:', selectedCurrency);
         } catch (settingsErr) {
-          console.log('Could not fetch global currency, using default');
+          console.log('⚠️ Could not fetch global currency, using default INR');
+          selectedCurrency = 'INR';
         }
       }
       
+      const symbol = getCurrencySymbol(selectedCurrency);
+      console.log(`💰 Setting currency: ${selectedCurrency} (${symbol})`);
+      
       setCurrencyCode(selectedCurrency);
-      setCurrency(getCurrencySymbol(selectedCurrency));
+      setCurrency(symbol);
     } catch (error) {
-      console.error('Error fetching currency:', error);
+      console.error('❌ Error fetching currency:', error);
       // Use default
       setCurrency('₹');
       setCurrencyCode('INR');
