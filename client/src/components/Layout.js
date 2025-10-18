@@ -152,6 +152,44 @@ const Layout = () => {
               })}
             </nav>
           </div>
+          {/* Mobile Profile and Logout */}
+          <div className="flex-shrink-0 border-t border-gray-200">
+            <button
+              onClick={() => {
+                navigate('/profile');
+                setSidebarOpen(false);
+              }}
+              className="flex items-center w-full hover:bg-gray-50 p-4 transition-colors"
+            >
+              <div className="flex-shrink-0">
+                {user?.avatar_url ? (
+                  <img
+                    src={`https://restaurant-pos-system-1-7h0m.onrender.com${user.avatar_url}`}
+                    alt="Avatar"
+                    className="h-8 w-8 rounded-full object-cover border-2 border-blue-200"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <FiUser className="h-5 w-5 text-blue-600" />
+                  </div>
+                )}
+              </div>
+              <div className="ml-3 flex-1 text-left">
+                <p className="text-sm font-medium text-gray-700">{user?.first_name} {user?.last_name}</p>
+                <p className="text-xs text-gray-500">{user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}</p>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLogout();
+                }}
+                className="ml-3 text-gray-400 hover:text-gray-600"
+                title="Logout"
+              >
+                <FiLogOut className="h-5 w-5" />
+              </button>
+            </button>
+          </div>
         </div>
       </div>
 

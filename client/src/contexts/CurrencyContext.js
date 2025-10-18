@@ -24,11 +24,36 @@ export const CurrencyProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await axios.get('/api/settings', {
+      // First, get user info to determine shop_id
+      const userResponse = await axios.get('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const selectedCurrency = response.data.currency || 'INR';
+      const user = userResponse.data;
+      let selectedCurrency = 'INR'; // Default
+      
+      // If user belongs to a shop, get shop's currency
+      if (user.shop_id) {
+        try {
+          const shopResponse = await axios.get(`/api/shops/${user.shop_id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          selectedCurrency = shopResponse.data.currency || 'INR';
+        } catch (shopErr) {
+          console.log('Could not fetch shop currency, using default');
+        }
+      } else {
+        // If owner or no shop, check global settings
+        try {
+          const settingsResponse = await axios.get('/api/settings', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          selectedCurrency = settingsResponse.data.currency || 'INR';
+        } catch (settingsErr) {
+          console.log('Could not fetch global currency, using default');
+        }
+      }
+      
       setCurrencyCode(selectedCurrency);
       setCurrency(getCurrencySymbol(selectedCurrency));
     } catch (error) {

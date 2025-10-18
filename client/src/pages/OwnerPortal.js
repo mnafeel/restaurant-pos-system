@@ -71,7 +71,8 @@ const OwnerPortal = () => {
     admin_password: '',
     admin_first_name: '',
     admin_last_name: '',
-    logo: null
+    logo: null,
+    currency: 'INR'
   });
   const [shopLogoPreview, setShopLogoPreview] = useState(null);
 
@@ -153,6 +154,7 @@ const OwnerPortal = () => {
         city: newShop.city,
         phone: newShop.phone,
         email: newShop.email,
+        currency: newShop.currency || 'INR',
         is_active: true
       });
 
@@ -193,7 +195,8 @@ const OwnerPortal = () => {
         admin_password: '',
         admin_first_name: '',
         admin_last_name: '',
-        logo: null
+        logo: null,
+        currency: 'INR'
       });
       setShopLogoPreview(null);
       fetchAllData();
@@ -230,7 +233,8 @@ const OwnerPortal = () => {
         address: editShopData.address,
         city: editShopData.city,
         phone: editShopData.phone,
-        email: editShopData.email
+        email: editShopData.email,
+        currency: editShopData.currency || 'INR'
       });
 
       // Upload new logo if selected
@@ -529,9 +533,9 @@ const OwnerPortal = () => {
               </div>
               <div>
                 <h1 className="text-5xl font-bold mb-2">
-                  {user?.company_name || '👑 Owner Power Center'}
+                  {user?.company_name ? `${user.company_name} - Owner Dashboard` : '👑 Owner Dashboard'}
                 </h1>
-                <p className="text-purple-100 text-lg">Complete System Control & Management</p>
+                <p className="text-purple-100 text-lg">Centralized Control & Management (Not a Shop)</p>
                 <div className="mt-3 flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <FiUser className="h-4 w-4" />
@@ -1268,6 +1272,41 @@ const OwnerPortal = () => {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Default Currency *</label>
+                <select
+                  required
+                  value={newShop.currency}
+                  onChange={(e) => setNewShop({ ...newShop, currency: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="INR">₹ INR - Indian Rupee</option>
+                  <option value="USD">$ USD - US Dollar</option>
+                  <option value="EUR">€ EUR - Euro</option>
+                  <option value="GBP">£ GBP - British Pound</option>
+                  <option value="AUD">A$ AUD - Australian Dollar</option>
+                  <option value="CAD">C$ CAD - Canadian Dollar</option>
+                  <option value="SGD">S$ SGD - Singapore Dollar</option>
+                  <option value="AED">د.إ AED - UAE Dirham</option>
+                  <option value="SAR">﷼ SAR - Saudi Riyal</option>
+                  <option value="MYR">RM MYR - Malaysian Ringgit</option>
+                  <option value="THB">฿ THB - Thai Baht</option>
+                  <option value="PHP">₱ PHP - Philippine Peso</option>
+                  <option value="IDR">Rp IDR - Indonesian Rupiah</option>
+                  <option value="VND">₫ VND - Vietnamese Dong</option>
+                  <option value="PKR">₨ PKR - Pakistani Rupee</option>
+                  <option value="BDT">৳ BDT - Bangladeshi Taka</option>
+                  <option value="LKR">රු LKR - Sri Lankan Rupee</option>
+                  <option value="NPR">रू NPR - Nepalese Rupee</option>
+                  <option value="JPY">¥ JPY - Japanese Yen</option>
+                  <option value="CNY">¥ CNY - Chinese Yuan</option>
+                  <option value="KRW">₩ KRW - South Korean Won</option>
+                  <option value="HKD">HK$ HKD - Hong Kong Dollar</option>
+                  <option value="TWD">NT$ TWD - Taiwan Dollar</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">This currency will be used throughout the shop for all prices and reports</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
@@ -1685,6 +1724,40 @@ const OwnerPortal = () => {
                     placeholder="New York"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Default Currency</label>
+                <select
+                  value={editShopData.currency || 'INR'}
+                  onChange={(e) => setEditShopData({ ...editShopData, currency: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="INR">₹ INR - Indian Rupee</option>
+                  <option value="USD">$ USD - US Dollar</option>
+                  <option value="EUR">€ EUR - Euro</option>
+                  <option value="GBP">£ GBP - British Pound</option>
+                  <option value="AUD">A$ AUD - Australian Dollar</option>
+                  <option value="CAD">C$ CAD - Canadian Dollar</option>
+                  <option value="SGD">S$ SGD - Singapore Dollar</option>
+                  <option value="AED">د.إ AED - UAE Dirham</option>
+                  <option value="SAR">﷼ SAR - Saudi Riyal</option>
+                  <option value="MYR">RM MYR - Malaysian Ringgit</option>
+                  <option value="THB">฿ THB - Thai Baht</option>
+                  <option value="PHP">₱ PHP - Philippine Peso</option>
+                  <option value="IDR">Rp IDR - Indonesian Rupiah</option>
+                  <option value="VND">₫ VND - Vietnamese Dong</option>
+                  <option value="PKR">₨ PKR - Pakistani Rupee</option>
+                  <option value="BDT">৳ BDT - Bangladeshi Taka</option>
+                  <option value="LKR">රු LKR - Sri Lankan Rupee</option>
+                  <option value="NPR">रू NPR - Nepalese Rupee</option>
+                  <option value="JPY">¥ JPY - Japanese Yen</option>
+                  <option value="CNY">¥ CNY - Chinese Yuan</option>
+                  <option value="KRW">₩ KRW - South Korean Won</option>
+                  <option value="HKD">HK$ HKD - Hong Kong Dollar</option>
+                  <option value="TWD">NT$ TWD - Taiwan Dollar</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">This currency will be used throughout the shop for all prices and reports</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

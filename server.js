@@ -560,6 +560,13 @@ db.serialize(() => {
         console.log('Adding admin_password column to shops table...');
         db.run("ALTER TABLE shops ADD COLUMN admin_password TEXT");
       }
+      
+      // Check for currency column
+      const hasCurrency = columns.some(col => col.name === 'currency');
+      if (!hasCurrency) {
+        console.log('Adding currency column to shops table...');
+        db.run("ALTER TABLE shops ADD COLUMN currency TEXT DEFAULT 'INR'");
+      }
     }
   });
 
@@ -1015,8 +1022,8 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
         db.get('SELECT name as shop_name FROM shops WHERE id = ?', [user.shop_id], (err, shop) => {
           if (!err && shop) {
             user.shop_name = shop.shop_name;
-          }
-          res.json(user);
+      }
+      res.json(user);
         });
       } else {
         res.json(user);
@@ -1176,7 +1183,7 @@ app.delete('/api/users/:id', authenticateToken, authorize(['owner', 'admin']), (
         res.json({ message: 'User deleted successfully' });
       });
     }
-  });
+    });
 });
 
 app.put('/api/users/:id', authenticateToken, authorize(['admin', 'manager']), [
@@ -1711,19 +1718,19 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
     // Create order
     db.run('INSERT INTO orders (id, table_number, staff_id, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
       [orderId, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
-        if (err) {
-          db.run('ROLLBACK');
+      if (err) {
+        db.run('ROLLBACK');
           return res.status(500).json({ error: err.message });
-        }
-        
-        // Add order items
+      }
+
+    // Add order items
         let completed = 0;
         items.forEach((item) => {
           const finalPrice = item.price + (item.variant_price_adjustment || 0);
           db.run('INSERT INTO order_items (order_id, menu_item_id, variant_id, quantity, price, special_instructions) VALUES (?, ?, ?, ?, ?, ?)',
             [orderId, item.menu_item_id, item.variant_id || null, item.quantity, finalPrice, item.special_instructions || ''], (err) => {
-              if (err) {
-                db.run('ROLLBACK');
+          if (err) {
+            db.run('ROLLBACK');
                 return res.status(500).json({ error: err.message });
               }
               
@@ -1733,8 +1740,8 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
                 if (order_type === 'Dine-In' && tableNumber && tableNumber !== 'Takeaway') {
                   db.run('UPDATE tables SET status = "Occupied", current_order_id = ?, updated_at = CURRENT_TIMESTAMP WHERE table_number = ?',
                     [orderId, tableNumber], (err) => {
-                      if (err) {
-                        db.run('ROLLBACK');
+              if (err) {
+                db.run('ROLLBACK');
                         return res.status(500).json({ error: err.message });
                       }
                       
@@ -1745,8 +1752,8 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
                 }
                 
                 function completeOrder() {
-                  db.run('COMMIT', (err) => {
-                    if (err) {
+              db.run('COMMIT', (err) => {
+                if (err) {
                       return res.status(500).json({ error: err.message });
                     }
                     
@@ -1810,7 +1817,7 @@ app.get('/api/orders/pending', authenticateToken, authorize(['cashier', 'manager
             console.log('Sending pending orders:', ordersWithItems.length);
             res.json(ordersWithItems);
           }
-      });
+        });
     });
   });
 });
@@ -1818,6 +1825,7 @@ app.get('/api/orders/pending', authenticateToken, authorize(['cashier', 'manager
 // Get all orders
 app.get('/api/orders', authenticateToken, (req, res) => {
   const { status, table_number } = req.query;
+  const userShopId = req.user.shop_id;
   
   let whereClause = '';
   const params = [];
@@ -1830,6 +1838,12 @@ app.get('/api/orders', authenticateToken, (req, res) => {
   if (table_number) {
     whereClause += (whereClause ? ' AND ' : 'WHERE ') + 'o.table_number = ?';
     params.push(table_number);
+  }
+  
+  // Add shop filter - only show orders for user's shop (or all if owner/no shop_id)
+  if (userShopId) {
+    whereClause += (whereClause ? ' AND ' : 'WHERE ') + '(o.shop_id = ? OR o.shop_id IS NULL)';
+    params.push(userShopId);
   }
   
   const query = `
@@ -2158,11 +2172,11 @@ app.get('/api/kitchen/orders', authenticateToken, authorize(['chef', 'cashier', 
 });
 
 // ==================== TAX MANAGEMENT ====================
-
+  
 // Get all taxes
 app.get('/api/taxes', authenticateToken, (req, res) => {
   db.all('SELECT * FROM taxes WHERE is_active = 1 ORDER BY name', (err, rows) => {
-    if (err) {
+      if (err) {
       return res.status(500).json({ error: err.message });
     }
     res.json(rows);
@@ -2294,7 +2308,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
         
         // Calculate tax
         db.all('SELECT * FROM taxes WHERE is_active = 1', (err, taxes) => {
-          if (err) {
+        if (err) {
             return res.status(500).json({ error: err.message });
           }
           
@@ -2324,17 +2338,17 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               db.run('UPDATE tables SET status = "Billed" WHERE current_order_id = ?', [orderId]);
               
               logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
-              
-              res.json({
-                billId,
+        
+        res.json({
+          billId,
                 orderId,
-                tableNumber: order.table_number,
-                subtotal,
+          tableNumber: order.table_number,
+          subtotal,
                 discountAmount,
                 serviceCharge,
-                taxAmount,
+          taxAmount,
                 roundOff,
-                totalAmount,
+          totalAmount,
                 message: 'Bill generated successfully'
               });
             });
@@ -2345,6 +2359,17 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
 
 // Get all bills
 app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin', 'owner']), (req, res) => {
+  const userShopId = req.user.shop_id;
+  
+  // Add shop filter - only show bills for user's shop (or all if owner/no shop_id)
+  let whereClause = 'WHERE b.voided = 0';
+  const params = [];
+  
+  if (userShopId) {
+    whereClause += ' AND (b.shop_id = ? OR b.shop_id IS NULL)';
+    params.push(userShopId);
+  }
+  
   const query = `
     SELECT 
       b.*,
@@ -2355,11 +2380,11 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
     FROM bills b
     JOIN orders o ON b.order_id = o.id
     LEFT JOIN users u ON b.staff_id = u.id
-    WHERE b.voided = 0
+    ${whereClause}
     ORDER BY b.created_at DESC
   `;
   
-  db.all(query, (err, bills) => {
+  db.all(query, params, (err, bills) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -2622,7 +2647,7 @@ app.put('/api/bills/splits/:splitId/payment', authenticateToken, (req, res) => {
       }
       
       res.json({ message: 'Split bill payment updated successfully' });
-    });
+  });
 });
 
 // Sales Reports and Analytics
@@ -2659,7 +2684,7 @@ app.get('/api/reports/sales', authenticateToken, authorize(['manager', 'admin'])
   const whereClause = dateFilter 
     ? `${dateFilter} AND b.payment_status = 'paid' AND b.voided = 0`
     : `WHERE b.payment_status = 'paid' AND b.voided = 0`;
-    
+  
   const query = `
     SELECT 
       ${groupBy} as period,
@@ -2952,7 +2977,7 @@ app.get('/api/shops/:id', authenticateToken, (req, res) => {
 
 // Create shop
 app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, res) => {
-  const { name, address, city, state, zip_code, country, phone, email, tax_id, is_primary } = req.body;
+  const { name, address, city, state, zip_code, country, phone, email, tax_id, is_primary, currency } = req.body;
   
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
@@ -2967,9 +2992,9 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
       });
     }
     
-    db.run(`INSERT INTO shops (name, address, city, state, zip_code, country, phone, email, tax_id, is_primary) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, address, city, state, zip_code, country, phone, email, tax_id, is_primary || 0],
+    db.run(`INSERT INTO shops (name, address, city, state, zip_code, country, phone, email, tax_id, is_primary, currency) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, address, city, state, zip_code, country, phone, email, tax_id, is_primary || 0, currency || 'INR'],
       function(err) {
         if (err) {
           db.run('ROLLBACK');
@@ -2991,7 +3016,7 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
 // Update shop
 app.put('/api/shops/:id', authenticateToken, authorize(['admin', 'manager', 'owner']), (req, res) => {
   const { id } = req.params;
-  const { name, address, city, state, zip_code, country, phone, email, tax_id, is_primary, is_active, admin_username } = req.body;
+  const { name, address, city, state, zip_code, country, phone, email, tax_id, is_primary, is_active, admin_username, currency } = req.body;
   
   const updates = [];
   const values = [];
@@ -3043,6 +3068,10 @@ app.put('/api/shops/:id', authenticateToken, authorize(['admin', 'manager', 'own
   if (admin_username !== undefined) {
     updates.push('admin_username = ?');
     values.push(admin_username);
+  }
+  if (currency !== undefined) {
+    updates.push('currency = ?');
+    values.push(currency);
   }
   
   if (updates.length === 0) {
@@ -3242,6 +3271,59 @@ app.delete('/api/shops/:id', authenticateToken, authorize(['admin', 'owner']), (
             });
           });
         });
+      });
+    });
+  });
+});
+
+// Get shop menu (for Owner Portal)
+app.get('/api/shops/:id/menu', authenticateToken, authorize(['owner', 'admin']), (req, res) => {
+  const { id } = req.params;
+  
+  db.all(`SELECT * FROM menu_items WHERE shop_id = ? ORDER BY category, name`, [id], (err, items) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(items);
+  });
+});
+
+// Clear shop menu (delete all menu items for a shop)
+app.delete('/api/shops/:id/menu', authenticateToken, authorize(['owner']), (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+  
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required to clear menu' });
+  }
+  
+  // Verify owner password
+  db.get('SELECT * FROM users WHERE id = ? AND role = "owner"', [req.user.id], (err, user) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (!user) {
+      return res.status(403).json({ error: 'Only owner can clear shop menu' });
+    }
+    
+    // Check password
+    if (!bcrypt.compareSync(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+    
+    // Delete all menu items for this shop
+    db.run('DELETE FROM menu_items WHERE shop_id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      const deletedCount = this.changes;
+      logAuditEvent(req.user.id, 'SHOP_MENU_CLEARED', 'menu_items', null, null, { shop_id: id, deleted_count: deletedCount }, req);
+      
+      res.json({ 
+        message: 'Shop menu cleared successfully',
+        deleted_count: deletedCount
       });
     });
   });
@@ -3716,8 +3798,8 @@ app.get('/api/reports/export/sales', authenticateToken, authorize(['manager', 'a
 // Serve React app (only in development, not on Render)
 // On Render, frontend is deployed separately as Static Site
 if (process.env.NODE_ENV !== 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
 }
 
