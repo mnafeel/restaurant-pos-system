@@ -19,7 +19,7 @@ The `render.yaml` file has been updated to include persistent storage:
 ```yaml
 disk:
   name: restaurant-pos-data
-  mountPath: /opt/render/project/src
+  mountPath: /data
   sizeGB: 1
 ```
 
@@ -40,7 +40,7 @@ If the YAML config doesn't work, configure manually:
 2. Click **"Add Disk"**
 3. Configure:
    - **Name**: `restaurant-pos-data`
-   - **Mount Path**: `/opt/render/project/src`
+   - **Mount Path**: `/data`
    - **Size**: `1 GB` (free tier limit)
 4. Click **"Save"**
 
@@ -56,7 +56,7 @@ If the YAML config doesn't work, configure manually:
 ### 1. Check Disk Status
 After deployment, go to **Disks** tab and confirm:
 - ✅ Status: **Active**
-- ✅ Mount Path: `/opt/render/project/src`
+- ✅ Mount Path: `/data`
 - ✅ Size: `1 GB`
 
 ### 2. Test Data Persistence
@@ -104,8 +104,9 @@ After deployment, go to **Disks** tab and confirm:
 
 **Current Setup:**
 - **Database File**: `restaurant.db`
-- **Location**: `/opt/render/project/src/restaurant.db` (project root)
-- **Mount Point**: `/opt/render/project/src`
+- **Location**: `/data/restaurant.db` (persistent disk)
+- **Uploads Directory**: `/data/uploads` (persistent disk)
+- **Mount Point**: `/data`
 - **Persistence**: ✅ Enabled (after fix)
 
 **Before Fix:**

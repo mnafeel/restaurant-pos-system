@@ -20,6 +20,6 @@ services:
     # CRITICAL: Persistent disk for SQLite database
     disk:
       name: restaurant-pos-data
-      mountPath: /opt/render/project/src
+      mountPath: /data
       sizeGB: 1
 

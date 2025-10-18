@@ -94,16 +94,29 @@ app.use(cors({
 app.use(bodyParser.json());
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'uploads');
+// Use /data/uploads on Render (persistent disk), otherwise local ./uploads
+let uploadsDir;
+if (process.env.RENDER || process.env.NODE_ENV === 'production') {
+  // Production: Use persistent disk at /data/uploads
+  uploadsDir = '/data/uploads';
+  console.log('📂 Uploads location (Production):', uploadsDir);
+} else {
+  // Development: Use local directory
+  uploadsDir = path.join(__dirname, 'uploads');
+  console.log('📂 Uploads location (Local):', uploadsDir);
+}
+
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
+  console.log('📁 Creating uploads directory:', uploadsDir);
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Create subdirectories for different upload types
-['avatars', 'shop-logos'].forEach(dir => {
+['avatars', 'shop-logos', 'menu-items'].forEach(dir => {
   const dirPath = path.join(uploadsDir, dir);
   if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath);
+    console.log('📁 Creating subdirectory:', dirPath);
+    fs.mkdirSync(dirPath, { recursive: true });
   }
 });
 
@@ -114,7 +127,7 @@ app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
-}, express.static(path.join(__dirname, 'uploads')));
+}, express.static(uploadsDir));
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
