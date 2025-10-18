@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FiPlus, FiEdit, FiTrash, FiX, FiCheckCircle, FiAlertCircle, FiPackage, FiFilter, FiFolder } from 'react-icons/fi';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://restaurant-pos-system-1-7h0m.onrender.com';
 
 const MenuManager = () => {
+  const { formatCurrency } = useCurrency();
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -478,7 +480,7 @@ const MenuManager = () => {
                   {item.category}
                 </span>
                 <span className="text-xl font-bold text-green-600">
-                  ₹{item.price}
+                  {formatCurrency(item.price)}
                 </span>
               </div>
 

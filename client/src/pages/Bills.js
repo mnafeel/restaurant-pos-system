@@ -10,7 +10,7 @@ import {
 import { FaPlus, FaMinus } from 'react-icons/fa';
 
 const Bills = () => {
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, currency } = useCurrency();
   const [bills, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
@@ -210,8 +210,8 @@ const Bills = () => {
                 <tr>
                   <td>${item.name || item.item_name}</td>
                   <td class="text-right">${item.quantity}</td>
-                  <td class="text-right">₹${parseFloat(item.price).toFixed(2)}</td>
-                  <td class="text-right">₹${(item.quantity * item.price).toFixed(2)}</td>
+                  <td class="text-right">${parseFloat(item.price).toFixed(2)}</td>
+                  <td class="text-right">${(item.quantity * item.price).toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -220,29 +220,29 @@ const Bills = () => {
           <div class="totals">
             <div class="total-row">
               <span>Subtotal:</span>
-              <span>₹${parseFloat(fullBill.subtotal).toFixed(2)}</span>
+              <span>${currency}${parseFloat(fullBill.subtotal).toFixed(2)}</span>
             </div>
             ${fullBill.tax_amount > 0 ? `
             <div class="total-row">
               <span>Tax:</span>
-              <span>₹${parseFloat(fullBill.tax_amount).toFixed(2)}</span>
+              <span>${currency}${parseFloat(fullBill.tax_amount).toFixed(2)}</span>
             </div>
             ` : ''}
             ${fullBill.service_charge > 0 ? `
             <div class="total-row">
               <span>Service Charge:</span>
-              <span>₹${parseFloat(fullBill.service_charge).toFixed(2)}</span>
+              <span>${currency}${parseFloat(fullBill.service_charge).toFixed(2)}</span>
             </div>
             ` : ''}
             ${fullBill.discount_amount > 0 ? `
             <div class="total-row">
               <span>Discount:</span>
-              <span>-₹${parseFloat(fullBill.discount_amount).toFixed(2)}</span>
+              <span>-${currency}${parseFloat(fullBill.discount_amount).toFixed(2)}</span>
             </div>
             ` : ''}
             <div class="total-row grand-total">
               <span>GRAND TOTAL:</span>
-              <span>₹${parseFloat(fullBill.total_amount).toFixed(2)}</span>
+              <span>${currency}${parseFloat(fullBill.total_amount).toFixed(2)}</span>
             </div>
           </div>
           
@@ -635,9 +635,9 @@ const Bills = () => {
                               {item.quantity}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right text-gray-900">₹{parseFloat(item.price).toFixed(2)}</td>
+                          <td className="py-3 px-4 text-right text-gray-900">{formatCurrency(item.price)}</td>
                           <td className="py-3 px-4 text-right font-semibold text-gray-900">
-                            ₹{(item.quantity * item.price).toFixed(2)}
+                            {formatCurrency(item.quantity * item.price)}
                           </td>
                         </tr>
                       ))}
@@ -652,29 +652,29 @@ const Bills = () => {
                   <div className="w-full md:w-1/2 space-y-3">
                     <div className="flex justify-between text-gray-700">
                       <span>Subtotal:</span>
-                      <span className="font-semibold">₹{parseFloat(selectedBill.subtotal).toFixed(2)}</span>
+                      <span className="font-semibold">{formatCurrency(selectedBill.subtotal)}</span>
                     </div>
                     {selectedBill.tax_amount > 0 && (
                       <div className="flex justify-between text-gray-700">
                         <span>Tax:</span>
-                        <span className="font-semibold">₹{parseFloat(selectedBill.tax_amount).toFixed(2)}</span>
+                        <span className="font-semibold">{formatCurrency(selectedBill.tax_amount)}</span>
                       </div>
                     )}
                     {selectedBill.service_charge > 0 && (
                       <div className="flex justify-between text-gray-700">
                         <span>Service Charge:</span>
-                        <span className="font-semibold">₹{parseFloat(selectedBill.service_charge).toFixed(2)}</span>
+                        <span className="font-semibold">{formatCurrency(selectedBill.service_charge)}</span>
                       </div>
                     )}
                     {selectedBill.discount_amount > 0 && (
                       <div className="flex justify-between text-red-600">
                         <span>Discount:</span>
-                        <span className="font-semibold">-₹{parseFloat(selectedBill.discount_amount).toFixed(2)}</span>
+                        <span className="font-semibold">-{formatCurrency(selectedBill.discount_amount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-xl font-bold text-green-600 pt-3 border-t-2 border-gray-300">
                       <span>GRAND TOTAL:</span>
-                      <span>₹{parseFloat(selectedBill.total_amount).toFixed(2)}</span>
+                      <span>{formatCurrency(selectedBill.total_amount)}</span>
                     </div>
                   </div>
                 </div>
@@ -733,7 +733,7 @@ const Bills = () => {
                       <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                         <div className="flex-1">
                           <p className="font-semibold text-gray-900">{item.item_name || item.name}</p>
-                          <p className="text-sm text-gray-600">₹{parseFloat(item.price).toFixed(2)} each</p>
+                          <p className="text-sm text-gray-600">{formatCurrency(item.price)} each</p>
                         </div>
                         <div className="flex items-center gap-3">
                           <button
@@ -749,7 +749,7 @@ const Bills = () => {
                           >
                             +
                           </button>
-                          <span className="font-semibold text-gray-900 min-w-[80px] text-right">₹{(item.price * item.quantity).toFixed(2)}</span>
+                          <span className="font-semibold text-gray-900 min-w-[80px] text-right">{formatCurrency(item.price * item.quantity)}</span>
                           <button
                             onClick={() => handleRemoveItemFromEdit(item.menu_item_id)}
                             className="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 rounded"
@@ -774,7 +774,7 @@ const Bills = () => {
                       className="text-left bg-white border-2 border-gray-200 hover:border-yellow-400 hover:bg-yellow-50 p-3 rounded-lg transition"
                     >
                       <p className="font-semibold text-sm text-gray-900">{menuItem.name}</p>
-                      <p className="text-xs text-gray-600">₹{parseFloat(menuItem.price).toFixed(2)}</p>
+                      <p className="text-xs text-gray-600">{formatCurrency(menuItem.price)}</p>
                     </button>
                   ))}
                 </div>
@@ -783,7 +783,7 @@ const Bills = () => {
               <div className="space-y-4">
                 {/* Tax Amount */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tax Amount (₹)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tax Amount ({currency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -795,7 +795,7 @@ const Bills = () => {
 
                 {/* Service Charge */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Charge (₹)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Charge ({currency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -807,7 +807,7 @@ const Bills = () => {
 
                 {/* Discount Amount */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Discount Amount (₹)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Discount Amount ({currency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -833,23 +833,23 @@ const Bills = () => {
                 <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
                   <div className="flex justify-between text-sm text-gray-600 mb-1">
                     <span>Items Subtotal:</span>
-                    <span>₹{editItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</span>
+                    <span>{formatCurrency(editItems.reduce((sum, item) => sum + (item.price * item.quantity), 0))}</span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-600 mb-1">
                     <span>Tax:</span>
-                    <span>₹{parseFloat(editForm.tax_amount).toFixed(2)}</span>
+                    <span>{formatCurrency(editForm.tax_amount)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-600 mb-1">
                     <span>Service Charge:</span>
-                    <span>₹{parseFloat(editForm.service_charge).toFixed(2)}</span>
+                    <span>{formatCurrency(editForm.service_charge)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-red-600 mb-2">
                     <span>Discount:</span>
-                    <span>-₹{parseFloat(editForm.discount_amount).toFixed(2)}</span>
+                    <span>-{formatCurrency(editForm.discount_amount)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold text-green-600 pt-2 border-t-2 border-blue-300">
                     <span>NEW TOTAL:</span>
-                    <span>₹{calculateEditTotal().toFixed(2)}</span>
+                    <span>{formatCurrency(calculateEditTotal())}</span>
                   </div>
                 </div>
               </div>
