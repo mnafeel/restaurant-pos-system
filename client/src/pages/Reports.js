@@ -296,7 +296,7 @@ const Reports = () => {
         </div>
 
         <div class="section">
-          <div class="row"><span>Total Sales:</span><span class="bold">$${salesSummary.totalSales.toFixed(2)}</span></div>
+          <div class="row"><span>Total Sales:</span><span class="bold">${currency}${salesSummary.totalSales.toFixed(2)}</span></div>
           <div class="row"><span>Total Orders:</span><span class="bold">${salesSummary.totalOrders}</span></div>
           <div class="row"><span>Items Sold:</span><span class="bold">${salesSummary.totalItems}</span></div>
         </div>
@@ -511,7 +511,7 @@ const Reports = () => {
     }),
     datasets: [
       {
-        label: 'Sales ($)',
+        label: `Sales (${currency})`,
         data: salesData.map(item => item.total_sales),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -698,7 +698,7 @@ const Reports = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium uppercase tracking-wide">Total Sales</p>
-                  <p className="text-4xl font-bold mt-3">${salesSummary.totalSales.toFixed(2)}</p>
+                  <p className="text-4xl font-bold mt-3">{formatCurrency(salesSummary.totalSales)}</p>
                   <p className="text-blue-200 text-xs mt-2">Revenue Generated</p>
                 </div>
                 <div className="bg-blue-400 bg-opacity-30 rounded-full p-4">
