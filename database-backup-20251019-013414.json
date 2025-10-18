@@ -1,0 +1,17 @@
+{
+    "status": "ok",
+    "database": "connected",
+    "user_count": 2,
+    "users": [
+        {
+            "username": "owner",
+            "role": "owner"
+        },
+        {
+            "username": "smoocho",
+            "role": "admin"
+        }
+    ],
+    "deployment": "Render",
+    "timestamp": "2025-10-18T20:04:15.228Z"
+}

@@ -28,7 +28,8 @@ import {
   FiActivity,
   FiBarChart2,
   FiPieChart,
-  FiPackage
+  FiPackage,
+  FiDownload
 } from 'react-icons/fi';
 
 const OwnerPortal = () => {
@@ -554,6 +555,29 @@ const OwnerPortal = () => {
       fetchAllData();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to clear demo menu');
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      toast.info('Creating backup...');
+      const response = await axios.get('/api/debug/backup-all-data');
+      
+      // Create downloadable file
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `restaurant-pos-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Backup downloaded! ${response.data.shops?.length || 0} shops, ${response.data.users?.length || 0} users, ${response.data.menu_items?.length || 0} menu items`);
+    } catch (error) {
+      toast.error('Failed to create backup');
+      console.error('Backup error:', error);
     }
   };
 
@@ -1250,6 +1274,23 @@ const OwnerPortal = () => {
               <FiDatabase className="text-red-600" />
               System Maintenance
             </h3>
+
+            {/* Data Backup */}
+            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-4">
+              <h4 className="font-bold text-green-800 mb-2">🛡️ Download Complete Backup</h4>
+              <p className="text-sm text-green-700 mb-3">
+                Download a complete backup of all your data: shops, users, menu items, tables, and settings.
+                <strong className="block mt-1">💾 Keep this file safe! You can restore from it if needed.</strong>
+              </p>
+              <button
+                onClick={handleDownloadBackup}
+                className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 shadow-lg transition-all transform hover:scale-105 font-semibold flex items-center gap-2"
+              >
+                <FiDownload className="h-5 w-5" />
+                Download Full Backup (JSON)
+              </button>
+            </div>
+
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 mb-4">
               <h4 className="font-bold text-yellow-800 mb-2">🧹 Clear Demo Menu Data</h4>
               <p className="text-sm text-yellow-700 mb-3">
