@@ -895,9 +895,10 @@ app.post('/api/debug/clear-demo-menu', authenticateToken, authorize(['owner']), 
       'Orange Juice'
     ];
     
-    // Delete only demo items (WHERE name IN (...))
+    // Delete only demo items by name (regardless of shop_id)
+    // This removes demo items from ALL shops (since they were auto-inserted)
     const placeholders = demoItems.map(() => '?').join(',');
-    db.run(`DELETE FROM menu_items WHERE name IN (${placeholders}) AND shop_id IS NULL`,
+    db.run(`DELETE FROM menu_items WHERE name IN (${placeholders})`,
       demoItems,
       function(err) {
         if (err) {
@@ -905,6 +906,7 @@ app.post('/api/debug/clear-demo-menu', authenticateToken, authorize(['owner']), 
         }
         
         const deletedCount = this.changes;
+        console.log(`✅ Cleared ${deletedCount} demo menu items`);
         logAuditEvent(req.user.id, 'DEMO_MENU_CLEARED', 'menu_items', null, null, { deleted_count: deletedCount, demo_items: demoItems }, req);
         
         res.json({
