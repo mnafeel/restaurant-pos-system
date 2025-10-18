@@ -3097,14 +3097,10 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
       return res.status(400).json({ error: 'A shop with this name already exists. Please choose a different name.' });
     }
     
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION');
-    
     // If setting as primary, unset other primary shops
     if (is_primary) {
-      db.run('UPDATE shops SET is_primary = false', (err) => {
+      db.run('UPDATE shops SET is_primary = false', [], (err) => {
         if (err) {
-          db.run('ROLLBACK');
           return res.status(500).json({ error: err.message });
         }
       });
@@ -3112,23 +3108,16 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
     
     db.run(`INSERT INTO shops (name, address, city, state, zip_code, country, phone, email, tax_id, is_primary, currency) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, address, city, state, zip_code, country, phone, email, tax_id, is_primary || 0, currency || 'INR'],
+      [name, address || null, city || null, state || null, zip_code || null, country || 'USA', 
+       phone || null, email || null, tax_id || null, is_primary ? true : false, currency || 'INR'],
       function(err) {
         if (err) {
-          db.run('ROLLBACK');
           return res.status(500).json({ error: err.message });
         }
         
-        db.run('COMMIT', (err) => {
-          if (err) {
-            return res.status(500).json({ error: err.message });
-          }
-          
-          logAuditEvent(req.user.id, 'SHOP_CREATED', 'shops', this.lastID, null, req.body, req);
-          res.json({ id: this.lastID, message: 'Shop created successfully' });
-        });
+        logAuditEvent(req.user.id, 'SHOP_CREATED', 'shops', this.lastID, null, req.body, req);
+        res.json({ id: this.lastID, message: 'Shop created successfully' });
       });
-    });
   });
 });
 
