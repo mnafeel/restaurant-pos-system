@@ -735,7 +735,8 @@ const logAuditEvent = (userId, action, tableName, recordId, oldValues, newValues
   
   db.run(`INSERT INTO audit_logs (user_id, action, table_name, record_id, old_values, new_values, ip_address, user_agent) 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [userId, action, tableName, recordId, JSON.stringify(oldValues), JSON.stringify(newValues), ipAddress, userAgent]);
+    [userId || null, action, tableName, recordId || null, JSON.stringify(oldValues || {}), JSON.stringify(newValues || {}), ipAddress || null, userAgent || null],
+    () => {}); // Empty callback to prevent errors
 };
 
 // API Routes
@@ -3107,16 +3108,18 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
     }
     
     db.run(`INSERT INTO shops (name, address, city, state, zip_code, country, phone, email, tax_id, is_primary, currency) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       [name, address || null, city || null, state || null, zip_code || null, country || 'USA', 
        phone || null, email || null, tax_id || null, is_primary ? true : false, currency || 'INR'],
       function(err) {
         if (err) {
+          console.error('Shop creation error:', err);
           return res.status(500).json({ error: err.message });
         }
         
-        logAuditEvent(req.user.id, 'SHOP_CREATED', 'shops', this.lastID, null, req.body, req);
-        res.json({ id: this.lastID, message: 'Shop created successfully' });
+        const shopId = this.lastID || (this.rows && this.rows[0] && this.rows[0].id);
+        logAuditEvent(req.user.id, 'SHOP_CREATED', 'shops', shopId, null, req.body, req);
+        res.json({ id: shopId, message: 'Shop created successfully' });
       });
   });
 });

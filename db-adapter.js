@@ -155,9 +155,16 @@ if (hasMongoDb) {
       let paramIndex = 1;
       const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
       
-      pool.query(pgSql, params, (err, result) => {
+      // Filter out undefined values from params
+      const cleanParams = params.map(p => p === undefined ? null : p);
+      
+      pool.query(pgSql, cleanParams, (err, result) => {
         if (callback) {
-          const context = { lastID: result?.rows?.[0]?.id, changes: result?.rowCount || 0 };
+          const context = { 
+            lastID: result?.rows?.[0]?.id, 
+            changes: result?.rowCount || 0,
+            rows: result?.rows
+          };
           callback.call(context, err);
         }
       });
@@ -167,7 +174,10 @@ if (hasMongoDb) {
       let paramIndex = 1;
       const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
       
-      pool.query(pgSql, params, (err, result) => {
+      // Filter out undefined values from params
+      const cleanParams = params.map(p => p === undefined ? null : p);
+      
+      pool.query(pgSql, cleanParams, (err, result) => {
         if (callback) {
           callback(err, result?.rows?.[0]);
         }
@@ -178,7 +188,10 @@ if (hasMongoDb) {
       let paramIndex = 1;
       const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
       
-      pool.query(pgSql, params, (err, result) => {
+      // Filter out undefined values from params
+      const cleanParams = params.map(p => p === undefined ? null : p);
+      
+      pool.query(pgSql, cleanParams, (err, result) => {
         if (callback) {
           callback(err, result?.rows || []);
         }
