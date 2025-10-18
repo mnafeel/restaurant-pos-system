@@ -80,7 +80,7 @@ const Layout = () => {
     { name: 'Orders', href: '/orders', icon: FiShoppingCart, roles: ['cashier', 'chef', 'manager', 'admin'] },
     { name: 'Tables', href: '/tables', icon: FiGrid, roles: ['cashier', 'manager', 'admin'], requireTableManagement: true },
     { name: 'Kitchen', href: '/kitchen', icon: FiMonitor, roles: ['chef', 'cashier', 'manager', 'admin'], requireKitchenSystem: true },
-    { name: 'Bills', href: '/bills', icon: FiPrinter, roles: ['cashier', 'manager', 'admin', 'owner'] },
+    { name: 'Bills', href: '/bills', icon: FiPrinter, roles: ['cashier', 'manager', 'admin'] },
     { name: 'Menu', href: '/menu', icon: FiPackage, roles: ['manager', 'admin'] },
     { name: 'Reports', href: '/reports', icon: FiBarChart2, roles: ['manager', 'admin'] },
     { name: 'Owner Portal', href: '/owner', icon: FiAward, roles: ['owner'] },
