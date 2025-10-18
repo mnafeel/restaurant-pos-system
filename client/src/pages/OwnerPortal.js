@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrency } from '../contexts/CurrencyContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
@@ -32,6 +33,7 @@ import {
 
 const OwnerPortal = () => {
   const { user, updateUser } = useAuth();
+  const { formatCurrency } = useCurrency();
   const [shops, setShops] = useState([]);
   const [staff, setStaff] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -1996,7 +1998,7 @@ const OwnerPortal = () => {
                         <div className="p-4">
                           <h4 className="font-bold text-gray-900 mb-1">{item.name}</h4>
                           <p className="text-sm text-gray-600 mb-2">{item.category}</p>
-                          <p className="text-lg font-bold text-green-600 mb-3">₹{item.price}</p>
+                          <p className="text-lg font-bold text-green-600 mb-3">{formatCurrency(item.price)}</p>
                           
                           <button
                             onClick={() => handleDeleteMenuItem(item.id, item.name)}

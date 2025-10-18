@@ -83,21 +83,35 @@ export const useServerTime = () => {
  * @param {string|Date} date - Date to format
  * @returns {string} Formatted date string
  */
-export const formatIndianDate = (date) => {
-  // Parse the date and add IST offset (+5:30)
-  const d = new Date(date);
+export const formatIndianDate = (dateInput) => {
+  // Handle different date formats
+  let d;
+  if (typeof dateInput === 'string') {
+    // Parse the date string - database returns UTC timestamps
+    d = new Date(dateInput + (dateInput.includes('Z') ? '' : 'Z'));
+  } else if (dateInput instanceof Date) {
+    d = dateInput;
+  } else {
+    d = new Date();
+  }
   
-  // Get UTC time and add IST offset (5 hours 30 minutes = 330 minutes)
-  const istOffset = 330; // minutes
-  const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
-  const istTime = new Date(utcTime + (istOffset * 60000));
+  // Check if date is valid
+  if (isNaN(d.getTime())) {
+    console.error('Invalid date:', dateInput);
+    return 'Invalid Date';
+  }
   
-  const day = String(istTime.getDate()).padStart(2, '0');
-  const month = String(istTime.getMonth() + 1).padStart(2, '0');
-  const year = istTime.getFullYear();
+  // Get UTC timestamp and add IST offset (UTC+5:30 = 330 minutes)
+  const istOffset = 330 * 60 * 1000; // 330 minutes in milliseconds
+  const istTime = new Date(d.getTime() + istOffset);
   
-  let hours = istTime.getHours();
-  const minutes = String(istTime.getMinutes()).padStart(2, '0');
+  // Use UTC methods on the adjusted time to get IST values
+  const day = String(istTime.getUTCDate()).padStart(2, '0');
+  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+  const year = istTime.getUTCFullYear();
+  
+  let hours = istTime.getUTCHours();
+  const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
   
   hours = hours % 12;
@@ -112,17 +126,27 @@ export const formatIndianDate = (date) => {
  * @param {string|Date} date - Date to format
  * @returns {string} Formatted date string
  */
-export const formatIndianDateOnly = (date) => {
-  const d = new Date(date);
+export const formatIndianDateOnly = (dateInput) => {
+  let d;
+  if (typeof dateInput === 'string') {
+    d = new Date(dateInput + (dateInput.includes('Z') ? '' : 'Z'));
+  } else if (dateInput instanceof Date) {
+    d = dateInput;
+  } else {
+    d = new Date();
+  }
   
-  // Get UTC time and add IST offset (5 hours 30 minutes = 330 minutes)
-  const istOffset = 330; // minutes
-  const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
-  const istTime = new Date(utcTime + (istOffset * 60000));
+  if (isNaN(d.getTime())) {
+    return 'Invalid Date';
+  }
   
-  const day = String(istTime.getDate()).padStart(2, '0');
-  const month = String(istTime.getMonth() + 1).padStart(2, '0');
-  const year = istTime.getFullYear();
+  // Add IST offset (UTC+5:30)
+  const istOffset = 330 * 60 * 1000;
+  const istTime = new Date(d.getTime() + istOffset);
+  
+  const day = String(istTime.getUTCDate()).padStart(2, '0');
+  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+  const year = istTime.getUTCFullYear();
   
   return `${day}/${month}/${year}`;
 };
@@ -132,16 +156,26 @@ export const formatIndianDateOnly = (date) => {
  * @param {string|Date} date - Date to format
  * @returns {string} Formatted time string
  */
-export const formatIndianTimeOnly = (date) => {
-  const d = new Date(date);
+export const formatIndianTimeOnly = (dateInput) => {
+  let d;
+  if (typeof dateInput === 'string') {
+    d = new Date(dateInput + (dateInput.includes('Z') ? '' : 'Z'));
+  } else if (dateInput instanceof Date) {
+    d = dateInput;
+  } else {
+    d = new Date();
+  }
   
-  // Get UTC time and add IST offset (5 hours 30 minutes = 330 minutes)
-  const istOffset = 330; // minutes
-  const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
-  const istTime = new Date(utcTime + (istOffset * 60000));
+  if (isNaN(d.getTime())) {
+    return 'Invalid Time';
+  }
   
-  let hours = istTime.getHours();
-  const minutes = String(istTime.getMinutes()).padStart(2, '0');
+  // Add IST offset (UTC+5:30)
+  const istOffset = 330 * 60 * 1000;
+  const istTime = new Date(d.getTime() + istOffset);
+  
+  let hours = istTime.getUTCHours();
+  const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
   
   hours = hours % 12;
