@@ -861,6 +861,47 @@ app.post('/api/debug/delete-non-owners', (req, res) => {
   });
 });
 
+// BACKUP: Get all data for backup purposes
+app.get('/api/debug/backup-all-data', authenticateToken, authorize(['owner']), (req, res) => {
+  const backupData = {
+    timestamp: new Date().toISOString(),
+    backup_by: req.user.username
+  };
+  
+  // Get all shops
+  db.all('SELECT * FROM shops', (err, shops) => {
+    if (err) return res.status(500).json({ error: err.message });
+    backupData.shops = shops;
+    
+    // Get all users (excluding passwords)
+    db.all('SELECT id, username, email, role, first_name, last_name, phone, shop_id, company_name, is_active, created_at FROM users', (err, users) => {
+      if (err) return res.status(500).json({ error: err.message });
+      backupData.users = users;
+      
+      // Get all menu items
+      db.all('SELECT * FROM menu_items', (err, menuItems) => {
+        if (err) return res.status(500).json({ error: err.message });
+        backupData.menu_items = menuItems;
+        
+        // Get all tables
+        db.all('SELECT * FROM tables', (err, tables) => {
+          if (err) return res.status(500).json({ error: err.message });
+          backupData.tables = tables;
+          
+          // Get all settings
+          db.all('SELECT * FROM settings', (err, settings) => {
+            if (err) return res.status(500).json({ error: err.message });
+            backupData.settings = settings;
+            
+            console.log(`✅ Backup created: ${shops.length} shops, ${users.length} users, ${menuItems.length} menu items`);
+            res.json(backupData);
+          });
+        });
+      });
+    });
+  });
+});
+
 // Delete ONLY demo menu items (keeps user-added items)
 app.post('/api/debug/clear-demo-menu', (req, res) => {
   const { secret } = req.body;
