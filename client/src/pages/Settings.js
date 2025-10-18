@@ -60,6 +60,9 @@ const Settings = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      // Trigger currency change event to refresh currency display
+      window.dispatchEvent(new Event('currencyChanged'));
+      
       toast.success('Settings saved successfully');
     } catch (error) {
       toast.error('Failed to save settings');

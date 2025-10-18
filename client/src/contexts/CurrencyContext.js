@@ -17,6 +17,18 @@ export const CurrencyProvider = ({ children }) => {
 
   useEffect(() => {
     fetchCurrency();
+    
+    // Listen for currency changes (when shop settings are updated)
+    const handleCurrencyChange = () => {
+      console.log('Currency change detected, refreshing...');
+      fetchCurrency();
+    };
+    
+    window.addEventListener('currencyChanged', handleCurrencyChange);
+    
+    return () => {
+      window.removeEventListener('currencyChanged', handleCurrencyChange);
+    };
   }, []);
 
   const fetchCurrency = async () => {

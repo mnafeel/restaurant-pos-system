@@ -2979,8 +2979,18 @@ app.get('/api/shops/:id', authenticateToken, (req, res) => {
 app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, res) => {
   const { name, address, city, state, zip_code, country, phone, email, tax_id, is_primary, currency } = req.body;
   
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
+  // Check if shop name already exists
+  db.get('SELECT id FROM shops WHERE name = ?', [name], (err, existingShop) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (existingShop) {
+      return res.status(400).json({ error: 'A shop with this name already exists. Please choose a different name.' });
+    }
+    
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
     
     // If setting as primary, unset other primary shops
     if (is_primary) {
@@ -3010,6 +3020,7 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
           res.json({ id: this.lastID, message: 'Shop created successfully' });
         });
       });
+    });
   });
 });
 
@@ -3361,7 +3372,7 @@ app.put('/api/profile', authenticateToken, [
     return res.status(400).json({ errors: errors.array() });
   }
   
-  const { first_name, last_name, email, phone, current_password, new_password, company_name } = req.body;
+  const { first_name, last_name, email, phone, current_password, new_password, company_name, username } = req.body;
   
   // Get current user data
   db.get('SELECT * FROM users WHERE id = ?', [req.user.id], (err, currentUser) => {
@@ -3373,63 +3384,91 @@ app.put('/api/profile', authenticateToken, [
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // If changing password, verify current password
-    if (new_password) {
-      if (!current_password) {
-        return res.status(400).json({ error: 'Current password is required to set new password' });
-      }
-      
-      if (!bcrypt.compareSync(current_password, currentUser.password_hash)) {
-        return res.status(401).json({ error: 'Current password is incorrect' });
-      }
-    }
-    
-    const updates = [];
-    const values = [];
-    
-    if (first_name !== undefined) {
-      updates.push('first_name = ?');
-      values.push(first_name);
-    }
-    if (last_name !== undefined) {
-      updates.push('last_name = ?');
-      values.push(last_name);
-    }
-    if (email !== undefined) {
-      updates.push('email = ?');
-      values.push(email);
-    }
-    if (phone !== undefined) {
-      updates.push('phone = ?');
-      values.push(phone);
-    }
-    if (new_password) {
-      updates.push('password_hash = ?');
-      values.push(bcrypt.hashSync(new_password, 10));
-    }
-    if (company_name !== undefined) {
-      updates.push('company_name = ?');
-      values.push(company_name);
-    }
-    
-    if (updates.length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
-    }
-    
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    values.push(req.user.id);
-    
-    db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
-      if (err) {
-        if (err.message.includes('UNIQUE constraint failed')) {
-          return res.status(400).json({ error: 'Email already exists' });
+    // If changing username, check if it's already taken
+    if (username && username !== currentUser.username) {
+      db.get('SELECT id FROM users WHERE username = ? AND id != ?', [username, req.user.id], (err, existingUser) => {
+        if (err) {
+          return res.status(500).json({ error: err.message });
         }
-        return res.status(500).json({ error: err.message });
+        if (existingUser) {
+          return res.status(400).json({ error: 'Username already taken' });
+        }
+        
+        // Continue with the update
+        performUpdate();
+      });
+      return;
+    }
+    
+    // If not changing username, proceed directly
+    performUpdate();
+    
+    function performUpdate() {
+      // If changing password, verify current password
+      if (new_password) {
+        if (!current_password) {
+          return res.status(400).json({ error: 'Current password is required to set new password' });
+        }
+        
+        if (!bcrypt.compareSync(current_password, currentUser.password_hash)) {
+          return res.status(401).json({ error: 'Current password is incorrect' });
+        }
       }
       
-      logAuditEvent(req.user.id, 'PROFILE_UPDATED', 'users', req.user.id, currentUser, req.body, req);
-      res.json({ message: 'Profile updated successfully' });
-    });
+      const updates = [];
+      const values = [];
+      
+      if (username !== undefined && username !== currentUser.username) {
+        updates.push('username = ?');
+        values.push(username);
+      }
+      if (first_name !== undefined) {
+        updates.push('first_name = ?');
+        values.push(first_name);
+      }
+      if (last_name !== undefined) {
+        updates.push('last_name = ?');
+        values.push(last_name);
+      }
+      if (email !== undefined) {
+        updates.push('email = ?');
+        values.push(email);
+      }
+      if (phone !== undefined) {
+        updates.push('phone = ?');
+        values.push(phone);
+      }
+      if (new_password) {
+        updates.push('password_hash = ?');
+        values.push(bcrypt.hashSync(new_password, 10));
+      }
+      if (company_name !== undefined) {
+        updates.push('company_name = ?');
+        values.push(company_name);
+      }
+    
+      if (updates.length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+      
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(req.user.id);
+      
+      db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed')) {
+            if (err.message.includes('username')) {
+              return res.status(400).json({ error: 'Username already taken' });
+            }
+            return res.status(400).json({ error: 'Email already exists' });
+          }
+          return res.status(500).json({ error: err.message });
+        }
+        
+        logAuditEvent(req.user.id, 'PROFILE_UPDATED', 'users', req.user.id, currentUser, req.body, req);
+        res.json({ message: 'Profile updated successfully' });
+      });
+    }
   });
 });
 

@@ -56,8 +56,10 @@ const OwnerPortal = () => {
   const [ownerPassword, setOwnerPassword] = useState('');
   const [currentShop, setCurrentShop] = useState(null);
   const [selectedShopForStaff, setSelectedShopForStaff] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [companyName, setCompanyName] = useState(user?.company_name || '');
+  const [ownerUsername, setOwnerUsername] = useState(user?.username || '');
   const [companyLogo, setCompanyLogo] = useState(null);
   const [previewLogo, setPreviewLogo] = useState(user?.avatar_url || null);
   
@@ -147,6 +149,14 @@ const OwnerPortal = () => {
 
   const handleAddShop = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
       const shopRes = await axios.post('/api/shops', {
         name: newShop.name,
@@ -199,9 +209,15 @@ const OwnerPortal = () => {
         currency: 'INR'
       });
       setShopLogoPreview(null);
+      
+      // Trigger currency change event
+      window.dispatchEvent(new Event('currencyChanged'));
+      
       fetchAllData();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to create shop');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -251,6 +267,10 @@ const OwnerPortal = () => {
       setEditShopData(null);
       setEditShopLogo(null);
       setEditShopLogoPreview(null);
+      
+      // Trigger currency change event if currency was updated
+      window.dispatchEvent(new Event('currencyChanged'));
+      
       fetchAllData();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to update shop');
@@ -369,8 +389,24 @@ const OwnerPortal = () => {
 
   const handleUpdateCompanyName = async () => {
     try {
-      // Update company name
-      await axios.put('/api/profile', { company_name: companyName });
+      // Validate username
+      if (ownerUsername && ownerUsername.trim() === '') {
+        toast.error('Username cannot be empty');
+        return;
+      }
+      
+      // Update company name and username
+      const updateData = {};
+      if (companyName !== user?.company_name) {
+        updateData.company_name = companyName;
+      }
+      if (ownerUsername && ownerUsername !== user?.username) {
+        updateData.username = ownerUsername.toLowerCase().trim();
+      }
+      
+      if (Object.keys(updateData).length > 0) {
+        await axios.put('/api/profile', updateData);
+      }
       
       // Upload logo if selected
       if (companyLogo) {
@@ -391,9 +427,11 @@ const OwnerPortal = () => {
         const response = await axios.get('/api/profile');
         updateUser(response.data);
         setPreviewLogo(response.data.avatar_url);
+        setOwnerUsername(response.data.username);
       }
     } catch (error) {
-      toast.error('Failed to update profile');
+      const errorMsg = error.response?.data?.error || 'Failed to update profile';
+      toast.error(errorMsg);
     }
   };
 
@@ -1397,9 +1435,10 @@ const OwnerPortal = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 shadow-lg transition font-semibold"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 shadow-lg transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Shop & Admin
+                  {isSubmitting ? 'Creating...' : 'Create Shop & Admin'}
                 </button>
               </div>
             </form>
@@ -1558,6 +1597,7 @@ const OwnerPortal = () => {
                 setShowEditProfile(false);
                 setCompanyLogo(null);
                 setPreviewLogo(user?.avatar_url || null);
+                setOwnerUsername(user?.username || '');
               }} className="p-2 hover:bg-white/20 rounded-lg transition">
                 <FiX className="h-6 w-6" />
               </button>
@@ -1601,6 +1641,26 @@ const OwnerPortal = () => {
                 </div>
               </div>
 
+              {/* Owner Username */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Owner Username <span className="text-xs text-gray-500">(used for login)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">@</span>
+                  <input
+                    type="text"
+                    value={ownerUsername}
+                    onChange={(e) => setOwnerUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                    className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="owner"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  ⚠️ Important: This is your login username. Change it carefully.
+                </p>
+              </div>
+
               {/* Company Name */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Company Name</label>
@@ -1619,6 +1679,7 @@ const OwnerPortal = () => {
                     setShowEditProfile(false);
                     setCompanyLogo(null);
                     setPreviewLogo(user?.avatar_url || null);
+                    setOwnerUsername(user?.username || '');
                   }}
                   className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold"
                 >

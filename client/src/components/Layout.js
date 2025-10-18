@@ -52,15 +52,17 @@ const Layout = () => {
         const token = localStorage.getItem('token');
         if (!token || !user) return;
 
-        // If user belongs to a shop, fetch shop name
-        if (user.shop_id) {
+        // If user is owner, show Owner Dashboard
+        if (user.role === 'owner') {
+          setShopName(user.company_name ? `${user.company_name} - Owner Dashboard` : '👑 Owner Dashboard');
+        } else if (user.shop_id) {
+          // If user belongs to a shop, fetch shop name
           const response = await axios.get(`/api/shops/${user.shop_id}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           setShopName(response.data.name);
-        } else if (user.company_name) {
-          // Owner - use company name
-          setShopName(user.company_name);
+        } else {
+          setShopName('Restaurant POS');
         }
       } catch (error) {
         console.error('Error fetching shop name:', error);
@@ -78,7 +80,7 @@ const Layout = () => {
     { name: 'Orders', href: '/orders', icon: FiShoppingCart, roles: ['cashier', 'chef', 'manager', 'admin'] },
     { name: 'Tables', href: '/tables', icon: FiGrid, roles: ['cashier', 'manager', 'admin'], requireTableManagement: true },
     { name: 'Kitchen', href: '/kitchen', icon: FiMonitor, roles: ['chef', 'cashier', 'manager', 'admin'], requireKitchenSystem: true },
-    { name: 'Bills', href: '/bills', icon: FiPrinter, roles: ['cashier', 'manager', 'admin'] },
+    { name: 'Bills', href: '/bills', icon: FiPrinter, roles: ['cashier', 'manager', 'admin', 'owner'] },
     { name: 'Menu', href: '/menu', icon: FiPackage, roles: ['manager', 'admin'] },
     { name: 'Reports', href: '/reports', icon: FiBarChart2, roles: ['manager', 'admin'] },
     { name: 'Owner Portal', href: '/owner', icon: FiAward, roles: ['owner'] },
