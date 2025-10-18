@@ -3395,7 +3395,7 @@ app.get('/api/shops/:id/menu', authenticateToken, authorize(['owner', 'admin']),
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(items);
+    res.json(items || []);
   });
 });
 
