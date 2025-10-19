@@ -357,8 +357,10 @@ if (hasMongoDb) {
           id VARCHAR(255) PRIMARY KEY,
           order_number VARCHAR(50) UNIQUE NOT NULL,
           table_id INTEGER,
+          table_number VARCHAR(50),
           order_type VARCHAR(50) DEFAULT 'dine_in',
           customer_name VARCHAR(255),
+          customer_phone VARCHAR(20),
           status VARCHAR(50) DEFAULT 'pending',
           payment_method VARCHAR(50),
           payment_status VARCHAR(50) DEFAULT 'pending',
@@ -368,6 +370,7 @@ if (hasMongoDb) {
           discount_amount DECIMAL(10, 2) DEFAULT 0,
           total_amount DECIMAL(10, 2) DEFAULT 0,
           notes TEXT,
+          kds_status VARCHAR(50),
           created_by INTEGER,
           shop_id INTEGER,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -375,6 +378,16 @@ if (hasMongoDb) {
           completed_at TIMESTAMP
         )
       `);
+
+      // Add missing columns to orders table if they don't exist
+      const ordersColumns = ['table_number', 'customer_phone', 'kds_status'];
+      for (const column of ordersColumns) {
+        try {
+          await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${column} VARCHAR(50)`);
+        } catch (err) {
+          // Column might already exist, ignore
+        }
+      }
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS order_items (
