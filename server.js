@@ -2059,11 +2059,16 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
   const { orderId } = req.params;
   const { payment_method, payment_status } = req.body;
   
+  console.log('Payment update request:', { orderId, payment_method, payment_status });
+  
   db.run(`UPDATE orders SET payment_method = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     [payment_method, payment_status, orderId], function(err) {
       if (err) {
+        console.error('Payment update error:', err);
         return res.status(500).json({ error: err.message });
       }
+      
+      console.log('Payment updated, rows affected:', this.changes);
       
       // Auto-generate bill when payment is completed
       if (payment_status === 'paid') {
@@ -2080,18 +2085,23 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
           const discountAmount = 0;
           const totalAmount = subtotal + taxAmount + serviceCharge - discountAmount;
           
+          console.log('Creating bill:', { billId, orderId, tableNumber: order.table_number, totalAmount });
+          
           db.run(`INSERT INTO bills (
             id, order_id, table_number, subtotal, tax_amount, 
             service_charge, discount_amount, total_amount, 
             payment_method, payment_status, staff_id, shop_id, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [billId, orderId, order.table_number, subtotal, taxAmount, 
+            [billId, orderId, order.table_number || 'N/A', subtotal, taxAmount, 
              serviceCharge, discountAmount, totalAmount, 
              payment_method, 'paid', req.user.id, order.shop_id || null, order.created_at],
             (err) => {
               if (err) {
                 console.error('Error creating bill:', err);
+                console.error('Bill creation error details:', err.message, err.code);
+                return res.status(500).json({ error: 'Failed to create bill: ' + err.message });
               }
+              console.log('Bill created successfully:', billId);
               logAuditEvent(req.user.id, 'PAYMENT_COMPLETED', 'orders', orderId, null, { payment_method, payment_status }, req);
               res.json({ message: 'Payment updated successfully', billId });
             }
