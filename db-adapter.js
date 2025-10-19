@@ -459,6 +459,7 @@ if (hasMongoDb) {
           is_split BOOLEAN DEFAULT false,
           split_count INTEGER DEFAULT 1,
           staff_id INTEGER,
+          shop_id INTEGER,
           voided BOOLEAN DEFAULT false,
           void_reason TEXT,
           voided_by INTEGER,
@@ -468,6 +469,13 @@ if (hasMongoDb) {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
+
+      // Add missing shop_id column to bills table if it doesn't exist
+      try {
+        await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS shop_id INTEGER`);
+      } catch (err) {
+        // Column might already exist, ignore
+      }
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS split_bills (
