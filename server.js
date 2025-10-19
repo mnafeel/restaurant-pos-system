@@ -2984,12 +2984,13 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
   }
   
   // Today's sales - SHOP FILTERED
+  const dateFunc = db.type === 'postgres' ? 'b.created_at::date' : 'DATE(b.created_at)';
   db.get(`SELECT 
     COALESCE(SUM(b.total_amount), 0) as today_sales,
     COALESCE(COUNT(*), 0) as today_orders
     FROM bills b
     JOIN orders o ON b.order_id = o.id
-    WHERE DATE(b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
+    WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
     if (err) {
       console.error('Dashboard today error:', err);
       res.status(500).json({ error: err.message });
@@ -3002,7 +3003,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       COALESCE(COUNT(*), 0) as yesterday_orders
       FROM bills b
       JOIN orders o ON b.order_id = o.id
-      WHERE DATE(b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterday, shopId], (err, yesterdayData) => {
+      WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterday, shopId], (err, yesterdayData) => {
       if (err) {
         console.error('Dashboard yesterday error:', err);
         res.status(500).json({ error: err.message });
