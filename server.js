@@ -3019,6 +3019,9 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
         console.error('Error details:', err.message, err.code);
         yesterdayData = { yesterday_sales: 0, yesterday_orders: 0 };
       }
+      if (!yesterdayData) {
+        yesterdayData = { yesterday_sales: 0, yesterday_orders: 0 };
+      }
       
       // This month's sales - SHOP FILTERED
       db.get(`SELECT 
@@ -3032,6 +3035,9 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
           console.error('Error details:', err.message, err.code);
           monthData = { month_sales: 0, month_orders: 0 };
         }
+        if (!monthData) {
+          monthData = { month_sales: 0, month_orders: 0 };
+        }
         
         // Last month's sales - SHOP FILTERED
         db.get(`SELECT 
@@ -3043,6 +3049,9 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
           if (err) {
             console.error('Dashboard lastMonth error:', err);
             console.error('Error details:', err.message, err.code);
+            lastMonthData = { last_month_sales: 0, last_month_orders: 0 };
+          }
+          if (!lastMonthData) {
             lastMonthData = { last_month_sales: 0, last_month_orders: 0 };
           }
           
