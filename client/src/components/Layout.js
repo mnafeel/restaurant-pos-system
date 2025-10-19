@@ -404,7 +404,7 @@ const Layout = () => {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Page content with glassmorphism */}
         <main className="flex-1 overflow-auto p-6">
