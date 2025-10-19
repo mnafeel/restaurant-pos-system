@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiHome,
   FiShoppingCart,
@@ -112,91 +113,168 @@ const Layout = () => {
     return location.pathname === path;
   };
 
+  // Framer Motion variants for animations
+  const sidebarVariants = {
+    open: {
+      x: 0,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    },
+    closed: {
+      x: "-100%",
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }
+    }
+  };
+
+  const backdropVariants = {
+    open: { opacity: 1 },
+    closed: { opacity: 0 }
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Mobile sidebar with smooth transitions */}
-      <div className={`fixed inset-0 z-50 lg:hidden transition-opacity duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity" onClick={() => setSidebarOpen(false)} />
-        <div className={`relative flex-1 flex flex-col max-w-xs w-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="absolute top-0 right-0 -mr-12 pt-2">
-            <button
-              type="button"
-              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
+      {/* Animated Mobile/Tablet/Desktop Sidebar with Framer Motion */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial="closed"
+              animate="open"
+              exit="closed"
+              variants={backdropVariants}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
               onClick={() => setSidebarOpen(false)}
+            />
+            
+            {/* Sidebar */}
+            <motion.div
+              initial="closed"
+              animate="open"
+              exit="closed"
+              variants={sidebarVariants}
+              className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-gray-900 to-gray-800 shadow-2xl"
             >
-              <FiX className="h-6 w-6 text-white" />
-            </button>
-          </div>
-          <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
-            <div className="flex-shrink-0 flex items-center px-4">
-              <h1 className="text-xl font-bold text-gray-900">{shopName}</h1>
-            </div>
-            <nav className="mt-5 px-2 space-y-1">
-              {filteredNavigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.name}
+              {/* Close Button */}
+              <div className="absolute top-4 right-4">
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center justify-center h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors"
+                >
+                  <FiX className="h-6 w-6 text-white" />
+                </motion.button>
+              </div>
+
+              {/* Sidebar Content */}
+              <div className="flex-1 flex flex-col h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                {/* Shop Name Header */}
+                <div className="px-6 py-8 border-b border-gray-700/50">
+                  <motion.h1 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent"
+                  >
+                    {shopName}
+                  </motion.h1>
+                  <p className="text-gray-400 text-sm mt-1">Restaurant Management</p>
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 px-4 py-6 space-y-2">
+                  {filteredNavigation.map((item, index) => {
+                    const Icon = item.icon;
+                    const isActive = isCurrentPath(item.href);
+                    return (
+                      <motion.button
+                        key={item.name}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ scale: 1.02, x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          navigate(item.href);
+                          setSidebarOpen(false);
+                        }}
+                        className={`${
+                          isActive
+                            ? 'bg-gradient-to-r from-blue-600 to-emerald-600 text-white shadow-lg shadow-blue-500/50'
+                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                        } group flex items-center px-4 py-3 text-base font-semibold rounded-xl w-full text-left transition-all duration-200 relative overflow-hidden`}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeTab"
+                            className="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-xl"
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                          />
+                        )}
+                        <Icon className={`mr-3 h-5 w-5 relative z-10 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`} />
+                        <span className="relative z-10">{item.name}</span>
+                      </motion.button>
+                    );
+                  })}
+                </nav>
+
+                {/* Profile Section */}
+                <div className="px-4 pb-6 border-t border-gray-700/50">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
-                      navigate(item.href);
+                      navigate('/profile');
                       setSidebarOpen(false);
                     }}
-                    className={`${
-                      isCurrentPath(item.href)
-                        ? 'bg-blue-100 text-blue-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-base font-medium rounded-md w-full text-left`}
+                    className="flex items-center w-full hover:bg-white/5 p-4 rounded-xl transition-all mt-4"
                   >
-                    <Icon className="mr-4 h-6 w-6" />
-                    {item.name}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-          {/* Mobile Profile and Logout */}
-          <div className="flex-shrink-0 border-t border-gray-200">
-            <button
-              onClick={() => {
-                navigate('/profile');
-                setSidebarOpen(false);
-              }}
-              className="flex items-center w-full hover:bg-gray-50 p-4 transition-colors"
-            >
-              <div className="flex-shrink-0">
-                {user?.avatar_url ? (
-                  <img
-                    src={`https://restaurant-pos-system-1-7h0m.onrender.com${user.avatar_url}`}
-                    alt="Avatar"
-                    className="h-8 w-8 rounded-full object-cover border-2 border-blue-200"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <FiUser className="h-5 w-5 text-blue-600" />
-                  </div>
-                )}
+                    <div className="flex-shrink-0">
+                      {user?.avatar_url ? (
+                        <img
+                          src={`https://restaurant-pos-system-1-7h0m.onrender.com${user.avatar_url}`}
+                          alt="Avatar"
+                          className="h-10 w-10 rounded-full object-cover border-2 border-blue-500 ring-2 ring-blue-500/30"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg">
+                          <FiUser className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="ml-3 flex-1 text-left">
+                      <p className="text-sm font-semibold text-white">{user?.first_name} {user?.last_name}</p>
+                      <p className="text-xs text-gray-400">{user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}</p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLogout();
+                      }}
+                      className="ml-3 text-gray-400 hover:text-red-400 transition-colors p-2 hover:bg-red-500/10 rounded-lg"
+                      title="Logout"
+                    >
+                      <FiLogOut className="h-5 w-5" />
+                    </motion.button>
+                  </motion.button>
+                </div>
               </div>
-              <div className="ml-3 flex-1 text-left">
-                <p className="text-sm font-medium text-gray-700">{user?.first_name} {user?.last_name}</p>
-                <p className="text-xs text-gray-500">{user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}</p>
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleLogout();
-                }}
-                className="ml-3 text-gray-400 hover:text-gray-600"
-                title="Logout"
-              >
-                <FiLogOut className="h-5 w-5" />
-              </button>
-            </button>
-          </div>
-        </div>
-      </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
+      {/* Desktop sidebar - same toggle on all screens */}
+      <div className="hidden">
         <div className="flex flex-col w-64">
           <div className="flex flex-col h-0 flex-1 bg-white border-r border-gray-200">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -267,16 +345,46 @@ const Layout = () => {
 
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top bar with enhanced toggle button */}
-        <div className="sticky top-0 z-10 lg:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-white shadow-sm">
-          <button
-            type="button"
-            className="h-12 w-12 inline-flex items-center justify-center rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-md transition-all duration-200 hover:scale-105"
-            onClick={() => setSidebarOpen(true)}
-            title="Open Menu"
-          >
-            <FiMenu className="h-6 w-6" />
-          </button>
+        {/* Premium Top Bar - Visible on ALL screen sizes */}
+        <div className="sticky top-0 z-30 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-700/50 backdrop-blur-lg shadow-xl">
+          <div className="flex items-center justify-between px-4 py-3">
+            {/* Toggle Button - Works on all screens */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setSidebarOpen(true)}
+              className="h-12 w-12 inline-flex items-center justify-center rounded-xl text-white bg-gradient-to-br from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg hover:shadow-blue-500/50 transition-all duration-200"
+              title="Open Menu"
+            >
+              <FiMenu className="h-6 w-6" />
+            </motion.button>
+
+            {/* Shop Name on Desktop */}
+            <div className="hidden md:block">
+              <h2 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+                {shopName}
+              </h2>
+            </div>
+
+            {/* User Info on Desktop */}
+            <div className="hidden md:flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm font-semibold text-white">{user?.first_name} {user?.last_name}</p>
+                <p className="text-xs text-gray-400">{user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}</p>
+              </div>
+              {user?.avatar_url ? (
+                <img
+                  src={`https://restaurant-pos-system-1-7h0m.onrender.com${user.avatar_url}`}
+                  alt="Avatar"
+                  className="h-10 w-10 rounded-full object-cover border-2 border-blue-500 ring-2 ring-blue-500/30"
+                />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg">
+                  <FiUser className="h-5 w-5 text-white" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Page content */}
