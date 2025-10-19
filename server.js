@@ -1865,11 +1865,12 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
         let completed = 0;
         items.forEach((item) => {
           const finalPrice = item.price + (item.variant_price_adjustment || 0);
-          db.run('INSERT INTO order_items (order_id, menu_item_id, variant_id, quantity, price, special_instructions) VALUES (?, ?, ?, ?, ?, ?)',
-            [orderId, item.menu_item_id, item.variant_id || null, item.quantity, finalPrice, item.special_instructions || ''], (err) => {
+          db.run('INSERT INTO order_items (order_id, menu_item_id, variant_id, quantity, unit_price, price, special_instructions) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [orderId, item.menu_item_id, item.variant_id || null, item.quantity, item.price, finalPrice, item.special_instructions || ''], (err) => {
           if (err) {
+            console.error('Order item insert error:', err);
             db.run('ROLLBACK');
-                return res.status(500).json({ error: err.message });
+                return res.status(500).json({ error: 'Failed to create order items: ' + err.message });
               }
               
               completed++;
