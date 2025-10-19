@@ -227,26 +227,42 @@ if (hasMongoDb) {
     try {
       console.log('🔄 Initializing PostgreSQL database...');
       
-      // Check if shops table exists and has all columns
+      // Check if we need to recreate tables due to ID type change
       try {
-        const checkColumn = await pool.query(`
-          SELECT column_name FROM information_schema.columns 
-          WHERE table_name = 'shops' AND column_name = 'country'
+        const checkOrdersIdType = await pool.query(`
+          SELECT data_type FROM information_schema.columns 
+          WHERE table_name = 'orders' AND column_name = 'id'
         `);
         
-        if (!checkColumn.rows || checkColumn.rows.length === 0) {
-          console.log('⚠️  Shops table missing columns, adding them...');
+        if (checkOrdersIdType.rows && checkOrdersIdType.rows.length > 0) {
+          const idType = checkOrdersIdType.rows[0].data_type;
           
-          // Add missing columns to shops table
-          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'USA'`).catch(() => {});
-          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS admin_username TEXT`).catch(() => {});
-          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS admin_password TEXT`).catch(() => {});
-          await pool.query(`ALTER TABLE shops ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'INR'`).catch(() => {});
-          
-          console.log('✅ Shops table columns added');
+          // If orders.id is integer/serial, we need to recreate tables
+          if (idType === 'integer' || idType === 'bigint') {
+            console.log('⚠️  Detected old schema with INTEGER IDs, recreating tables with VARCHAR IDs...');
+            console.log('⚠️  This will delete existing data but is necessary for proper functioning');
+            
+            // Drop all tables in correct order (respect foreign keys)
+            await pool.query('DROP TABLE IF EXISTS audit_logs CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS print_queue CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS split_bills CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS bills CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS order_items CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS orders CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS menu_variants CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS menu_items CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS categories CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS taxes CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS tables CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS shops CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS users CASCADE').catch(() => {});
+            await pool.query('DROP TABLE IF EXISTS settings CASCADE').catch(() => {});
+            
+            console.log('✅ Old tables dropped, will create new schema...');
+          }
         }
       } catch (err) {
-        console.log('Note: Shops table might not exist yet, will be created below');
+        console.log('Note: Tables might not exist yet, will be created below');
       }
       
       // Create tables
