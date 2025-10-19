@@ -47,23 +47,52 @@ code {
   backdrop-filter: blur(20px);
 }
 
-/* Theme-aware text colors - only for elements WITHOUT explicit color classes */
-.text-gray-900:not(.text-blue-600):not(.text-green-600):not(.text-red-600):not(.text-purple-600):not(.text-orange-600):not(.text-yellow-600),
-.text-gray-800:not(.text-blue-600):not(.text-green-600):not(.text-red-600),
-.text-gray-700:not(.text-blue-600):not(.text-green-600):not(.text-red-600),
-.text-gray-600:not(.text-blue-600):not(.text-green-600):not(.text-red-600),
-.text-gray-500:not(.text-blue-600):not(.text-green-600):not(.text-red-600) {
+/* ========================================= */
+/* THEME-AWARE TEXT COLORS */
+/* ========================================= */
+
+/* STEP 1: Apply theme text color to ALL elements by default */
+* {
+  color: var(--theme-text-color, #111827);
+}
+
+/* STEP 2: Preserve explicitly colored classes (higher specificity) */
+.text-blue-600, .text-blue-700, .text-blue-500, .text-blue-400,
+.text-green-600, .text-green-700, .text-green-500, .text-green-400,
+.text-red-600, .text-red-700, .text-red-500, .text-red-400,
+.text-purple-600, .text-purple-700, .text-purple-500,
+.text-orange-600, .text-orange-700, .text-orange-500,
+.text-yellow-600, .text-yellow-700, .text-yellow-500, .text-yellow-400,
+.text-pink-600, .text-indigo-600, .text-teal-600,
+.text-emerald-600, .text-emerald-500, .text-emerald-400,
+.text-gray-400, .text-gray-300, .text-gray-200 {
+  /* DO NOT override - keep Tailwind colors */
+}
+
+/* STEP 3: Force white/dark text on headings and key elements */
+h1:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-gradient"]),
+h2:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-gradient"]),
+h3:not([class*="text-blue"]):not([class*="text-green"]),
+h4, h5, h6 {
   color: var(--theme-text-color, #111827) !important;
 }
 
-/* Only apply to headings and paragraphs that don't have explicit color classes */
-h1:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]),
-h2:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]),
-h3:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]),
-h4:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]),
-p:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]),
-span:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]),
-label:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]) {
+/* STEP 4: Specific gray text classes */
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-gray-600,
+.text-gray-500 {
+  color: var(--theme-text-color, #111827) !important;
+}
+
+/* STEP 5: Tables, labels, divs */
+td:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]),
+th:not([class*="text-blue"]):not([class*="text-green"]),
+label:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]),
+p:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]):not([class*="text-gray-4"]),
+span:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]):not([class*="text-gray-4"]),
+div:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]) {
   color: var(--theme-text-color, #111827) !important;
 }
 
