@@ -2124,14 +2124,15 @@ app.put('/api/orders/:orderId/items', authenticateToken, authorize(['cashier', '
         return res.status(500).json({ error: err.message });
       }
       
-      db.run('DELETE FROM order_items WHERE order_id = ?', [orderId], (err) => {
+        db.run('DELETE FROM order_items WHERE order_id = ?', [orderId], (err) => {
         if (err) {
           return res.status(500).json({ error: err.message });
         }
         
-        const stmt = db.prepare('INSERT INTO order_items (order_id, menu_item_id, quantity, price) VALUES (?, ?, ?, ?)');
+        const stmt = db.prepare('INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, price, variant_id, special_instructions) VALUES (?, ?, ?, ?, ?, ?, ?)');
         items.forEach(item => {
-          stmt.run(orderId, item.menu_item_id, item.quantity, item.price);
+          const finalPrice = item.price + (item.variant_price_adjustment || 0);
+          stmt.run(orderId, item.menu_item_id, item.quantity, item.price, finalPrice, item.variant_id || null, item.special_instructions || '');
         });
         stmt.finalize();
         
