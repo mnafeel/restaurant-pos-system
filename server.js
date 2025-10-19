@@ -2139,14 +2139,27 @@ app.put('/api/orders/:orderId/items', authenticateToken, authorize(['cashier', '
           return res.status(500).json({ error: err.message });
         }
         
-        const stmt = db.prepare('INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, price, variant_id, special_instructions) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        // Insert items one by one (PostgreSQL compatible - no prepare/finalize)
+        let completed = 0;
+        let hasError = false;
+        
         items.forEach(item => {
           const finalPrice = item.price + (item.variant_price_adjustment || 0);
-          stmt.run(orderId, item.menu_item_id, item.quantity, item.price, finalPrice, item.variant_id || null, item.special_instructions || '');
+          db.run('INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, price, variant_id, special_instructions) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [orderId, item.menu_item_id, item.quantity, item.price, finalPrice, item.variant_id || null, item.special_instructions || ''],
+            (err) => {
+              if (err && !hasError) {
+                hasError = true;
+                console.error('Error inserting order item:', err);
+                return res.status(500).json({ error: 'Failed to update order items: ' + err.message });
+              }
+              
+              completed++;
+              if (completed === items.length && !hasError) {
+                res.json({ message: 'Order updated successfully' });
+              }
+            });
         });
-        stmt.finalize();
-        
-        res.json({ message: 'Order updated successfully' });
       });
     });
 });
