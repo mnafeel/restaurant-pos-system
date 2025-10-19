@@ -2282,28 +2282,28 @@ app.get('/api/kitchen/orders', authenticateToken, authorize(['chef', 'cashier', 
     // Group items by order
     const orders = {};
     if (rows && Array.isArray(rows)) {
-      rows.forEach(row => {
-        if (!orders[row.order_id]) {
-          orders[row.order_id] = {
-            order_id: row.order_id,
-            table_number: row.table_number,
-            created_at: row.created_at,
+    rows.forEach(row => {
+      if (!orders[row.order_id]) {
+        orders[row.order_id] = {
+          order_id: row.order_id,
+          table_number: row.table_number,
+          created_at: row.created_at,
             notes: row.notes,
-            items: []
-          };
-        }
-        orders[row.order_id].items.push({
-          item_id: row.item_id,
-          item_name: row.item_name,
+          items: []
+        };
+      }
+      orders[row.order_id].items.push({
+        item_id: row.item_id,
+        item_name: row.item_name,
           category: row.category,
           variant_name: row.variant_name,
-          quantity: row.quantity,
-          special_instructions: row.special_instructions,
+        quantity: row.quantity,
+        special_instructions: row.special_instructions,
           status: row.item_status,
           kds_status: row.kds_status,
           created_at: row.item_created_at
-        });
       });
+    });
     }
     
     res.json(Object.values(orders));
@@ -2965,10 +2965,10 @@ app.get('/api/reports/daily-payments', authenticateToken, authorize(['manager', 
 
 app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admin']), (req, res) => {
   try {
-    const today = moment().format('YYYY-MM-DD');
-    const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
-    const thisMonth = moment().format('YYYY-MM');
-    const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
+  const today = moment().format('YYYY-MM-DD');
+  const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
+  const thisMonth = moment().format('YYYY-MM');
+  const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
     const shopId = req.user.shop_id; // Filter by user's shop
     
     console.log('Dashboard request - shopId:', shopId, 'db.type:', db.type);
@@ -2991,11 +2991,11 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
     const dateFunc = db.type === 'postgres' ? 'b.created_at::date' : 'DATE(b.created_at)';
     console.log('Using dateFunc:', dateFunc);
     
-    db.get(`SELECT 
+  db.get(`SELECT 
     COALESCE(SUM(b.total_amount), 0) as today_sales,
-    COALESCE(COUNT(*), 0) as today_orders
+    COALESCE(COUNT(b.id), 0) as today_orders
     FROM bills b
-    JOIN orders o ON b.order_id = o.id
+    INNER JOIN orders o ON b.order_id = o.id
     WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
     if (err) {
       console.error('Dashboard today error:', err);
@@ -3003,13 +3003,16 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       // Return empty data instead of failing
       todayData = { today_sales: 0, today_orders: 0 };
     }
+    if (!todayData) {
+      todayData = { today_sales: 0, today_orders: 0 };
+    }
     
     // Yesterday's sales - SHOP FILTERED
     db.get(`SELECT 
       COALESCE(SUM(b.total_amount), 0) as yesterday_sales,
-      COALESCE(COUNT(*), 0) as yesterday_orders
+      COALESCE(COUNT(b.id), 0) as yesterday_orders
       FROM bills b
-      JOIN orders o ON b.order_id = o.id
+      INNER JOIN orders o ON b.order_id = o.id
       WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterday, shopId], (err, yesterdayData) => {
       if (err) {
         console.error('Dashboard yesterday error:', err);
@@ -3020,9 +3023,9 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       // This month's sales - SHOP FILTERED
       db.get(`SELECT 
         COALESCE(SUM(b.total_amount), 0) as month_sales,
-        COALESCE(COUNT(*), 0) as month_orders
+        COALESCE(COUNT(b.id), 0) as month_orders
         FROM bills b
-        JOIN orders o ON b.order_id = o.id
+        INNER JOIN orders o ON b.order_id = o.id
         WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [thisMonth, shopId], (err, monthData) => {
         if (err) {
           console.error('Dashboard thisMonth error:', err);
@@ -3033,9 +3036,9 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
         // Last month's sales - SHOP FILTERED
         db.get(`SELECT 
           COALESCE(SUM(b.total_amount), 0) as last_month_sales,
-          COALESCE(COUNT(*), 0) as last_month_orders
+          COALESCE(COUNT(b.id), 0) as last_month_orders
           FROM bills b
-          JOIN orders o ON b.order_id = o.id
+          INNER JOIN orders o ON b.order_id = o.id
           WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [lastMonth, shopId], (err, lastMonthData) => {
           if (err) {
             console.error('Dashboard lastMonth error:', err);
