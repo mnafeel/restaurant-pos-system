@@ -11,6 +11,14 @@ export const useTheme = () => {
   return context;
 };
 
+// Utility function to determine if background is dark (for auto-contrast text)
+const isBackgroundDark = (gradient) => {
+  // Check if gradient contains dark color codes
+  return gradient.includes('#0') || gradient.includes('#1') || gradient.includes('#2') || 
+         gradient.includes('#3') || gradient.includes('gray-900') || gradient.includes('gray-800') ||
+         gradient.includes('slate-900') || gradient.includes('black');
+};
+
 // Theme modes with dark-focused elegant gradients
 const themeModes = {
   dark: {
@@ -233,6 +241,145 @@ const themeModes = {
       icon: '🏠'
     }
     // ... other cafe theme pages
+  },
+  neon: {
+    '/dashboard': {
+      name: 'Dashboard',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]', // Deep forest → glowing emerald
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '🏠'
+    },
+    '/orders': {
+      name: 'Orders',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '📦'
+    },
+    '/kitchen': {
+      name: 'Kitchen',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '🍳'
+    },
+    '/tables': {
+      name: 'Tables',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '🍽️'
+    },
+    '/settings': {
+      name: 'Settings',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '⚙️'
+    },
+    '/bills': {
+      name: 'Bills',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '🧾'
+    },
+    '/menu': {
+      name: 'Menu',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '📋'
+    },
+    '/reports': {
+      name: 'Reports',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '📊'
+    },
+    '/owner': {
+      name: 'Owner Portal',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '👑'
+    },
+    '/profile': {
+      name: 'Profile',
+      gradient: 'from-[#022C22] via-[#064E3B] to-[#065F46]',
+      navbarBg: 'from-[#022C22]/95 to-[#064E3B]/95',
+      cardBg: 'bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20',
+      accentColor: '#10B981',
+      textColor: 'text-emerald-50',
+      glowColor: 'shadow-emerald-500/50',
+      neonGlow: true,
+      icon: '👤'
+    }
+  },
+  restaurant: {
+    '/dashboard': {
+      name: 'Dashboard',
+      gradient: 'from-black/80 via-black/60 to-black/80', // Photo overlay
+      navbarBg: 'from-black/90 to-black/80',
+      cardBg: 'bg-white/10 backdrop-blur-2xl border border-white/20',
+      accentColor: '#F97316',
+      textColor: 'text-white',
+      backgroundImage: 'url(https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920)',
+      hasPhoto: true,
+      icon: '🏠'
+    }
+    // Photo backgrounds for other pages can be added similarly
+  },
+  cozy: {
+    '/dashboard': {
+      name: 'Dashboard',
+      gradient: 'from-black/70 via-black/50 to-black/70',
+      navbarBg: 'from-black/85 to-black/75',
+      cardBg: 'bg-amber-900/20 backdrop-blur-2xl border border-amber-500/30',
+      accentColor: '#D97706',
+      textColor: 'text-amber-50',
+      backgroundImage: 'url(https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1920)',
+      hasPhoto: true,
+      icon: '🏠'
+    }
   }
 };
 

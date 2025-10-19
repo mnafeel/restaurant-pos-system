@@ -145,9 +145,19 @@ const Layout = () => {
       key={location.pathname}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className={`flex h-screen bg-gradient-to-br ${currentTheme.gradient} overflow-hidden`}
+      transition={{ duration: 0.4 }}
+      className={`flex h-screen bg-gradient-to-br ${currentTheme.gradient} overflow-hidden relative`}
+      style={currentTheme.hasPhoto ? {
+        backgroundImage: currentTheme.backgroundImage,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      } : {}}
     >
+      {/* Gradient overlay for photo backgrounds */}
+      {currentTheme.hasPhoto && (
+        <div className={`absolute inset-0 bg-gradient-to-br ${currentTheme.gradient} z-0`} />
+      )}
       {/* Animated Mobile/Tablet/Desktop Sidebar with Framer Motion */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -162,13 +172,13 @@ const Layout = () => {
               onClick={() => setSidebarOpen(false)}
             />
             
-            {/* Sidebar */}
+            {/* Sidebar with theme-aware glow */}
             <motion.div
               initial="closed"
               animate="open"
               exit="closed"
               variants={sidebarVariants}
-              className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-gray-900 to-gray-800 shadow-2xl"
+              className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-gray-900 to-gray-800 shadow-2xl ${currentTheme.neonGlow ? 'ring-2 ring-emerald-500/50' : ''}`}
             >
               {/* Close Button */}
               <div className="absolute top-4 right-4">
@@ -352,11 +362,11 @@ const Layout = () => {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col relative z-10">
         {/* Premium Top Bar - Visible on ALL screen sizes with Dynamic Theme */}
         <motion.div 
           layout
-          className={`sticky top-0 z-30 bg-gradient-to-r ${currentTheme.navbarBg} border-b border-white/10 backdrop-blur-xl shadow-2xl`}
+          className={`sticky top-0 z-30 bg-gradient-to-r ${currentTheme.navbarBg} border-b border-white/10 backdrop-blur-xl ${currentTheme.neonGlow ? 'shadow-2xl shadow-emerald-500/20' : 'shadow-2xl'}`}
         >
           <div className="flex items-center justify-between px-4 py-3">
             {/* Toggle Button - Works on all screens with theme color */}

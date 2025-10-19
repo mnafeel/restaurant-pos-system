@@ -868,6 +868,78 @@ const Settings = () => {
                     <p className="text-xs text-amber-300 mt-2">Coffee-inspired browns</p>
                   </div>
                 </button>
+
+                {/* Neon Green Theme */}
+                <button
+                  onClick={() => {
+                    changeTheme('neon');
+                    toast.success('Neon theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                    themeMode === 'neon'
+                      ? 'border-emerald-500 bg-gradient-to-br from-[#022C22] to-[#065F46] shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-500/30'
+                      : 'border-gray-200 bg-gradient-to-br from-[#022C22] to-[#065F46] hover:border-emerald-400'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">💚</div>
+                    <h3 className="font-bold text-emerald-50">Neon Green</h3>
+                    <p className="text-xs text-emerald-200 mt-1">Electric & Vibrant</p>
+                    <p className="text-xs text-emerald-300 mt-2">Glowing green accents</p>
+                  </div>
+                </button>
+
+                {/* Restaurant Photo Theme */}
+                <button
+                  onClick={() => {
+                    changeTheme('restaurant');
+                    toast.success('Restaurant photo theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden ${
+                    themeMode === 'restaurant'
+                      ? 'border-orange-500 shadow-lg shadow-orange-500/50'
+                      : 'border-gray-200 hover:border-orange-400'
+                  }`}
+                  style={{
+                    backgroundImage: 'url(https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
+                >
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+                  <div className="text-center relative z-10">
+                    <div className="text-4xl mb-2">🍽️</div>
+                    <h3 className="font-bold text-white">Restaurant</h3>
+                    <p className="text-xs text-gray-200 mt-1">Photo Background</p>
+                    <p className="text-xs text-gray-300 mt-2">Live restaurant ambiance</p>
+                  </div>
+                </button>
+
+                {/* Cozy Photo Theme */}
+                <button
+                  onClick={() => {
+                    changeTheme('cozy');
+                    toast.success('Cozy theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden ${
+                    themeMode === 'cozy'
+                      ? 'border-amber-600 shadow-lg shadow-amber-600/50'
+                      : 'border-gray-200 hover:border-amber-500'
+                  }`}
+                  style={{
+                    backgroundImage: 'url(https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
+                >
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+                  <div className="text-center relative z-10">
+                    <div className="text-4xl mb-2">🕯️</div>
+                    <h3 className="font-bold text-white">Cozy</h3>
+                    <p className="text-xs text-gray-200 mt-1">Photo Background</p>
+                    <p className="text-xs text-gray-300 mt-2">Warm cafe ambiance</p>
+                  </div>
+                </button>
               </div>
             </div>
 
