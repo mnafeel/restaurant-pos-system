@@ -2110,7 +2110,10 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
           const discountAmount = 0;
           const totalAmount = subtotal + taxAmount + serviceCharge - discountAmount;
           
-          console.log('Creating bill:', { billId, orderId, tableNumber: order.table_number, totalAmount });
+          // Use current IST timestamp for bill creation (not order.created_at)
+          const currentISTTimestamp = moment().tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss');
+          
+          console.log('Creating bill at IST time:', currentISTTimestamp, { billId, orderId, tableNumber: order.table_number, totalAmount });
           
           db.run(`INSERT INTO bills (
             id, order_id, table_number, subtotal, tax_amount, 
@@ -2119,7 +2122,7 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [billId, orderId, order.table_number || 'N/A', subtotal, taxAmount, 
              serviceCharge, discountAmount, totalAmount, 
-             payment_method, 'paid', req.user.id, order.shop_id || null, order.created_at],
+             payment_method, 'paid', req.user.id, order.shop_id || null, currentISTTimestamp],
             (err) => {
               if (err) {
                 console.error('Error creating bill:', err);
