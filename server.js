@@ -1839,6 +1839,7 @@ app.post('/api/menu/:id/variants', authenticateToken, authorize(['admin', 'manag
 app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manager', 'admin']), (req, res) => {
   const { tableNumber, items, customer_name, customer_phone, notes, order_type, payment_status } = req.body;
   const orderId = uuidv4();
+  const orderNumber = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   
   if (!items || items.length === 0) {
     return res.status(400).json({ error: 'Order must contain at least one item' });
@@ -1853,8 +1854,8 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
     });
     
     // Create order
-    db.run('INSERT INTO orders (id, table_number, staff_id, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-      [orderId, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
+    db.run('INSERT INTO orders (id, order_number, table_number, staff_id, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+      [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
       if (err) {
         db.run('ROLLBACK');
           return res.status(500).json({ error: err.message });
