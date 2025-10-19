@@ -157,12 +157,15 @@ const OwnerPortal = () => {
     
     // Prevent multiple submissions
     if (isSubmitting) {
+      console.log('Already submitting, ignoring click');
       return;
     }
     
     setIsSubmitting(true);
+    console.log('🏪 Starting shop creation...', newShop);
     
     try {
+      console.log('📤 Step 1: Creating shop...');
       const shopRes = await axios.post('/api/shops', {
         name: newShop.name,
         address: newShop.address,
@@ -173,25 +176,31 @@ const OwnerPortal = () => {
         is_active: true
       });
 
+      console.log('✅ Step 1: Shop created!', shopRes.data);
       const shopId = shopRes.data.id;
       let adminCreated = false;
 
       // Upload shop logo if selected
       if (newShop.logo) {
         try {
+          console.log('📤 Step 2: Uploading logo...');
           const formData = new FormData();
           formData.append('logo', newShop.logo);
           await axios.post(`/api/shops/${shopId}/logo`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
+          console.log('✅ Step 2: Logo uploaded!');
         } catch (logoError) {
-          console.warn('Logo upload failed:', logoError);
+          console.warn('⚠️ Step 2: Logo upload failed:', logoError);
           // Continue - logo is optional
         }
+      } else {
+        console.log('⏭️ Step 2: No logo to upload, skipping');
       }
 
       // Create admin user for shop
       try {
+        console.log('📤 Step 3: Creating admin user...');
         await axios.post('/api/users', {
           username: newShop.admin_username,
           email: newShop.email,
@@ -201,18 +210,25 @@ const OwnerPortal = () => {
           last_name: newShop.admin_last_name,
           shop_id: shopId
         });
+        console.log('✅ Step 3: Admin user created!');
 
+        console.log('📤 Step 4: Updating shop with admin username...');
         await axios.put(`/api/shops/${shopId}`, {
           admin_username: newShop.admin_username
         });
+        console.log('✅ Step 4: Shop updated!');
         
         adminCreated = true;
       } catch (adminError) {
-        console.error('Admin creation failed:', adminError);
+        console.error('❌ Step 3/4 failed - Admin creation error:', adminError);
+        console.error('Error response:', adminError.response?.data);
+        console.error('Error status:', adminError.response?.status);
         // Shop is created, but admin failed - show warning
-        toast.warning(`Shop created, but admin user creation failed: ${adminError.response?.data?.error || 'Unknown error'}. You can create admin users manually.`);
+        const errorMsg = adminError.response?.data?.error || adminError.response?.data?.errors?.[0]?.msg || 'Unknown error';
+        toast.warning(`Shop created, but admin user creation failed: ${errorMsg}. You can create admin users manually.`);
       }
 
+      console.log('🎉 Shop creation process complete!');
       if (adminCreated) {
         toast.success('Shop and admin account created successfully');
       } else {
@@ -239,8 +255,15 @@ const OwnerPortal = () => {
       
       fetchAllData();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to create shop');
+      console.error('❌ SHOP CREATION FAILED:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.message);
+      
+      const errorMsg = error.response?.data?.error || error.response?.data?.errors?.[0]?.msg || error.message || 'Failed to create shop';
+      toast.error(`Shop creation failed: ${errorMsg}`);
     } finally {
+      console.log('🔄 Resetting isSubmitting flag');
       setIsSubmitting(false);
     }
   };
