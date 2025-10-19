@@ -147,12 +147,20 @@ const Layout = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
       className={`flex h-screen bg-gradient-to-br ${currentTheme.gradient} overflow-hidden relative`}
-      style={currentTheme.hasPhoto ? {
-        backgroundImage: currentTheme.backgroundImage,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
-      } : {}}
+      style={{
+        ...(currentTheme.hasPhoto ? {
+          backgroundImage: currentTheme.backgroundImage,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed'
+        } : {}),
+        // CSS variables for theme-aware styling throughout the app
+        '--theme-text': currentTheme.textColor === 'text-white' ? '#ffffff' : '#111827',
+        '--theme-accent': currentTheme.accentColor,
+        '--theme-card-bg': currentTheme.cardBg.includes('white/5') ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+        '--theme-card-border': currentTheme.neonGlow ? currentTheme.accentColor + '40' : 'rgba(229, 231, 235, 0.2)',
+        '--theme-card-shadow': currentTheme.neonGlow ? `0 0 20px ${currentTheme.accentColor}40` : '0 1px 3px 0 rgb(0 0 0 / 0.1)'
+      }}
     >
       {/* Gradient overlay for photo backgrounds */}
       {currentTheme.hasPhoto && (

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTheme } from '../contexts/ThemeContext';
+import ThemeWrapper from '../components/ThemeWrapper';
 import axios from 'axios';
 import {
   Chart as ChartJS,
@@ -42,6 +44,7 @@ ChartJS.register(
 const Dashboard = () => {
   const { user, hasRole } = useAuth();
   const { formatCurrency } = useCurrency();
+  const { currentTheme } = useTheme();
   const [dashboardData, setDashboardData] = useState(null);
   const [salesData, setSalesData] = useState([]);
   const [topItems, setTopItems] = useState([]);
@@ -95,23 +98,27 @@ const Dashboard = () => {
 
   if (!hasRole(['manager', 'admin'])) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to view the dashboard.</p>
+      <ThemeWrapper>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className={`text-center ${currentTheme.cardBg} p-8 rounded-2xl`}>
+            <h1 className={`text-2xl font-bold mb-4 ${currentTheme.textColor}`}>Access Denied</h1>
+            <p className={currentTheme.textColor}>You don't have permission to view the dashboard.</p>
+          </div>
         </div>
-      </div>
+      </ThemeWrapper>
     );
   }
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+      <ThemeWrapper>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-4 mx-auto" style={{ borderColor: currentTheme.accentColor, borderTopColor: 'transparent' }}></div>
+            <p className={`mt-4 ${currentTheme.textColor}`}>Loading dashboard...</p>
+          </div>
         </div>
-      </div>
+      </ThemeWrapper>
     );
   }
 
@@ -173,12 +180,13 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {user?.first_name}!</p>
-      </div>
+    <ThemeWrapper>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className={`text-3xl font-bold ${currentTheme.textColor}`}>Dashboard</h1>
+          <p className={`${currentTheme.textColor} opacity-80 mt-2`}>Welcome back, {user?.first_name}!</p>
+        </div>
 
       {/* Date Range Filter */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
