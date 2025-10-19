@@ -2964,28 +2964,34 @@ app.get('/api/reports/daily-payments', authenticateToken, authorize(['manager', 
 });
 
 app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admin']), (req, res) => {
-  const today = moment().format('YYYY-MM-DD');
-  const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
-  const thisMonth = moment().format('YYYY-MM');
-  const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
-  const shopId = req.user.shop_id; // Filter by user's shop
-  
-  // If no shop_id, return empty data
-  if (!shopId) {
-    return res.json({
-      today: { today_sales: 0, today_orders: 0 },
-      yesterday: { yesterday_sales: 0, yesterday_orders: 0 },
-      thisMonth: { month_sales: 0, month_orders: 0 },
-      lastMonth: { last_month_sales: 0, last_month_orders: 0 },
-      lowStockItems: [],
-      salesGrowth: 0,
-      ordersGrowth: 0
-    });
-  }
-  
-  // Today's sales - SHOP FILTERED
-  const dateFunc = db.type === 'postgres' ? 'b.created_at::date' : 'DATE(b.created_at)';
-  db.get(`SELECT 
+  try {
+    const today = moment().format('YYYY-MM-DD');
+    const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
+    const thisMonth = moment().format('YYYY-MM');
+    const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
+    const shopId = req.user.shop_id; // Filter by user's shop
+    
+    console.log('Dashboard request - shopId:', shopId, 'db.type:', db.type);
+    
+    // If no shop_id, return empty data
+    if (!shopId) {
+      console.log('No shop_id, returning empty dashboard');
+      return res.json({
+        today: { today_sales: 0, today_orders: 0 },
+        yesterday: { yesterday_sales: 0, yesterday_orders: 0 },
+        thisMonth: { month_sales: 0, month_orders: 0 },
+        lastMonth: { last_month_sales: 0, last_month_orders: 0 },
+        lowStockItems: [],
+        salesGrowth: 0,
+        ordersGrowth: 0
+      });
+    }
+    
+    // Today's sales - SHOP FILTERED
+    const dateFunc = db.type === 'postgres' ? 'b.created_at::date' : 'DATE(b.created_at)';
+    console.log('Using dateFunc:', dateFunc);
+    
+    db.get(`SELECT 
     COALESCE(SUM(b.total_amount), 0) as today_sales,
     COALESCE(COUNT(*), 0) as today_orders
     FROM bills b
@@ -3065,6 +3071,10 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       });
     });
   });
+  } catch (error) {
+    console.error('Dashboard endpoint error:', error);
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
 });
 
 // Inventory Management
