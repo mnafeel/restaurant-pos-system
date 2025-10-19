@@ -394,6 +394,7 @@ const Dashboard = () => {
         </div>
       )}
     </div>
+    </ThemeWrapper>
   );
 };
 
