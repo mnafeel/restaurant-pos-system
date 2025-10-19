@@ -380,10 +380,11 @@ if (hasMongoDb) {
       `);
 
       // Add missing columns to orders table if they don't exist
-      const ordersColumns = ['table_number', 'customer_phone', 'kds_status'];
+      const ordersColumns = ['table_number', 'customer_phone', 'kds_status', 'staff_id'];
       for (const column of ordersColumns) {
         try {
-          await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${column} VARCHAR(50)`);
+          const columnType = column === 'staff_id' ? 'INTEGER' : 'VARCHAR(50)';
+          await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${column} ${columnType}`);
         } catch (err) {
           // Column might already exist, ignore
         }
