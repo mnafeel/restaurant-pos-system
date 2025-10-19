@@ -204,6 +204,29 @@ const formatIndianDate = (date) => {
 // Database setup - automatically uses PostgreSQL on Vercel, SQLite locally
 const db = require('./db-adapter');
 
+// SQL Helper Functions - Database Agnostic
+const SQL = {
+  // DATE() function - extract date part
+  DATE: (column) => {
+    return db.type === 'postgres' ? `DATE(${column})` : `DATE(${column})`;
+  },
+  
+  // strftime for year-month
+  YEAR_MONTH: (column) => {
+    return db.type === 'postgres' ? `TO_CHAR(${column}, 'YYYY-MM')` : `strftime("%Y-%m", ${column})`;
+  },
+  
+  // strftime for year-week
+  YEAR_WEEK: (column) => {
+    return db.type === 'postgres' ? `TO_CHAR(${column}, 'IYYY-IW')` : `strftime("%Y-%W", ${column})`;
+  },
+  
+  // GROUP_CONCAT / STRING_AGG
+  GROUP_CONCAT: (expr, separator = ',') => {
+    return db.type === 'postgres' ? `STRING_AGG(${expr}, '${separator}')` : `GROUP_CONCAT(${expr})`;
+  }
+};
+
 // Initialize database tables
 db.serialize(() => {
   // Users table
@@ -2781,10 +2804,10 @@ app.get('/api/reports/sales', authenticateToken, authorize(['manager', 'admin'])
       groupBy = 'DATE(b.created_at)';
       break;
     case 'weekly':
-      groupBy = 'strftime("%Y-%W", b.created_at)';
+      groupBy = SQL.YEAR_WEEK('b.created_at');
       break;
     case 'monthly':
-      groupBy = 'strftime("%Y-%m", b.created_at)';
+      groupBy = SQL.YEAR_MONTH('b.created_at');
       break;
     default:
       groupBy = 'DATE(b.created_at)';
@@ -2970,7 +2993,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
         COALESCE(COUNT(*), 0) as month_orders
         FROM bills b
         JOIN orders o ON b.order_id = o.id
-        WHERE strftime("%Y-%m", b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [thisMonth, shopId], (err, monthData) => {
+        WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [thisMonth, shopId], (err, monthData) => {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
@@ -2982,7 +3005,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
           COALESCE(COUNT(*), 0) as last_month_orders
           FROM bills b
           JOIN orders o ON b.order_id = o.id
-          WHERE strftime("%Y-%m", b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [lastMonth, shopId], (err, lastMonthData) => {
+          WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [lastMonth, shopId], (err, lastMonthData) => {
           if (err) {
             res.status(500).json({ error: err.message });
             return;
