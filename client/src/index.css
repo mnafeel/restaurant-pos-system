@@ -41,8 +41,8 @@ code {
 
 /* Theme-aware styling for all white cards and components */
 .bg-white {
-  background-color: var(--theme-card-bg, white) !important;
-  border: 1px solid var(--theme-card-border, rgba(229, 231, 235, 0.2)) !important;
+  background-color: var(--theme-card-bg-color, white) !important;
+  border: 1px solid var(--theme-card-border-color, rgba(229, 231, 235, 0.2)) !important;
   box-shadow: var(--theme-card-shadow, 0 1px 3px 0 rgb(0 0 0 / 0.1)) !important;
   backdrop-filter: blur(20px);
 }
@@ -50,14 +50,14 @@ code {
 /* Theme-aware text colors */
 .text-gray-900,
 .text-gray-800,
-.text-gray-700 {
-  color: var(--theme-text, #111827) !important;
-}
-
+.text-gray-700,
 .text-gray-600,
 .text-gray-500 {
-  color: var(--theme-text, #6B7280) !important;
-  opacity: 0.8;
+  color: var(--theme-text-color, #111827) !important;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, label, td, th {
+  color: var(--theme-text-color, #111827) !important;
 }
 
 /* Theme-aware inputs */
@@ -66,22 +66,23 @@ input[type="email"],
 input[type="number"],
 input[type="password"],
 input[type="date"],
+input[type="search"],
 textarea,
 select {
-  background-color: var(--theme-card-bg, white) !important;
-  color: var(--theme-text, #111827) !important;
-  border-color: var(--theme-card-border, rgba(229, 231, 235, 0.5)) !important;
+  background-color: var(--theme-card-bg-color, white) !important;
+  color: var(--theme-text-color, #111827) !important;
+  border-color: var(--theme-card-border-color, rgba(229, 231, 235, 0.5)) !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--theme-text, #9CA3AF) !important;
+  color: var(--theme-text-color, #9CA3AF) !important;
   opacity: 0.5;
 }
 
-/* Theme-aware buttons */
-button:not(.bg-gradient-to-r):not(.bg-gradient-to-br):not(.bg-blue-600):not(.bg-green-600):not(.bg-red-600) {
-  color: var(--theme-text, inherit) !important;
+/* Theme-aware table styles */
+table {
+  background-color: var(--theme-card-bg-color, white) !important;
 }
 
 /* Premium scrollbar for dark themes */
@@ -90,11 +91,11 @@ button:not(.bg-gradient-to-r):not(.bg-gradient-to-br):not(.bg-blue-600):not(.bg-
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--theme-accent, #888);
+  background: var(--theme-accent-color, #888);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--theme-accent, #555);
-  box-shadow: 0 0 10px var(--theme-accent, #555);
+  background: var(--theme-accent-color, #555);
+  box-shadow: 0 0 10px var(--theme-accent-color, #555);
 }

@@ -155,11 +155,12 @@ const Layout = () => {
           backgroundAttachment: 'fixed'
         } : {}),
         // CSS variables for theme-aware styling throughout the app
-        '--theme-text': currentTheme.textColor === 'text-white' ? '#ffffff' : '#111827',
-        '--theme-accent': currentTheme.accentColor,
-        '--theme-card-bg': currentTheme.cardBg.includes('white/5') ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-        '--theme-card-border': currentTheme.neonGlow ? currentTheme.accentColor + '40' : 'rgba(229, 231, 235, 0.2)',
-        '--theme-card-shadow': currentTheme.neonGlow ? `0 0 20px ${currentTheme.accentColor}40` : '0 1px 3px 0 rgb(0 0 0 / 0.1)'
+        '--theme-text-color': currentTheme.textColor === 'text-white' ? '#ffffff' : '#111827',
+        '--theme-accent-color': currentTheme.accentColor,
+        '--theme-card-bg-color': currentTheme.cardBg.includes('white/5') ? 'rgba(255, 255, 255, 0.05)' : currentTheme.cardBg.includes('white/80') ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.05)',
+        '--theme-card-border-color': currentTheme.neonGlow ? currentTheme.accentColor + '40' : 'rgba(229, 231, 235, 0.2)',
+        '--theme-card-shadow': currentTheme.neonGlow ? `0 0 20px ${currentTheme.accentColor}40` : '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+        '--theme-is-dark': currentTheme.textColor === 'text-white' ? '1' : '0'
       }}
     >
       {/* Gradient overlay for photo backgrounds */}
