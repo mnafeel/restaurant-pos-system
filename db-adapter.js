@@ -312,6 +312,16 @@ if (hasMongoDb) {
       `);
 
       await pool.query(`
+        CREATE TABLE IF NOT EXISTS menu_variants (
+          id SERIAL PRIMARY KEY,
+          menu_item_id INTEGER NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          price_adjustment DECIMAL(10, 2) DEFAULT 0,
+          is_available BOOLEAN DEFAULT true
+        )
+      `);
+
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS tables (
           id SERIAL PRIMARY KEY,
           table_number VARCHAR(50) NOT NULL,

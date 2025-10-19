@@ -1540,7 +1540,12 @@ app.put('/api/categories/:id', authenticateToken, authorize(['admin', 'manager']
 app.get('/api/shops/:shopId/menu', authenticateToken, authorize(['owner']), (req, res) => {
   const { shopId } = req.params;
   
-  db.all(`SELECT m.*, GROUP_CONCAT(v.id || ':' || v.name || ':' || v.price_adjustment) as variants
+  // Use STRING_AGG for PostgreSQL, GROUP_CONCAT for SQLite
+  const aggregateFunc = db.type === 'postgres' 
+    ? "STRING_AGG(CAST(v.id AS TEXT) || ':' || v.name || ':' || CAST(v.price_adjustment AS TEXT), ',')" 
+    : "GROUP_CONCAT(v.id || ':' || v.name || ':' || v.price_adjustment)";
+  
+  db.all(`SELECT m.*, ${aggregateFunc} as variants
     FROM menu_items m
     LEFT JOIN menu_variants v ON m.id = v.menu_item_id AND v.is_available = true
     WHERE m.shop_id = ? OR m.shop_id IS NULL
@@ -1634,7 +1639,12 @@ app.get('/api/menu', authenticateToken, (req, res) => {
   }
   const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
   
-  db.all(`SELECT m.*, GROUP_CONCAT(v.id || ':' || v.name || ':' || v.price_adjustment) as variants
+  // Use STRING_AGG for PostgreSQL, GROUP_CONCAT for SQLite
+  const aggregateFunc = db.type === 'postgres' 
+    ? "STRING_AGG(CAST(v.id AS TEXT) || ':' || v.name || ':' || CAST(v.price_adjustment AS TEXT), ',')" 
+    : "GROUP_CONCAT(v.id || ':' || v.name || ':' || v.price_adjustment)";
+  
+  db.all(`SELECT m.*, ${aggregateFunc} as variants
     FROM menu_items m
     LEFT JOIN menu_variants v ON m.id = v.menu_item_id AND v.is_available = true
     ${whereClause}
