@@ -1183,12 +1183,16 @@ app.post('/api/users', authenticateToken, authorize(['owner', 'admin']), [
 
   db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, phone, shop_id) 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [username, email, passwordHash, role, first_name, last_name, phone, shop_id || null], function(err) {
+    [username, email, passwordHash, role, first_name, last_name, phone || null, shop_id || null], function(err) {
       if (err) {
-        if (err.message.includes('UNIQUE constraint failed')) {
+        console.error('User creation error:', err);
+        // Handle both SQLite and PostgreSQL unique constraint errors
+        if (err.message.includes('UNIQUE constraint failed') || 
+            err.message.includes('duplicate key value') ||
+            err.code === '23505') {
           return res.status(400).json({ error: 'Username or email already exists' });
         }
-        return res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: 'Database error: ' + err.message });
       }
 
       logAuditEvent(req.user.id, 'USER_CREATED', 'users', this.lastID, null, { username, email, role, shop_id }, req);

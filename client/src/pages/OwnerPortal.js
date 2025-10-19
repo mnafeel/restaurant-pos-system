@@ -174,31 +174,50 @@ const OwnerPortal = () => {
       });
 
       const shopId = shopRes.data.id;
+      let adminCreated = false;
 
       // Upload shop logo if selected
       if (newShop.logo) {
-        const formData = new FormData();
-        formData.append('logo', newShop.logo);
-        await axios.post(`/api/shops/${shopId}/logo`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        try {
+          const formData = new FormData();
+          formData.append('logo', newShop.logo);
+          await axios.post(`/api/shops/${shopId}/logo`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (logoError) {
+          console.warn('Logo upload failed:', logoError);
+          // Continue - logo is optional
+        }
       }
 
-      await axios.post('/api/users', {
-        username: newShop.admin_username,
-        email: newShop.email,
-        password: newShop.admin_password,
-        role: 'admin',
-        first_name: newShop.admin_first_name,
-        last_name: newShop.admin_last_name,
-        shop_id: shopId
-      });
+      // Create admin user for shop
+      try {
+        await axios.post('/api/users', {
+          username: newShop.admin_username,
+          email: newShop.email,
+          password: newShop.admin_password,
+          role: 'admin',
+          first_name: newShop.admin_first_name,
+          last_name: newShop.admin_last_name,
+          shop_id: shopId
+        });
 
-      await axios.put(`/api/shops/${shopId}`, {
-        admin_username: newShop.admin_username
-      });
+        await axios.put(`/api/shops/${shopId}`, {
+          admin_username: newShop.admin_username
+        });
+        
+        adminCreated = true;
+      } catch (adminError) {
+        console.error('Admin creation failed:', adminError);
+        // Shop is created, but admin failed - show warning
+        toast.warning(`Shop created, but admin user creation failed: ${adminError.response?.data?.error || 'Unknown error'}. You can create admin users manually.`);
+      }
 
-      toast.success('Shop and admin account created successfully');
+      if (adminCreated) {
+        toast.success('Shop and admin account created successfully');
+      } else {
+        toast.success('Shop created successfully! (Admin user can be added later)')
+      }
       setShowAddShop(false);
       setNewShop({
         name: '',
