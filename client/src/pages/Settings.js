@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FaSave, FaCog, FaPrint, FaStore, FaTags, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaSave, FaCog, FaPrint, FaStore, FaTags, FaEdit, FaTrash, FaPalette } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Settings = () => {
   const { user } = useAuth();
+  const { themeMode, changeTheme } = useTheme();
   const [settings, setSettings] = useState({});
   const [shopData, setShopData] = useState(null);
   const [taxes, setTaxes] = useState([]);
@@ -233,6 +235,18 @@ const Settings = () => {
           >
             <FaCog className="inline mr-2" />
             General
+          </button>
+
+          <button
+            onClick={() => setActiveTab('appearance')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'appearance'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <FaPalette className="inline mr-2" />
+            Appearance
           </button>
         </nav>
       </div>
@@ -734,6 +748,133 @@ const Settings = () => {
               </select>
               <p className="text-sm text-gray-500 mt-1">
                 Sales before this hour will count as the previous day. For example, if set to 6 AM, sales at 2:59 AM will show in yesterday's report.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Appearance Tab - Theme Switcher */}
+      {activeTab === 'appearance' && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <FaPalette className="text-blue-600" />
+            Theme & Appearance
+          </h2>
+          
+          <div className="space-y-6">
+            {/* Theme Mode Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Color Theme
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Dark Mode */}
+                <button
+                  onClick={() => {
+                    changeTheme('dark');
+                    toast.success('Dark theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                    themeMode === 'dark'
+                      ? 'border-blue-500 bg-gradient-to-br from-gray-900 to-gray-800 shadow-lg shadow-blue-500/50'
+                      : 'border-gray-200 bg-gradient-to-br from-gray-900 to-gray-800 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">🌑</div>
+                    <h3 className="font-bold text-white">Dark Mode</h3>
+                    <p className="text-xs text-gray-400 mt-1">Elegant & Sophisticated</p>
+                    <p className="text-xs text-gray-500 mt-2">Spotify-inspired dark gradients</p>
+                  </div>
+                </button>
+
+                {/* Light Mode */}
+                <button
+                  onClick={() => {
+                    changeTheme('light');
+                    toast.success('Light theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                    themeMode === 'light'
+                      ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg shadow-blue-500/50'
+                      : 'border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">☀️</div>
+                    <h3 className="font-bold text-gray-900">Light Mode</h3>
+                    <p className="text-xs text-gray-600 mt-1">Clean & Bright</p>
+                    <p className="text-xs text-gray-500 mt-2">Soft pastel gradients</p>
+                  </div>
+                </button>
+
+                {/* Gold Theme */}
+                <button
+                  onClick={() => {
+                    changeTheme('gold');
+                    toast.success('Gold theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                    themeMode === 'gold'
+                      ? 'border-amber-500 bg-gradient-to-br from-amber-900 to-orange-900 shadow-lg shadow-amber-500/50'
+                      : 'border-gray-200 bg-gradient-to-br from-amber-900 to-orange-900 hover:border-amber-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">✨</div>
+                    <h3 className="font-bold text-amber-50">Gold</h3>
+                    <p className="text-xs text-amber-200 mt-1">Luxury & Premium</p>
+                    <p className="text-xs text-amber-300 mt-2">Rich golden gradients</p>
+                  </div>
+                </button>
+
+                {/* Teal Theme */}
+                <button
+                  onClick={() => {
+                    changeTheme('teal');
+                    toast.success('Teal theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                    themeMode === 'teal'
+                      ? 'border-teal-500 bg-gradient-to-br from-teal-900 to-cyan-900 shadow-lg shadow-teal-500/50'
+                      : 'border-gray-200 bg-gradient-to-br from-teal-900 to-cyan-900 hover:border-teal-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">🌊</div>
+                    <h3 className="font-bold text-teal-50">Teal</h3>
+                    <p className="text-xs text-teal-200 mt-1">Ocean & Calm</p>
+                    <p className="text-xs text-teal-300 mt-2">Refreshing teal tones</p>
+                  </div>
+                </button>
+
+                {/* Cafe Theme */}
+                <button
+                  onClick={() => {
+                    changeTheme('cafe');
+                    toast.success('Cafe theme applied!');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                    themeMode === 'cafe'
+                      ? 'border-amber-700 bg-gradient-to-br from-[#3E2723] to-[#5D4037] shadow-lg shadow-amber-700/50'
+                      : 'border-gray-200 bg-gradient-to-br from-[#3E2723] to-[#5D4037] hover:border-amber-500'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">☕</div>
+                    <h3 className="font-bold text-amber-50">Cafe</h3>
+                    <p className="text-xs text-amber-200 mt-1">Warm & Cozy</p>
+                    <p className="text-xs text-amber-300 mt-2">Coffee-inspired browns</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>✨ Premium Themes:</strong> Each theme changes the entire app's color palette. 
+                Navigate between pages to see unique gradients for each section!
               </p>
             </div>
           </div>
