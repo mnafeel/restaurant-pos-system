@@ -2970,6 +2970,19 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
   const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
   const shopId = req.user.shop_id; // Filter by user's shop
   
+  // If no shop_id, return empty data
+  if (!shopId) {
+    return res.json({
+      today: { today_sales: 0, today_orders: 0 },
+      yesterday: { yesterday_sales: 0, yesterday_orders: 0 },
+      thisMonth: { month_sales: 0, month_orders: 0 },
+      lastMonth: { last_month_sales: 0, last_month_orders: 0 },
+      lowStockItems: [],
+      salesGrowth: 0,
+      ordersGrowth: 0
+    });
+  }
+  
   // Today's sales - SHOP FILTERED
   db.get(`SELECT 
     COALESCE(SUM(b.total_amount), 0) as today_sales,
@@ -2978,6 +2991,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
     JOIN orders o ON b.order_id = o.id
     WHERE DATE(b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
     if (err) {
+      console.error('Dashboard today error:', err);
       res.status(500).json({ error: err.message });
       return;
     }
@@ -2990,6 +3004,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       JOIN orders o ON b.order_id = o.id
       WHERE DATE(b.created_at) = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterday, shopId], (err, yesterdayData) => {
       if (err) {
+        console.error('Dashboard yesterday error:', err);
         res.status(500).json({ error: err.message });
         return;
       }
@@ -3002,6 +3017,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
         JOIN orders o ON b.order_id = o.id
         WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [thisMonth, shopId], (err, monthData) => {
         if (err) {
+          console.error('Dashboard thisMonth error:', err);
           res.status(500).json({ error: err.message });
           return;
         }
@@ -3014,6 +3030,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
           JOIN orders o ON b.order_id = o.id
           WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [lastMonth, shopId], (err, lastMonthData) => {
           if (err) {
+            console.error('Dashboard lastMonth error:', err);
             res.status(500).json({ error: err.message });
             return;
           }
@@ -3023,6 +3040,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
             FROM menu_items 
             WHERE stock_quantity <= low_stock_threshold AND is_available = true AND shop_id = ?`, [shopId], (err, lowStockItems) => {
             if (err) {
+              console.error('Dashboard lowStock error:', err);
               res.status(500).json({ error: err.message });
               return;
             }
