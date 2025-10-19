@@ -500,6 +500,8 @@ db.serialize(() => {
     ('owner', 'owner@restaurant.com', ?, 'owner', 'System', 'Owner')`, [ownerPassword]);
 
   // Database migrations - add missing columns AFTER base inserts
+  // Skip migrations for PostgreSQL (schema is already complete in db-adapter.js)
+  if (db.type !== 'postgres') {
   // Migrate orders table
   db.all("PRAGMA table_info(orders)", (err, columns) => {
     if (!err && columns) {
@@ -666,6 +668,7 @@ db.serialize(() => {
       }
     }
   });
+  } // End of SQLite-only migrations
 
   // Create default owner account if no users exist
   db.get('SELECT COUNT(*) as count FROM users', (err, result) => {
