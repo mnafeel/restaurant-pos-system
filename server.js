@@ -2993,8 +2993,9 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
     WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
     if (err) {
       console.error('Dashboard today error:', err);
-      res.status(500).json({ error: err.message });
-      return;
+      console.error('Error details:', err.message, err.code);
+      // Return empty data instead of failing
+      todayData = { today_sales: 0, today_orders: 0 };
     }
     
     // Yesterday's sales - SHOP FILTERED
@@ -3006,8 +3007,8 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterday, shopId], (err, yesterdayData) => {
       if (err) {
         console.error('Dashboard yesterday error:', err);
-        res.status(500).json({ error: err.message });
-        return;
+        console.error('Error details:', err.message, err.code);
+        yesterdayData = { yesterday_sales: 0, yesterday_orders: 0 };
       }
       
       // This month's sales - SHOP FILTERED
@@ -3019,8 +3020,8 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
         WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [thisMonth, shopId], (err, monthData) => {
         if (err) {
           console.error('Dashboard thisMonth error:', err);
-          res.status(500).json({ error: err.message });
-          return;
+          console.error('Error details:', err.message, err.code);
+          monthData = { month_sales: 0, month_orders: 0 };
         }
         
         // Last month's sales - SHOP FILTERED
@@ -3032,28 +3033,32 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
           WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [lastMonth, shopId], (err, lastMonthData) => {
           if (err) {
             console.error('Dashboard lastMonth error:', err);
-            res.status(500).json({ error: err.message });
-            return;
+            console.error('Error details:', err.message, err.code);
+            lastMonthData = { last_month_sales: 0, last_month_orders: 0 };
           }
           
           // Low stock items - SHOP FILTERED
           db.all(`SELECT name, stock_quantity, low_stock_threshold 
             FROM menu_items 
-            WHERE stock_quantity <= low_stock_threshold AND is_available = true AND shop_id = ?`, [shopId], (err, lowStockItems) => {
+            WHERE stock_quantity IS NOT NULL 
+              AND low_stock_threshold IS NOT NULL
+              AND stock_quantity <= low_stock_threshold 
+              AND is_available = true 
+              AND shop_id = ?`, [shopId], (err, lowStockItems) => {
             if (err) {
               console.error('Dashboard lowStock error:', err);
-              res.status(500).json({ error: err.message });
-              return;
+              // Don't fail entire dashboard, just return empty low stock
+              lowStockItems = [];
             }
             
             res.json({
-              today: todayData,
-              yesterday: yesterdayData,
-              thisMonth: monthData,
-              lastMonth: lastMonthData,
-              lowStockItems,
-              salesGrowth: monthData.month_sales - lastMonthData.last_month_sales,
-              ordersGrowth: monthData.month_orders - lastMonthData.last_month_orders
+              today: todayData || { today_sales: 0, today_orders: 0 },
+              yesterday: yesterdayData || { yesterday_sales: 0, yesterday_orders: 0 },
+              thisMonth: monthData || { month_sales: 0, month_orders: 0 },
+              lastMonth: lastMonthData || { last_month_sales: 0, last_month_orders: 0 },
+              lowStockItems: lowStockItems || [],
+              salesGrowth: (monthData?.month_sales || 0) - (lastMonthData?.last_month_sales || 0),
+              ordersGrowth: (monthData?.month_orders || 0) - (lastMonthData?.last_month_orders || 0)
             });
           });
         });
