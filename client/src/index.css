@@ -47,16 +47,23 @@ code {
   backdrop-filter: blur(20px);
 }
 
-/* Theme-aware text colors */
-.text-gray-900,
-.text-gray-800,
-.text-gray-700,
-.text-gray-600,
-.text-gray-500 {
+/* Theme-aware text colors - only for elements WITHOUT explicit color classes */
+.text-gray-900:not(.text-blue-600):not(.text-green-600):not(.text-red-600):not(.text-purple-600):not(.text-orange-600):not(.text-yellow-600),
+.text-gray-800:not(.text-blue-600):not(.text-green-600):not(.text-red-600),
+.text-gray-700:not(.text-blue-600):not(.text-green-600):not(.text-red-600),
+.text-gray-600:not(.text-blue-600):not(.text-green-600):not(.text-red-600),
+.text-gray-500:not(.text-blue-600):not(.text-green-600):not(.text-red-600) {
   color: var(--theme-text-color, #111827) !important;
 }
 
-h1, h2, h3, h4, h5, h6, p, span, label, td, th {
+/* Only apply to headings and paragraphs that don't have explicit color classes */
+h1:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]),
+h2:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]),
+h3:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]),
+h4:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]),
+p:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]),
+span:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]),
+label:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]) {
   color: var(--theme-text-color, #111827) !important;
 }
 
