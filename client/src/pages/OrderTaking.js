@@ -292,7 +292,10 @@ const OrderTaking = () => {
   };
 
   const handleSaveOrderToPending = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0) {
+      toast.error('Please add items to cart');
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token');
@@ -313,15 +316,24 @@ const OrderTaking = () => {
         await axios.put(`/api/orders/${currentOrderId}/items`, orderData, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        toast.success('Order updated and held in pending!');
       } else {
         await axios.post('/api/orders', orderData, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        toast.success('Order held! Available in Pending Orders.');
       }
 
+      // Clear cart and reset
+      setCart([]);
+      setSelectedTable(null);
+      setCurrentOrderId(null);
+      setCustomerInfo({ customer_name: '', customer_phone: '', notes: '' });
+      
       fetchPendingOrders();
     } catch (error) {
       console.error('Error saving order:', error);
+      toast.error('Failed to hold order: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -933,13 +945,26 @@ const OrderTaking = () => {
                       </div>
                     )}
 
-                    {/* Submit Button */}
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Hold Order Button */}
                       <button
-                      onClick={submitOrder}
-                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-5 px-8 rounded-xl text-xl font-extrabold shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
+                        onClick={handleSaveOrderToPending}
+                        className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white py-5 px-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
                       >
-                      {currentOrderId ? 'Update & Pay' : 'Create Order'}
+                        <FiClock className="text-xl" />
+                        Hold Order
                       </button>
+                      
+                      {/* Submit/Pay Button */}
+                      <button
+                        onClick={submitOrder}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-5 px-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                      >
+                        <FiCheckCircle className="text-xl" />
+                        {currentOrderId ? 'Update & Pay' : 'Pay Now'}
+                      </button>
+                    </div>
 
                     {currentOrderId && (
                       <button
