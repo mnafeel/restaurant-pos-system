@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -23,6 +24,7 @@ import {
 
 const Layout = () => {
   const { user, logout, hasRole } = useAuth();
+  const { currentTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -139,7 +141,13 @@ const Layout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
+    <motion.div 
+      key={location.pathname}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className={`flex h-screen bg-gradient-to-br ${currentTheme.gradient} overflow-hidden`}
+    >
       {/* Animated Mobile/Tablet/Desktop Sidebar with Framer Motion */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -345,26 +353,37 @@ const Layout = () => {
 
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Premium Top Bar - Visible on ALL screen sizes */}
-        <div className="sticky top-0 z-30 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-700/50 backdrop-blur-lg shadow-xl">
+        {/* Premium Top Bar - Visible on ALL screen sizes with Dynamic Theme */}
+        <motion.div 
+          layout
+          className={`sticky top-0 z-30 bg-gradient-to-r ${currentTheme.navbarBg} border-b border-white/10 backdrop-blur-xl shadow-2xl`}
+        >
           <div className="flex items-center justify-between px-4 py-3">
-            {/* Toggle Button - Works on all screens */}
+            {/* Toggle Button - Works on all screens with theme color */}
             <motion.button
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, rotate: 90 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setSidebarOpen(true)}
-              className="h-12 w-12 inline-flex items-center justify-center rounded-xl text-white bg-gradient-to-br from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg hover:shadow-blue-500/50 transition-all duration-200"
+              className={`h-12 w-12 inline-flex items-center justify-center rounded-xl ${currentTheme.textColor} bg-white/10 hover:bg-white/20 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg transition-all duration-200`}
               title="Open Menu"
             >
               <FiMenu className="h-6 w-6" />
             </motion.button>
 
-            {/* Shop Name on Desktop */}
-            <div className="hidden md:block">
-              <h2 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-                {shopName}
-              </h2>
-            </div>
+            {/* Shop Name on Desktop with theme gradient */}
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="hidden md:flex items-center gap-2"
+            >
+              <span className="text-2xl">{currentTheme.icon}</span>
+              <div>
+                <h2 className={`text-lg font-bold ${currentTheme.textColor}`}>
+                  {shopName}
+                </h2>
+                <p className="text-xs text-white/60">{currentTheme.name}</p>
+              </div>
+            </motion.div>
 
             {/* User Info on Desktop */}
             <div className="hidden md:flex items-center gap-4">
@@ -387,12 +406,21 @@ const Layout = () => {
           </div>
         </div>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-auto">
-          <Outlet />
+        {/* Page content with glassmorphism */}
+        <main className="flex-1 overflow-auto p-6">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="h-full"
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
