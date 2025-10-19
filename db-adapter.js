@@ -397,6 +397,68 @@ if (hasMongoDb) {
       `);
 
       await pool.query(`
+        CREATE TABLE IF NOT EXISTS categories (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) UNIQUE NOT NULL,
+          display_order INTEGER DEFAULT 0,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS bills (
+          id VARCHAR(255) PRIMARY KEY,
+          order_id VARCHAR(255) NOT NULL,
+          table_number VARCHAR(255) NOT NULL,
+          subtotal DECIMAL(10, 2) NOT NULL,
+          tax_amount DECIMAL(10, 2) DEFAULT 0,
+          service_charge DECIMAL(10, 2) DEFAULT 0,
+          discount_amount DECIMAL(10, 2) DEFAULT 0,
+          discount_type VARCHAR(50),
+          discount_reason TEXT,
+          round_off DECIMAL(10, 2) DEFAULT 0,
+          total_amount DECIMAL(10, 2) NOT NULL,
+          payment_method VARCHAR(50) DEFAULT 'cash',
+          payment_status VARCHAR(50) DEFAULT 'pending',
+          is_split BOOLEAN DEFAULT false,
+          split_count INTEGER DEFAULT 1,
+          staff_id INTEGER,
+          voided BOOLEAN DEFAULT false,
+          void_reason TEXT,
+          voided_by INTEGER,
+          voided_at TIMESTAMP,
+          printed_count INTEGER DEFAULT 0,
+          last_printed_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS split_bills (
+          id VARCHAR(255) PRIMARY KEY,
+          parent_bill_id VARCHAR(255) NOT NULL,
+          split_number INTEGER NOT NULL,
+          amount DECIMAL(10, 2) NOT NULL,
+          payment_method VARCHAR(50),
+          payment_status VARCHAR(50) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS print_queue (
+          id SERIAL PRIMARY KEY,
+          document_type VARCHAR(50) NOT NULL,
+          document_id VARCHAR(255) NOT NULL,
+          status VARCHAR(50) DEFAULT 'pending',
+          error_message TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          processed_at TIMESTAMP
+        )
+      `);
+
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS audit_logs (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
