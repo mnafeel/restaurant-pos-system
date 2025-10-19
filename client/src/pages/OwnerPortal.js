@@ -223,9 +223,12 @@ const OwnerPortal = () => {
         console.error('❌ Step 3/4 failed - Admin creation error:', adminError);
         console.error('Error response:', adminError.response?.data);
         console.error('Error status:', adminError.response?.status);
-        // Shop is created, but admin failed - show warning
+        // Shop is created, but admin failed - show error (react-hot-toast doesn't have warning)
         const errorMsg = adminError.response?.data?.error || adminError.response?.data?.errors?.[0]?.msg || 'Unknown error';
-        toast.warning(`Shop created, but admin user creation failed: ${errorMsg}. You can create admin users manually.`);
+        toast.error(`Shop created, but admin user creation failed: ${errorMsg}. You can create admin users manually.`, {
+          duration: 6000,
+          icon: '⚠️'
+        });
       }
 
       console.log('🎉 Shop creation process complete!');
