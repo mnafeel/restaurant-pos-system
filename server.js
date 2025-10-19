@@ -2991,12 +2991,12 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
     const dateFunc = db.type === 'postgres' ? 'b.created_at::date' : 'DATE(b.created_at)';
     console.log('Using dateFunc:', dateFunc);
     
-  db.get(`SELECT 
-    COALESCE(SUM(b.total_amount), 0) as today_sales,
-    COALESCE(COUNT(b.id), 0) as today_orders
-    FROM bills b
-    INNER JOIN orders o ON b.order_id = o.id
-    WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
+    db.get(`SELECT 
+      COALESCE(SUM(b.total_amount), 0) as today_sales,
+      COALESCE(COUNT(b.id), 0) as today_orders
+      FROM bills b
+      INNER JOIN orders o ON b.order_id = o.id
+      WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
     if (err) {
       console.error('Dashboard today error:', err);
       console.error('Error details:', err.message, err.code);
