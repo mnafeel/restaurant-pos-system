@@ -201,6 +201,30 @@ const formatIndianDate = (date) => {
   return moment(date).tz('Asia/Kolkata').format('DD/MM/YYYY hh:mm A');
 };
 
+// Utility function to get business day date
+// If current time is before business day start hour (e.g., 6 AM), it counts as previous day
+const getBusinessDayDate = (date, startHour = 6) => {
+  const m = moment(date).tz('Asia/Kolkata');
+  if (m.hour() < startHour) {
+    // Before business day start, count as previous day
+    return m.subtract(1, 'day').format('YYYY-MM-DD');
+  }
+  return m.format('YYYY-MM-DD');
+};
+
+// Get business day start and end timestamps for a given date
+const getBusinessDayRange = (dateStr, startHour = 6) => {
+  // Business day starts at startHour (e.g., 6 AM) on the given date
+  // and ends at (startHour - 1 second) the next day
+  const start = moment.tz(dateStr, 'Asia/Kolkata').hour(startHour).minute(0).second(0);
+  const end = moment.tz(dateStr, 'Asia/Kolkata').add(1, 'day').hour(startHour).minute(0).second(0).subtract(1, 'second');
+  
+  return {
+    start: start.format('YYYY-MM-DD HH:mm:ss'),
+    end: end.format('YYYY-MM-DD HH:mm:ss')
+  };
+};
+
 // Database setup - automatically uses PostgreSQL on Vercel, SQLite locally
 const db = require('./db-adapter');
 
@@ -492,7 +516,8 @@ db.serialize(() => {
     ('receipt_footer', 'Please visit again!'),
     ('enable_kds', 'true'),
     ('auto_print_bill', 'false'),
-    ('default_payment_method', 'cash')`);
+    ('default_payment_method', 'cash'),
+    ('business_day_start_hour', '6')`);
 
   // Insert default OWNER user WITHOUT company_name (will be added by migration)
   const ownerPassword = bcrypt.hashSync('owner123', 10);
@@ -2989,15 +3014,29 @@ app.get('/api/reports/daily-payments', authenticateToken, authorize(['manager', 
   });
 });
 
-app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admin']), (req, res) => {
+app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admin']), async (req, res) => {
   try {
-  const today = moment().format('YYYY-MM-DD');
-  const yesterday = moment().subtract(1, 'day').format('YYYY-MM-DD');
-  const thisMonth = moment().format('YYYY-MM');
-  const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
+    // Get business day start hour from settings (default: 6 AM)
+    const businessDayStartHour = await new Promise((resolve) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['business_day_start_hour'], (err, row) => {
+        if (err || !row) {
+          resolve(6); // Default to 6 AM
+        } else {
+          resolve(parseInt(row.value) || 6);
+        }
+      });
+    });
+    
+    const today = getBusinessDayDate(new Date(), businessDayStartHour);
+    const yesterday = getBusinessDayDate(moment().subtract(1, 'day').toDate(), businessDayStartHour);
+    const todayRange = getBusinessDayRange(today, businessDayStartHour);
+    const yesterdayRange = getBusinessDayRange(yesterday, businessDayStartHour);
+    const thisMonth = moment().format('YYYY-MM');
+    const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
     const shopId = req.user.shop_id; // Filter by user's shop
     
-    console.log('Dashboard request - shopId:', shopId, 'db.type:', db.type);
+    console.log('Dashboard request - shopId:', shopId, 'db.type:', db.type, 'businessDayStartHour:', businessDayStartHour);
+    console.log('Today business day:', today, 'Range:', todayRange);
     
     // If no shop_id, return empty data
     if (!shopId) {
@@ -3013,16 +3052,13 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       });
     }
     
-    // Today's sales - SHOP FILTERED
-    const dateFunc = db.type === 'postgres' ? 'b.created_at::date' : 'DATE(b.created_at)';
-    console.log('Using dateFunc:', dateFunc);
-    
+    // Today's sales - SHOP FILTERED with business day range
     db.get(`SELECT 
       COALESCE(SUM(b.total_amount), 0) as today_sales,
       COALESCE(COUNT(b.id), 0) as today_orders
       FROM bills b
       INNER JOIN orders o ON b.order_id = o.id
-      WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [today, shopId], (err, todayData) => {
+      WHERE b.created_at >= ? AND b.created_at <= ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [todayRange.start, todayRange.end, shopId], (err, todayData) => {
     if (err) {
       console.error('Dashboard today error:', err);
       console.error('Error details:', err.message, err.code);
@@ -3033,13 +3069,13 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       todayData = { today_sales: 0, today_orders: 0 };
     }
     
-    // Yesterday's sales - SHOP FILTERED
+    // Yesterday's sales - SHOP FILTERED with business day range
     db.get(`SELECT 
       COALESCE(SUM(b.total_amount), 0) as yesterday_sales,
       COALESCE(COUNT(b.id), 0) as yesterday_orders
       FROM bills b
       INNER JOIN orders o ON b.order_id = o.id
-      WHERE ${dateFunc} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterday, shopId], (err, yesterdayData) => {
+      WHERE b.created_at >= ? AND b.created_at <= ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterdayRange.start, yesterdayRange.end, shopId], (err, yesterdayData) => {
       if (err) {
         console.error('Dashboard yesterday error:', err);
         console.error('Error details:', err.message, err.code);
