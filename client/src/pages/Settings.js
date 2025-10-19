@@ -708,6 +708,34 @@ const Settings = () => {
                 <option value="UPI">UPI</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Business Day Start Hour (24-hour format)
+              </label>
+              <select
+                value={settings.business_day_start_hour || '6'}
+                onChange={(e) => handleUpdateSetting('business_day_start_hour', e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="0">12:00 AM (Midnight)</option>
+                <option value="1">1:00 AM</option>
+                <option value="2">2:00 AM</option>
+                <option value="3">3:00 AM</option>
+                <option value="4">4:00 AM</option>
+                <option value="5">5:00 AM</option>
+                <option value="6">6:00 AM (Default)</option>
+                <option value="7">7:00 AM</option>
+                <option value="8">8:00 AM</option>
+                <option value="9">9:00 AM</option>
+                <option value="10">10:00 AM</option>
+                <option value="11">11:00 AM</option>
+                <option value="12">12:00 PM (Noon)</option>
+              </select>
+              <p className="text-sm text-gray-500 mt-1">
+                Sales before this hour will count as the previous day. For example, if set to 6 AM, sales at 2:59 AM will show in yesterday's report.
+              </p>
+            </div>
           </div>
         </div>
       )}
