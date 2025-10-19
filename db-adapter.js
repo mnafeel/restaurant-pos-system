@@ -338,7 +338,7 @@ if (hasMongoDb) {
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS orders (
-          id SERIAL PRIMARY KEY,
+          id VARCHAR(255) PRIMARY KEY,
           order_number VARCHAR(50) UNIQUE NOT NULL,
           table_id INTEGER,
           order_type VARCHAR(50) DEFAULT 'dine_in',
@@ -363,15 +363,21 @@ if (hasMongoDb) {
       await pool.query(`
         CREATE TABLE IF NOT EXISTS order_items (
           id SERIAL PRIMARY KEY,
-          order_id INTEGER NOT NULL,
+          order_id VARCHAR(255) NOT NULL,
           menu_item_id INTEGER NOT NULL,
           quantity INTEGER NOT NULL,
           unit_price DECIMAL(10, 2) NOT NULL,
+          price DECIMAL(10, 2),
+          variant_id INTEGER,
           variant_name VARCHAR(255),
           variant_price_adjustment DECIMAL(10, 2) DEFAULT 0,
+          special_instructions TEXT,
           notes TEXT,
           status VARCHAR(50) DEFAULT 'pending',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          kds_status VARCHAR(50) DEFAULT 'New',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          prepared_at TIMESTAMP,
+          served_at TIMESTAMP
         )
       `);
 
