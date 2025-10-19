@@ -3858,29 +3858,36 @@ app.post('/api/settings/bulk', authenticateToken, authorize(['admin', 'manager']
     return res.status(400).json({ error: 'Invalid settings object' });
   }
   
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
+  // PostgreSQL-compatible approach (no prepare/finalize)
+  const keys = Object.keys(settings);
+  let completed = 0;
+  let hasError = false;
+  
+  if (keys.length === 0) {
+    return res.json({ message: 'No settings to update' });
+  }
+  
+  keys.forEach(key => {
+    const upsertQuery = db.type === 'postgres' 
+      ? 'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT (key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP'
+      : 'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)';
     
-    const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)');
+    const params = db.type === 'postgres' 
+      ? [key, settings[key], settings[key]]
+      : [key, settings[key]];
     
-    Object.keys(settings).forEach(key => {
-      stmt.run(key, settings[key]);
-    });
-    
-    stmt.finalize((err) => {
-      if (err) {
-        db.run('ROLLBACK');
-        return res.status(500).json({ error: err.message });
+    db.run(upsertQuery, params, (err) => {
+      if (err && !hasError) {
+        hasError = true;
+        console.error('Settings update error:', err);
+        return res.status(500).json({ error: 'Failed to update settings: ' + err.message });
       }
       
-      db.run('COMMIT', (err) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-        
+      completed++;
+      if (completed === keys.length && !hasError) {
         logAuditEvent(req.user.id, 'SETTINGS_BULK_UPDATE', 'settings', null, null, settings, req);
         res.json({ message: 'Settings updated successfully' });
-      });
+      }
     });
   });
 });
