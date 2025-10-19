@@ -181,13 +181,18 @@ const Layout = () => {
               onClick={() => setSidebarOpen(false)}
             />
             
-            {/* Sidebar with theme-aware glow */}
+            {/* Sidebar with theme-aware colors */}
             <motion.div
               initial="closed"
               animate="open"
               exit="closed"
               variants={sidebarVariants}
-              className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-gray-900 to-gray-800 shadow-2xl ${currentTheme.neonGlow ? 'ring-2 ring-emerald-500/50' : ''}`}
+              className={`fixed inset-y-0 left-0 z-50 w-72 shadow-2xl ${currentTheme.neonGlow ? 'ring-2 ring-emerald-500/50' : ''}`}
+              style={{
+                background: `linear-gradient(to bottom, ${currentTheme.accentColor}15, ${currentTheme.accentColor}05)`,
+                backgroundColor: currentTheme.textColor === 'text-white' ? '#1F2937' : '#F9FAFB',
+                backdropFilter: 'blur(20px)'
+              }}
             >
               {/* Close Button */}
               <div className="absolute top-4 right-4">
@@ -197,22 +202,23 @@ const Layout = () => {
                   onClick={() => setSidebarOpen(false)}
                   className="flex items-center justify-center h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors"
                 >
-                  <FiX className="h-6 w-6 text-white" />
+                  <FiX className={`h-6 w-6 ${currentTheme.textColor}`} />
                 </motion.button>
               </div>
 
               {/* Sidebar Content */}
               <div className="flex-1 flex flex-col h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
                 {/* Shop Name Header */}
-                <div className="px-6 py-8 border-b border-gray-700/50">
+                <div className="px-6 py-8 border-b" style={{ borderColor: currentTheme.accentColor + '30' }}>
                   <motion.h1 
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent"
+                    className={`text-2xl font-bold ${currentTheme.textColor}`}
+                    style={{ color: currentTheme.accentColor }}
                   >
                     {shopName}
                   </motion.h1>
-                  <p className="text-gray-400 text-sm mt-1">Restaurant Management</p>
+                  <p className={`text-sm mt-1 opacity-70 ${currentTheme.textColor}`}>Restaurant Management</p>
                 </div>
 
                 {/* Navigation */}
@@ -234,18 +240,25 @@ const Layout = () => {
                         }}
                         className={`${
                           isActive
-                            ? 'bg-gradient-to-r from-blue-600 to-emerald-600 text-white shadow-lg shadow-blue-500/50'
-                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                            ? `text-white shadow-lg`
+                            : `${currentTheme.textColor} opacity-70 hover:opacity-100`
                         } group flex items-center px-4 py-3 text-base font-semibold rounded-xl w-full text-left transition-all duration-200 relative overflow-hidden`}
+                        style={isActive ? {
+                          background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}CC)`,
+                          boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+                        } : {}}
                       >
                         {isActive && (
                           <motion.div
                             layoutId="activeTab"
-                            className="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-xl"
+                            className="absolute inset-0 rounded-xl"
+                            style={{
+                              background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}CC)`
+                            }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
                           />
                         )}
-                        <Icon className={`mr-3 h-5 w-5 relative z-10 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`} />
+                        <Icon className={`mr-3 h-5 w-5 relative z-10 ${isActive ? 'text-white' : ''}`} style={!isActive ? { color: currentTheme.accentColor } : {}} />
                         <span className="relative z-10">{item.name}</span>
                       </motion.button>
                     );
@@ -253,7 +266,7 @@ const Layout = () => {
                 </nav>
 
                 {/* Profile Section */}
-                <div className="px-4 pb-6 border-t border-gray-700/50">
+                <div className="px-4 pb-6 border-t" style={{ borderColor: currentTheme.accentColor + '30' }}>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -268,17 +281,21 @@ const Layout = () => {
                         <img
                           src={`https://restaurant-pos-system-1-7h0m.onrender.com${user.avatar_url}`}
                           alt="Avatar"
-                          className="h-10 w-10 rounded-full object-cover border-2 border-blue-500 ring-2 ring-blue-500/30"
+                          className="h-10 w-10 rounded-full object-cover border-2 ring-2"
+                          style={{ 
+                            borderColor: currentTheme.accentColor,
+                            boxShadow: `0 0 0 2px ${currentTheme.accentColor}30`
+                          }}
                         />
                       ) : (
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg">
+                        <div className="h-10 w-10 rounded-full flex items-center justify-center shadow-lg" style={{ background: currentTheme.accentColor }}>
                           <FiUser className="h-5 w-5 text-white" />
                         </div>
                       )}
                     </div>
                     <div className="ml-3 flex-1 text-left">
-                      <p className="text-sm font-semibold text-white">{user?.first_name} {user?.last_name}</p>
-                      <p className="text-xs text-gray-400">{user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}</p>
+                      <p className={`text-sm font-semibold ${currentTheme.textColor}`}>{user?.first_name} {user?.last_name}</p>
+                      <p className={`text-xs opacity-60 ${currentTheme.textColor}`}>{user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}</p>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.1 }}
@@ -287,7 +304,7 @@ const Layout = () => {
                         e.stopPropagation();
                         handleLogout();
                       }}
-                      className="ml-3 text-gray-400 hover:text-red-400 transition-colors p-2 hover:bg-red-500/10 rounded-lg"
+                      className={`ml-3 transition-colors p-2 hover:bg-red-500/10 rounded-lg ${currentTheme.textColor} opacity-60 hover:opacity-100 hover:text-red-400`}
                       title="Logout"
                     >
                       <FiLogOut className="h-5 w-5" />
