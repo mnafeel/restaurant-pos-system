@@ -380,6 +380,108 @@ const themeModes = {
       hasPhoto: true,
       icon: '🏠'
     }
+  },
+  glass: {
+    '/dashboard': {
+      name: 'Dashboard',
+      gradient: 'from-[#E0F2FE] via-[#BAE6FD] to-[#7DD3FC]', // Sky blue glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#0EA5E9',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '🏠'
+    },
+    '/orders': {
+      name: 'Orders',
+      gradient: 'from-[#FEF3C7] via-[#FDE68A] to-[#FCD34D]', // Amber glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#F59E0B',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '📦'
+    },
+    '/kitchen': {
+      name: 'Kitchen',
+      gradient: 'from-[#FECACA] via-[#FCA5A5] to-[#F87171]', // Red glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#EF4444',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '🍳'
+    },
+    '/tables': {
+      name: 'Tables',
+      gradient: 'from-[#D1FAE5] via-[#A7F3D0] to-[#6EE7B7]', // Emerald glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#10B981',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '🍽️'
+    },
+    '/settings': {
+      name: 'Settings',
+      gradient: 'from-[#E2E8F0] via-[#CBD5E1] to-[#94A3B8]', // Slate glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#64748B',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '⚙️'
+    },
+    '/bills': {
+      name: 'Bills',
+      gradient: 'from-[#E9D5FF] via-[#D8B4FE] to-[#C084FC]', // Purple glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#A855F7',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '🧾'
+    },
+    '/menu': {
+      name: 'Menu',
+      gradient: 'from-[#FCE7F3] via-[#FBCFE8] to-[#F9A8D4]', // Pink glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#EC4899',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '📋'
+    },
+    '/reports': {
+      name: 'Reports',
+      gradient: 'from-[#CFFAFE] via-[#A5F3FC] to-[#67E8F9]', // Cyan glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#06B6D4',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '📊'
+    },
+    '/owner': {
+      name: 'Owner Portal',
+      gradient: 'from-[#FED7AA] via-[#FDBA74] to-[#FB923C]', // Orange glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#F97316',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '👑'
+    },
+    '/profile': {
+      name: 'Profile',
+      gradient: 'from-[#DBEAFE] via-[#BFDBFE] to-[#93C5FD]', // Blue glass
+      navbarBg: 'from-white/30 to-white/20',
+      cardBg: 'bg-white/20 backdrop-blur-3xl border border-white/40 shadow-2xl',
+      accentColor: '#3B82F6',
+      textColor: 'text-gray-900',
+      glassEffect: true,
+      icon: '👤'
+    }
   }
 };
 

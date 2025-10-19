@@ -940,6 +940,30 @@ const Settings = () => {
                     <p className="text-xs text-gray-300 mt-2">Warm cafe ambiance</p>
                   </div>
                 </button>
+
+                {/* Glassmorphism Theme */}
+                <button
+                  onClick={() => {
+                    changeTheme('glass');
+                    toast.success('Glass theme applied! ✨');
+                  }}
+                  className={`p-6 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden ${
+                    themeMode === 'glass'
+                      ? 'border-sky-500 shadow-2xl shadow-sky-500/50'
+                      : 'border-gray-200 hover:border-sky-400'
+                  }`}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(224, 242, 254, 0.8) 0%, rgba(186, 230, 253, 0.8) 50%, rgba(125, 211, 252, 0.8) 100%)',
+                    backdropFilter: 'blur(20px)'
+                  }}
+                >
+                  <div className="text-center relative z-10">
+                    <div className="text-4xl mb-2">💎</div>
+                    <h3 className="font-bold text-gray-900">Glass</h3>
+                    <p className="text-xs text-gray-700 mt-1">Frosted & Modern</p>
+                    <p className="text-xs text-gray-600 mt-2">Transparent glassmorphism</p>
+                  </div>
+                </button>
               </div>
             </div>
 
