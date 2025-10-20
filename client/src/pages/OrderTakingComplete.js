@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSearch, FiShoppingCart, FiX, FiPlus, FiMinus, FiCheck, FiClock, 
   FiPackage, FiHome, FiSend, FiPause, FiDollarSign, FiCreditCard,
-  FiList, FiCheckCircle, FiPrinter
+  FiList, FiCheckCircle, FiPrinter, FiEdit, FiRefreshCw, FiTrash2
 } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -265,6 +265,155 @@ const OrderTakingComplete = () => {
     } catch (error) {
       console.error('Error paying order:', error);
       toast.error('Failed to process payment');
+    }
+  };
+
+  // Open/Resume pending order (load to cart)
+  const handleOpenPendingOrder = async (order) => {
+    try {
+      // Load order items to cart
+      const cartItems = order.items.map(item => ({
+        id: item.menu_item_id,
+        name: item.item_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        image_url: item.image_url
+      }));
+      
+      setCart(cartItems);
+      setView('menu');
+      toast.success('Order loaded to cart!', { icon: '📝' });
+      
+      // Delete the pending order
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/orders/${order.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      fetchPendingOrders();
+    } catch (error) {
+      console.error('Error opening order:', error);
+      toast.error('Failed to load order');
+    }
+  };
+
+  // Delete pending order
+  const handleDeletePendingOrder = async (orderId) => {
+    if (!window.confirm('Delete this pending order?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success('Order deleted');
+      fetchPendingOrders();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast.error('Failed to delete order');
+    }
+  };
+
+  // Print bill
+  const handlePrintBill = (bill) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bill #${bill.id.substring(0, 8)}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            width: 80mm; 
+            font-family: 'Courier New', monospace; 
+            font-size: 12px; 
+            padding: 5mm;
+            line-height: 1.4;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .line { border-top: 1px dashed #000; margin: 5px 0; }
+          .double-line { border-top: 2px solid #000; margin: 8px 0; }
+          .row { display: flex; justify-content: space-between; margin: 2px 0; }
+          .total { font-size: 16px; font-weight: bold; margin: 10px 0; }
+          h1 { font-size: 18px; margin-bottom: 5px; }
+          h2 { font-size: 14px; margin-bottom: 3px; }
+        </style>
+      </head>
+      <body>
+        <div class="center">
+          <h1>BILL</h1>
+          <p>Bill #${bill.id.substring(0, 8)}</p>
+          <p>${formatIndianDate(bill.created_at)}</p>
+        </div>
+        <div class="line"></div>
+        <div>
+          <p><strong>Table:</strong> ${bill.table_number || 'Takeaway'}</p>
+          <p><strong>Order Type:</strong> ${bill.order_type || 'Dine-In'}</p>
+          <p><strong>Payment:</strong> ${bill.payment_method}</p>
+        </div>
+        <div class="double-line"></div>
+        <div class="bold row">
+          <span>Item</span>
+          <span>Qty</span>
+          <span>Price</span>
+        </div>
+        <div class="line"></div>
+        ${bill.items.map(item => `
+          <div class="row">
+            <span>${item.item_name}</span>
+            <span>${item.quantity}</span>
+            <span>${formatCurrency(item.total_price)}</span>
+          </div>
+        `).join('')}
+        <div class="double-line"></div>
+        <div class="row total center">
+          <span>TOTAL:</span>
+          <span>${formatCurrency(bill.total_amount)}</span>
+        </div>
+        <div class="line"></div>
+        <div class="center">
+          <p>Thank you for your visit!</p>
+          <p>Please visit again</p>
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  // Edit paid bill (reopen to cart)
+  const handleEditBill = async (bill) => {
+    if (!window.confirm('Edit this bill? It will be moved to pending orders.')) return;
+    
+    try {
+      // Load bill items to cart
+      const cartItems = bill.items.map(item => ({
+        id: item.menu_item_id,
+        name: item.item_name,
+        price: item.unit_price,
+        quantity: item.quantity
+      }));
+      
+      setCart(cartItems);
+      setPaymentMethod(bill.payment_method);
+      setView('menu');
+      
+      // Delete the bill (optional - or keep as history)
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/bills/${bill.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success('Bill loaded for editing!', { icon: '✏️' });
+      fetchPaidBills();
+    } catch (error) {
+      console.error('Error editing bill:', error);
+      toast.error('Failed to edit bill');
     }
   };
 
@@ -601,14 +750,34 @@ const OrderTakingComplete = () => {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => handlePayPendingOrder(order.id)}
-                  className="w-full py-3 text-white font-semibold rounded-xl"
-                  style={{ background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)` }}
-                >
-                  <FiCheck className="inline mr-2" />
-                  Pay Now
-                </button>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleOpenPendingOrder(order)}
+                    className={`py-3 rounded-xl font-semibold ${currentTheme.textColor}`}
+                    style={{ background: 'rgba(33,150,243,0.2)', border: '2px solid rgb(33,150,243)' }}
+                    title="Open in cart"
+                  >
+                    <FiRefreshCw className="inline" />
+                  </button>
+
+                  <button
+                    onClick={() => handleDeletePendingOrder(order.id)}
+                    className={`py-3 rounded-xl font-semibold ${currentTheme.textColor}`}
+                    style={{ background: 'rgba(244,67,54,0.2)', border: '2px solid rgb(244,67,54)' }}
+                    title="Delete order"
+                  >
+                    <FiTrash2 className="inline" />
+                  </button>
+
+                  <button
+                    onClick={() => handlePayPendingOrder(order.id)}
+                    className="py-3 text-white font-semibold rounded-xl"
+                    style={{ background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)` }}
+                    title="Pay now"
+                  >
+                    <FiCheck className="inline" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -647,9 +816,29 @@ const OrderTakingComplete = () => {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-sm mb-4">
                   <span className={`${currentTheme.textColor} opacity-60`}>Payment:</span>
                   <span className={currentTheme.textColor}>{bill.payment_method}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handlePrintBill(bill)}
+                    className="py-3 text-white font-semibold rounded-xl"
+                    style={{ background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)` }}
+                  >
+                    <FiPrinter className="inline mr-1" />
+                    Print
+                  </button>
+
+                  <button
+                    onClick={() => handleEditBill(bill)}
+                    className={`py-3 rounded-xl font-semibold ${currentTheme.textColor}`}
+                    style={{ background: 'rgba(255,152,0,0.2)', border: '2px solid rgb(255,152,0)' }}
+                  >
+                    <FiEdit className="inline mr-1" />
+                    Edit
+                  </button>
                 </div>
               </div>
             ))}
