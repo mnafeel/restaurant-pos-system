@@ -709,6 +709,21 @@ const Settings = () => {
             </div>
 
             <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.auto_print_bill === 'true'}
+                  onChange={(e) => handleUpdateSetting('auto_print_bill', e.target.checked ? 'true' : 'false')}
+                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm font-medium text-gray-700">Auto-Print Bills After Payment</span>
+              </label>
+              <p className="text-sm text-gray-500 ml-6 mt-1">
+                When enabled, bills will automatically print after payment without asking
+              </p>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Default Payment Method
               </label>

@@ -31,6 +31,7 @@ const OrderTakingComplete = () => {
   const [paidBills, setPaidBills] = useState([]);
   const [kitchenSystemEnabled, setKitchenSystemEnabled] = useState(true);
   const [tableManagementEnabled, setTableManagementEnabled] = useState(true);
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -77,6 +78,7 @@ const OrderTakingComplete = () => {
       });
       setKitchenSystemEnabled(response.data.enable_kitchen_system === 'true');
       setTableManagementEnabled(response.data.enable_table_management === 'true');
+      setAutoPrintEnabled(response.data.auto_print_bill === 'true');
       const defaultPayment = response.data.default_payment_method || 'Cash';
       setPaymentMethod(defaultPayment);
     } catch (error) {
@@ -291,9 +293,16 @@ const OrderTakingComplete = () => {
       fetchPaidBills();
       fetchTables();
       
-      // Auto-print option
-      if (window.confirm('Print bill now?')) {
+      // Auto-print based on setting
+      if (autoPrintEnabled) {
+        // Auto-print without asking
         handlePrintBillById(billResponse.data.billId);
+        toast.success('Bill printed!', { icon: '🖨️', duration: 2000 });
+      } else {
+        // Ask before printing
+        if (window.confirm('Print bill now?')) {
+          handlePrintBillById(billResponse.data.billId);
+        }
       }
     } catch (error) {
       console.error('Error processing payment:', error);
