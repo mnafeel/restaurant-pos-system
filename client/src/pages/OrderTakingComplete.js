@@ -735,15 +735,21 @@ const OrderTakingComplete = () => {
                           src={`https://restaurant-pos-system-1-7h0m.onrender.com${item.image_url}`}
                           alt={item.name}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
                         />
-                      ) : (
-                        <div 
-                          className="w-full h-full flex items-center justify-center text-6xl font-bold"
-                          style={{ color: currentTheme.accentColor }}
-                        >
-                          {item.name.charAt(0)}
-                        </div>
-                      )}
+                      ) : null}
+                      <div
+                        className="w-full h-full flex items-center justify-center text-6xl font-bold"
+                        style={{ 
+                          display: item.image_url ? 'none' : 'flex',
+                          color: currentTheme.accentColor 
+                        }}
+                      >
+                        {item.name.charAt(0)}
+                      </div>
                     </div>
                     
                     <h3 className={`font-bold text-lg ${currentTheme.textColor} mb-1 line-clamp-1`}>
