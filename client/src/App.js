@@ -17,6 +17,7 @@ import ShopManagement from './pages/ShopManagement';
 import UserProfile from './pages/UserProfile';
 import OwnerPortal from './pages/OwnerPortal';
 import Layout from './components/Layout';
+import OfflineIndicator from './components/OfflineIndicator';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, roles = [] }) => {
@@ -136,6 +137,7 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
+      <OfflineIndicator />
       <AppContent />
     </AuthProvider>
   );

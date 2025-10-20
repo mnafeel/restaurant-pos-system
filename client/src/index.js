@@ -6,6 +6,7 @@ import './index.css';
 import App from './App';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 // Configure axios base URL - Backend on Render
 axios.defaults.baseURL = 'https://restaurant-pos-system-1-7h0m.onrender.com';
@@ -22,3 +23,14 @@ root.render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Register service worker for offline functionality
+serviceWorkerRegistration.register({
+  onSuccess: () => {
+    console.log('✅ App is now available offline!');
+  },
+  onUpdate: (registration) => {
+    console.log('🔄 New version available! Please refresh.');
+    // Optional: Show notification to user about update
+  }
+});
