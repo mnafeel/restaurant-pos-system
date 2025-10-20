@@ -293,17 +293,12 @@ const OrderTakingComplete = () => {
       fetchPaidBills();
       fetchTables();
       
-      // Auto-print based on setting
+      // Simple auto-print - only if enabled, otherwise nothing
       if (autoPrintEnabled) {
-        // Auto-print without asking
         handlePrintBillById(billResponse.data.billId);
         toast.success('Bill printed!', { icon: '🖨️', duration: 2000 });
-      } else {
-        // Ask before printing
-        if (window.confirm('Print bill now?')) {
-          handlePrintBillById(billResponse.data.billId);
-        }
       }
+      // If disabled, don't print and don't ask - clean and simple!
     } catch (error) {
       console.error('Error processing payment:', error);
       toast.error('Failed to process payment');
@@ -630,29 +625,47 @@ const OrderTakingComplete = () => {
             </div>
 
             {/* Table Selection (Dine-In only) */}
-            {tableManagementEnabled && orderType === 'dine-in' && tables.length > 0 && (
+            {tableManagementEnabled && orderType === 'dine-in' && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="overflow-x-auto"
+                className="space-y-2"
               >
-                <div className="flex gap-2 pb-2">
-                  {tables.filter(t => t.status === 'free').map((table) => (
-                    <motion.button
-                      key={table.id}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setSelectedTable(table.table_number)}
-                      className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
-                        selectedTable === table.table_number ? 'text-white' : `${currentTheme.textColor} opacity-60`
-                      }`}
-                      style={selectedTable === table.table_number ? {
-                        background: currentTheme.accentColor
-                      } : { background: 'rgba(255,255,255,0.1)' }}
-                    >
-                      Table {table.table_number}
-                    </motion.button>
-                  ))}
+                <label className={`text-sm font-medium ${currentTheme.textColor}`}>Select Table:</label>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {tables.length === 0 ? (
+                    <p className={`${currentTheme.textColor} opacity-60 text-sm`}>No tables available</p>
+                  ) : (
+                    tables.map((table) => (
+                      <motion.button
+                        key={table.id}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => table.status === 'Free' || table.status === 'free' ? setSelectedTable(table.table_number) : null}
+                        disabled={table.status !== 'Free' && table.status !== 'free'}
+                        className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+                          selectedTable === table.table_number 
+                            ? 'text-white' 
+                            : (table.status === 'Free' || table.status === 'free')
+                              ? `${currentTheme.textColor} opacity-60 hover:opacity-100`
+                              : `${currentTheme.textColor} opacity-30`
+                        }`}
+                        style={selectedTable === table.table_number ? {
+                          background: currentTheme.accentColor
+                        } : (table.status === 'Free' || table.status === 'free') ? { 
+                          background: 'rgba(255,255,255,0.1)' 
+                        } : { 
+                          background: 'rgba(255,0,0,0.1)',
+                          cursor: 'not-allowed'
+                        }}
+                      >
+                        {table.table_number}
+                        {(table.status !== 'Free' && table.status !== 'free') && (
+                          <span className="ml-1 text-xs">🔒</span>
+                        )}
+                      </motion.button>
+                    ))
+                  )}
                 </div>
               </motion.div>
             )}

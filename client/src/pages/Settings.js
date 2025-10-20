@@ -630,8 +630,11 @@ const Settings = () => {
                   🖨️ Auto-Print Bills After Payment
                 </span>
                 <p className="text-sm text-gray-700">
-                  When enabled, bills will automatically print after payment without asking. 
-                  This speeds up checkout during busy hours. Disable for manual control.
+                  <strong>ON:</strong> Bills automatically print after payment (no popup). 
+                  <strong>OFF:</strong> Bills don't print (no popup, silent).
+                </p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Simple toggle - when OFF, nothing happens. When ON, direct to printer. No alerts either way.
                 </p>
                 <div className="mt-2 flex gap-4 text-xs">
                   <span className="px-2 py-1 bg-green-100 text-green-700 rounded">⚡ Faster checkout</span>
