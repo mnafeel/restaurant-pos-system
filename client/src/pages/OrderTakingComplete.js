@@ -159,18 +159,27 @@ const OrderTakingComplete = () => {
       return;
     }
 
+    // Check table selection for dine-in
+    if (tableManagementEnabled && orderType === 'dine-in' && !selectedTable) {
+      toast.error('Please select a table!');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+      const tableNumber = orderType === 'takeaway' ? 'Takeaway' : (selectedTable || 'Table');
+      
       await axios.post('/api/orders', {
-        tableNumber: orderType === 'takeaway' ? 'Takeaway' : 'Table',
+        tableNumber: tableNumber,
         order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
         payment_status: 'pending',
         items: cart.map(item => ({
           menu_item_id: item.id,
           quantity: item.quantity,
-          unit_price: item.price,
-          notes: ''
+          price: item.price,
+          variant_price_adjustment: 0,
+          special_instructions: ''
         }))
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -178,10 +187,12 @@ const OrderTakingComplete = () => {
 
       toast.success('Order held successfully!', { icon: '⏸️' });
       setCart([]);
+      setSelectedTable(null);
       fetchPendingOrders();
+      fetchTables();
     } catch (error) {
       console.error('Error holding order:', error);
-      toast.error('Failed to hold order');
+      toast.error(error.response?.data?.error || 'Failed to hold order');
     } finally {
       setIsSubmitting(false);
     }
@@ -194,19 +205,27 @@ const OrderTakingComplete = () => {
       return;
     }
 
+    // Check table selection for dine-in
+    if (tableManagementEnabled && orderType === 'dine-in' && !selectedTable) {
+      toast.error('Please select a table!');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('/api/orders', {
-        tableNumber: orderType === 'takeaway' ? 'Takeaway' : 'Table',
+      const tableNumber = orderType === 'takeaway' ? 'Takeaway' : (selectedTable || 'Table');
+      
+      await axios.post('/api/orders', {
+        tableNumber: tableNumber,
         order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
         payment_status: 'pending',
-        sent_to_kitchen: true,
         items: cart.map(item => ({
           menu_item_id: item.id,
           quantity: item.quantity,
-          unit_price: item.price,
-          notes: ''
+          price: item.price,
+          variant_price_adjustment: 0,
+          special_instructions: ''
         }))
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -214,10 +233,12 @@ const OrderTakingComplete = () => {
 
       toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
       setCart([]);
+      setSelectedTable(null);
       fetchPendingOrders();
+      fetchTables();
     } catch (error) {
       console.error('Error sending to kitchen:', error);
-      toast.error('Failed to send to kitchen');
+      toast.error(error.response?.data?.error || 'Failed to send to kitchen');
     } finally {
       setIsSubmitting(false);
     }
@@ -245,12 +266,12 @@ const OrderTakingComplete = () => {
         tableNumber: tableNumber,
         order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
         payment_status: 'paid',
-        payment_method: paymentMethod,
         items: cart.map(item => ({
           menu_item_id: item.id,
           quantity: item.quantity,
-          unit_price: item.price,
-          notes: ''
+          price: item.price,
+          variant_price_adjustment: 0,
+          special_instructions: ''
         }))
       }, {
         headers: { Authorization: `Bearer ${token}` }

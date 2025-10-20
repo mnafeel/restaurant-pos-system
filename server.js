@@ -2292,6 +2292,61 @@ app.put('/api/orders/:orderId/items/:itemId/status', authenticateToken, (req, re
   });
 });
 
+// Delete order
+app.delete('/api/orders/:orderId', authenticateToken, authorize(['cashier', 'manager', 'admin']), (req, res) => {
+  const { orderId } = req.params;
+  
+  // Get order details first
+  db.get('SELECT * FROM orders WHERE id = ?', [orderId], (err, order) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      
+      // Delete order items first
+      db.run('DELETE FROM order_items WHERE order_id = ?', [orderId], (err) => {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: err.message });
+        }
+        
+        // Delete the order
+        db.run('DELETE FROM orders WHERE id = ?', [orderId], (err) => {
+          if (err) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Free up table if it was occupied
+          if (order.table_number && order.table_number !== 'Takeaway') {
+            db.run('UPDATE tables SET status = "Free", current_order_id = NULL WHERE table_number = ? AND current_order_id = ?',
+              [order.table_number, orderId], (err) => {
+                if (err) {
+                  console.error('Error freeing table:', err);
+                }
+              });
+          }
+          
+          db.run('COMMIT', (err) => {
+            if (err) {
+              return res.status(500).json({ error: err.message });
+            }
+            
+            logAuditEvent(req.user.id, 'ORDER_DELETED', 'orders', orderId, order, null, req);
+            res.json({ message: 'Order deleted successfully' });
+          });
+        });
+      });
+    });
+  });
+});
+
 // ==================== KDS (Kitchen Display System) ====================
 
 // Get orders for kitchen
@@ -2581,7 +2636,43 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(bills);
+    
+    if (!bills || bills.length === 0) {
+      return res.json([]);
+    }
+    
+    // Fetch items for each bill
+    let completed = 0;
+    const billsWithItems = [];
+    
+    bills.forEach((bill) => {
+      db.all(`SELECT oi.*, mi.name as item_name
+        FROM order_items oi
+        JOIN menu_items mi ON oi.menu_item_id = mi.id
+        WHERE oi.order_id = ?`, [bill.order_id], (err, items) => {
+          if (err) {
+            console.error('Error fetching bill items:', err);
+            items = [];
+          }
+          
+          billsWithItems.push({
+            ...bill,
+            order_type: bill.order_type || 'Dine-In',
+            items: (items || []).map(item => ({
+              menu_item_id: item.menu_item_id,
+              item_name: item.item_name,
+              quantity: item.quantity,
+              unit_price: item.price,
+              total_price: item.quantity * item.price
+            }))
+          });
+          
+          completed++;
+          if (completed === bills.length) {
+            res.json(billsWithItems);
+          }
+      });
+    });
   });
 });
 
@@ -2615,7 +2706,7 @@ app.put('/api/bills/:billId', authenticateToken, authorize(['manager', 'admin'])
 });
 
 // Delete bill
-app.delete('/api/bills/:billId', authenticateToken, authorize(['manager', 'admin']), (req, res) => {
+app.delete('/api/bills/:billId', authenticateToken, authorize(['cashier', 'manager', 'admin']), (req, res) => {
   const { billId } = req.params;
   
   db.run('DELETE FROM bills WHERE id = ?', [billId], function(err) {
@@ -2674,18 +2765,23 @@ app.get('/api/bills/:billId', authenticateToken, (req, res) => {
           }
           
           const settingsObj = {};
-          settings.forEach(s => {
-            settingsObj[s.key] = s.value;
-          });
+          if (settings && Array.isArray(settings)) {
+            settings.forEach(s => {
+              settingsObj[s.key] = s.value;
+            });
+          }
           
           res.json({
             ...bill,
-            items: items.map(item => ({
+            order_type: bill.order_type || 'Dine-In',
+            items: (items || []).map(item => ({
+              menu_item_id: item.menu_item_id,
               item_name: item.item_name,
               variant_name: item.variant_name,
               quantity: item.quantity,
+              unit_price: item.price,
+              total_price: item.quantity * item.price,
               price: item.price,
-              total: item.quantity * item.price,
               special_instructions: item.special_instructions
             })),
             shop_info: settingsObj
