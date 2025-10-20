@@ -2,16 +2,24 @@
   "name": "restaurant-billing-system",
   "version": "1.0.0",
   "description": "Restaurant billing system with order management and kitchen display",
-  "main": "server.js",
+  "main": "electron/main.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"wait-on http://localhost:3000 && electron .\" \"cd client && npm start\"",
+    "electron-build": "electron-builder",
+    "build-win": "electron-builder --win",
+    "build-mac": "electron-builder --mac",
+    "build-all": "electron-builder --win --mac",
+    "package": "cd client && npm run build && cd .. && npm run build-all"
   },
   "dependencies": {
     "axios": "^1.4.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
+    "electron-is-dev": "^3.0.1",
     "escpos": "^3.0.0-alpha.6",
     "escpos-network": "^3.0.0-alpha.1",
     "escpos-usb": "^3.0.0-alpha.4",
@@ -34,7 +42,12 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^38.3.0",
+    "electron-builder": "^26.0.12",
+    "nodemon": "^3.0.1",
+    "wait-on": "^9.0.1"
   },
   "keywords": [
     "restaurant",
@@ -44,5 +57,37 @@
     "pos"
   ],
   "author": "Restaurant Billing System",
-  "license": "MIT"
+  "license": "MIT",
+  "build": {
+    "appId": "com.restaurant.pos",
+    "productName": "Restaurant POS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "client/build/**/*",
+      "server.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "client/public/favicon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.business",
+      "icon": "client/public/favicon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
 }
