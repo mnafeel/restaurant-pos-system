@@ -51,7 +51,13 @@ const OrderTakingComplete = () => {
       const response = await axios.get('/api/tables', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTables(response.data);
+      // Normalize tables: status capitalization and table_number as string
+      const normalized = (response.data || []).map(t => ({
+        ...t,
+        status: typeof t.status === 'string' ? t.status.trim() : 'Free',
+        table_number: String(t.table_number)
+      }));
+      setTables(normalized);
     } catch (error) {
       console.error('Error fetching tables:', error);
     }
@@ -641,26 +647,30 @@ const OrderTakingComplete = () => {
                       <motion.button
                         key={table.id}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => table.status === 'Free' ? setSelectedTable(table.table_number) : null}
-                        disabled={table.status !== 'Free'}
+                        onClick={() => (table.status === 'Free') ? setSelectedTable(String(table.table_number)) : null}
+                        disabled={table.status === 'Occupied' || table.status === 'Billed'}
                         className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
                           selectedTable === table.table_number 
                             ? 'text-white' 
                             : table.status === 'Free'
                               ? `${currentTheme.textColor} opacity-60 hover:opacity-100`
-                              : `${currentTheme.textColor} opacity-30`
+                              : (table.status === 'Occupied' || table.status === 'Billed')
+                                 ? `${currentTheme.textColor} opacity-30`
+                                 : `${currentTheme.textColor} opacity-60 hover:opacity-100`
                         }`}
                         style={selectedTable === table.table_number ? {
                           background: currentTheme.accentColor
                         } : table.status === 'Free' ? { 
                           background: 'rgba(255,255,255,0.1)' 
-                        } : { 
+                        } : (table.status === 'Occupied' || table.status === 'Billed') ? { 
                           background: 'rgba(255,0,0,0.1)',
                           cursor: 'not-allowed'
+                        } : { 
+                          background: 'rgba(255,255,255,0.1)'
                         }}
                       >
                         {table.table_number}
-                        {table.status !== 'Free' && (
+                        {(table.status === 'Occupied' || table.status === 'Billed') && (
                           <span className="ml-1 text-xs">🔒</span>
                         )}
                       </motion.button>
