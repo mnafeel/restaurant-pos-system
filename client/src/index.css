@@ -47,21 +47,7 @@ code {
   backdrop-filter: blur(20px);
 }
 
-/* Special handling for order cards, pending order cards */
-.bg-blue-50,
-.bg-blue-100,
-.bg-green-50,
-.bg-green-100,
-.bg-yellow-50,
-.bg-yellow-100,
-.bg-gray-50,
-.bg-gray-100,
-.bg-indigo-50 {
-  /* Keep status colors but make them work with theme */
-  opacity: var(--theme-is-dark, 0) == '1' ? 0.15 : 1;
-}
-
-/* For dark themes, lighten status backgrounds */
+/* Special handling for order cards, pending order cards - For dark themes */
 [style*="--theme-is-dark: 1"] .bg-blue-50,
 [style*="--theme-is-dark: 1"] .bg-blue-100 {
   background-color: rgba(59, 130, 246, 0.15) !important;
@@ -80,6 +66,10 @@ code {
 [style*="--theme-is-dark: 1"] .bg-gray-50,
 [style*="--theme-is-dark: 1"] .bg-gray-100 {
   background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[style*="--theme-is-dark: 1"] .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
 }
 
 /* ========================================= */
