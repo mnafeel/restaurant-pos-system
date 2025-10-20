@@ -30,13 +30,31 @@ const OrderTakingComplete = () => {
   const [pendingOrders, setPendingOrders] = useState([]);
   const [paidBills, setPaidBills] = useState([]);
   const [kitchenSystemEnabled, setKitchenSystemEnabled] = useState(true);
+  const [tableManagementEnabled, setTableManagementEnabled] = useState(true);
+  const [tables, setTables] = useState([]);
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState(null);
 
   useEffect(() => {
     fetchMenu();
     fetchSettings();
     fetchPendingOrders();
     fetchPaidBills();
+    fetchTables();
   }, []);
+
+  const fetchTables = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/tables', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTables(response.data);
+    } catch (error) {
+      console.error('Error fetching tables:', error);
+    }
+  };
 
   const fetchMenu = async () => {
     try {
@@ -58,6 +76,7 @@ const OrderTakingComplete = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setKitchenSystemEnabled(response.data.enable_kitchen_system === 'true');
+      setTableManagementEnabled(response.data.enable_table_management === 'true');
       const defaultPayment = response.data.default_payment_method || 'Cash';
       setPaymentMethod(defaultPayment);
     } catch (error) {
@@ -211,11 +230,19 @@ const OrderTakingComplete = () => {
       return;
     }
 
+    // Check table selection for dine-in
+    if (tableManagementEnabled && orderType === 'dine-in' && !selectedTable) {
+      toast.error('Please select a table!');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+      const tableNumber = orderType === 'takeaway' ? 'Takeaway' : (selectedTable || 'Table');
+      
       const orderResponse = await axios.post('/api/orders', {
-        tableNumber: orderType === 'takeaway' ? 'Takeaway' : 'Table',
+        tableNumber: tableNumber,
         order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
         payment_status: 'paid',
         payment_method: paymentMethod,
@@ -230,7 +257,7 @@ const OrderTakingComplete = () => {
       });
 
       // Create bill
-      await axios.post('/api/bills', {
+      const billResponse = await axios.post('/api/bills', {
         orderId: orderResponse.data.orderId,
         payment_method: paymentMethod
       }, {
@@ -239,7 +266,14 @@ const OrderTakingComplete = () => {
 
       toast.success('Payment completed!', { icon: '✅' });
       setCart([]);
+      setSelectedTable(null);
       fetchPaidBills();
+      fetchTables();
+      
+      // Auto-print option
+      if (window.confirm('Print bill now?')) {
+        handlePrintBillById(billResponse.data.billId);
+      }
     } catch (error) {
       console.error('Error processing payment:', error);
       toast.error('Failed to process payment');
@@ -248,24 +282,83 @@ const OrderTakingComplete = () => {
     }
   };
 
-  // Pay from pending order
-  const handlePayPendingOrder = async (orderId) => {
+  // Print bill by ID
+  const handlePrintBillById = async (billId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/bills/${billId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      handlePrintBill(response.data);
+    } catch (error) {
+      console.error('Error fetching bill:', error);
+    }
+  };
+
+  // Show payment modal for pending order
+  const showPendingPaymentModal = (orderId) => {
+    setPendingPaymentOrderId(orderId);
+    setShowPaymentModal(true);
+  };
+
+  // Pay from pending order with selected payment method
+  const handlePayPendingOrder = async () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post('/api/bills', {
-        orderId: orderId,
+        orderId: pendingPaymentOrderId,
         payment_method: paymentMethod
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       toast.success('Payment completed!');
+      setShowPaymentModal(false);
+      setPendingPaymentOrderId(null);
       fetchPendingOrders();
       fetchPaidBills();
     } catch (error) {
       console.error('Error paying order:', error);
       toast.error('Failed to process payment');
     }
+  };
+
+  // Print pending order (KOT style)
+  const handlePrintPendingOrder = (order) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Order #${order.id.substring(0, 8)}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { width: 80mm; font-family: 'Courier New', monospace; font-size: 12px; padding: 5mm; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .line { border-top: 1px dashed #000; margin: 5px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold">
+          <h2>PENDING ORDER</h2>
+          <p>Order #${order.id.substring(0, 8)}</p>
+          <p>${formatIndianDate(order.created_at)}</p>
+        </div>
+        <div class="line"></div>
+        ${order.items.map(item => `
+          <div>${item.quantity}x ${item.item_name}</div>
+        `).join('')}
+        <div class="line"></div>
+        <div class="center bold">
+          <p>TOTAL: ${formatCurrency(order.total_amount)}</p>
+          <p>Status: PENDING</p>
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   // Open/Resume pending order (load to cart)
@@ -506,6 +599,34 @@ const OrderTakingComplete = () => {
               </motion.button>
             </div>
 
+            {/* Table Selection (Dine-In only) */}
+            {tableManagementEnabled && orderType === 'dine-in' && tables.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-x-auto"
+              >
+                <div className="flex gap-2 pb-2">
+                  {tables.filter(t => t.status === 'free').map((table) => (
+                    <motion.button
+                      key={table.id}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setSelectedTable(table.table_number)}
+                      className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+                        selectedTable === table.table_number ? 'text-white' : `${currentTheme.textColor} opacity-60`
+                      }`}
+                      style={selectedTable === table.table_number ? {
+                        background: currentTheme.accentColor
+                      } : { background: 'rgba(255,255,255,0.1)' }}
+                    >
+                      Table {table.table_number}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {/* Search & Categories */}
             <div className="space-y-3">
               <div className="relative">
@@ -674,16 +795,16 @@ const OrderTakingComplete = () => {
                     </span>
                   </div>
                   
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Quick Action Buttons */}
+                  <div className={`grid ${kitchenSystemEnabled ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                     <button
                       onClick={handleHoldOrder}
                       disabled={isSubmitting}
                       className={`py-3 rounded-xl font-semibold transition-all ${currentTheme.textColor} opacity-80 hover:opacity-100`}
                       style={{ background: 'rgba(255,193,7,0.2)', border: '2px solid rgb(255,193,7)' }}
+                      title="Hold order"
                     >
-                      <FiPause className="inline mr-1" />
-                      Hold
+                      <FiPause className="inline text-lg" />
                     </button>
 
                     {kitchenSystemEnabled && (
@@ -692,11 +813,35 @@ const OrderTakingComplete = () => {
                         disabled={isSubmitting}
                         className={`py-3 rounded-xl font-semibold transition-all ${currentTheme.textColor} opacity-80 hover:opacity-100`}
                         style={{ background: 'rgba(255,87,34,0.2)', border: '2px solid rgb(255,87,34)' }}
+                        title="Send to kitchen"
                       >
-                        <FiSend className="inline mr-1" />
-                        Kitchen
+                        <FiSend className="inline text-lg" />
                       </button>
                     )}
+
+                    <button
+                      onClick={() => {
+                        const previewBill = {
+                          id: 'PREVIEW',
+                          created_at: new Date().toISOString(),
+                          table_number: orderType === 'takeaway' ? 'Takeaway' : selectedTable,
+                          order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
+                          payment_method: paymentMethod,
+                          total_amount: total,
+                          items: cart.map(item => ({
+                            item_name: item.name,
+                            quantity: item.quantity,
+                            total_price: item.price * item.quantity
+                          }))
+                        };
+                        handlePrintBill(previewBill);
+                      }}
+                      className={`py-3 rounded-xl font-semibold transition-all ${currentTheme.textColor} opacity-80 hover:opacity-100`}
+                      style={{ background: 'rgba(156,39,176,0.2)', border: '2px solid rgb(156,39,176)' }}
+                      title="Print preview"
+                    >
+                      <FiPrinter className="inline text-lg" />
+                    </button>
                   </div>
 
                   <button
@@ -750,7 +895,16 @@ const OrderTakingComplete = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    onClick={() => handlePrintPendingOrder(order)}
+                    className={`py-3 rounded-xl font-semibold ${currentTheme.textColor}`}
+                    style={{ background: 'rgba(156,39,176,0.2)', border: '2px solid rgb(156,39,176)' }}
+                    title="Print KOT"
+                  >
+                    <FiPrinter className="inline text-lg" />
+                  </button>
+
                   <button
                     onClick={() => handleOpenPendingOrder(order)}
                     className={`py-3 rounded-xl font-semibold ${currentTheme.textColor}`}
@@ -770,7 +924,7 @@ const OrderTakingComplete = () => {
                   </button>
 
                   <button
-                    onClick={() => handlePayPendingOrder(order.id)}
+                    onClick={() => showPendingPaymentModal(order.id)}
                     className="py-3 text-white font-semibold rounded-xl"
                     style={{ background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)` }}
                     title="Pay now"
@@ -845,6 +999,71 @@ const OrderTakingComplete = () => {
           </div>
         </div>
       )}
+
+      {/* Payment Method Modal (for Pending Orders) */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowPaymentModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`${currentTheme.cardBg} rounded-2xl p-6 max-w-md w-full border`}
+              style={{ borderColor: `${currentTheme.accentColor}40` }}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className={`text-2xl font-bold ${currentTheme.textColor}`}>Select Payment Method</h3>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className={`p-2 rounded-full hover:bg-white/10 ${currentTheme.textColor}`}
+                >
+                  <FiX className="text-xl" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {['Cash', 'Card', 'UPI'].map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => setPaymentMethod(method)}
+                    className={`py-4 rounded-xl font-semibold transition-all ${
+                      paymentMethod === method ? 'text-white shadow-lg' : `${currentTheme.textColor} opacity-60`
+                    }`}
+                    style={paymentMethod === method ? {
+                      background: currentTheme.accentColor,
+                      boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+                    } : { background: 'rgba(255,255,255,0.1)' }}
+                  >
+                    {method === 'Cash' && <FiDollarSign className="block mx-auto text-2xl mb-1" />}
+                    {method === 'Card' && <FiCreditCard className="block mx-auto text-2xl mb-1" />}
+                    {method === 'UPI' && <div className="block mx-auto text-2xl mb-1">📱</div>}
+                    {method}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handlePayPendingOrder}
+                className="w-full py-4 text-white font-bold text-lg rounded-xl shadow-lg"
+                style={{
+                  background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+                  boxShadow: `0 8px 30px ${currentTheme.accentColor}50`
+                }}
+              >
+                <FiCheck className="inline mr-2" />
+                Confirm Payment
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
