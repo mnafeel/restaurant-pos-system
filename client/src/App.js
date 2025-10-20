@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import OrderTaking from './pages/OrderTakingNew';
+import OrderTaking from './pages/OrderTakingComplete';
 import KitchenDisplay from './pages/KitchenDisplay';
 import BillPrinting from './pages/BillPrinting';
 import Bills from './pages/Bills';

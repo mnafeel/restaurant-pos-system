@@ -1,0 +1,664 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FiSearch, FiShoppingCart, FiX, FiPlus, FiMinus, FiCheck, FiClock, 
+  FiPackage, FiHome, FiSend, FiPause, FiDollarSign, FiCreditCard,
+  FiList, FiCheckCircle, FiPrinter
+} from 'react-icons/fi';
+import { useAuth } from '../contexts/AuthContext';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { formatIndianDate } from '../hooks/useServerTime';
+
+const OrderTakingComplete = () => {
+  const { user } = useAuth();
+  const { formatCurrency } = useCurrency();
+  const { currentTheme } = useTheme();
+  
+  // State
+  const [menuItems, setMenuItems] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [orderType, setOrderType] = useState('dine-in');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [view, setView] = useState('menu'); // 'menu', 'pending', 'paid'
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [paidBills, setPaidBills] = useState([]);
+  const [kitchenSystemEnabled, setKitchenSystemEnabled] = useState(true);
+
+  useEffect(() => {
+    fetchMenu();
+    fetchSettings();
+    fetchPendingOrders();
+    fetchPaidBills();
+  }, []);
+
+  const fetchMenu = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/menu', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMenuItems(response.data);
+    } catch (error) {
+      console.error('Error fetching menu:', error);
+      toast.error('Failed to load menu');
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/settings', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setKitchenSystemEnabled(response.data.enable_kitchen_system === 'true');
+      const defaultPayment = response.data.default_payment_method || 'Cash';
+      setPaymentMethod(defaultPayment);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  const fetchPendingOrders = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/orders?status=pending', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPendingOrders(response.data);
+    } catch (error) {
+      console.error('Error fetching pending orders:', error);
+    }
+  };
+
+  const fetchPaidBills = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/bills?filter=today', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPaidBills(response.data);
+    } catch (error) {
+      console.error('Error fetching paid bills:', error);
+    }
+  };
+
+  // Get unique categories
+  const categories = ['All', ...new Set(menuItems.map(item => item.category).filter(Boolean))];
+
+  // Filter menu items
+  const filteredItems = menuItems.filter(item => {
+    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // Add to cart
+  const addToCart = (item) => {
+    const existingItem = cart.find(cartItem => cartItem.id === item.id);
+    if (existingItem) {
+      setCart(cart.map(cartItem =>
+        cartItem.id === item.id
+          ? { ...cartItem, quantity: cartItem.quantity + 1 }
+          : cartItem
+      ));
+    } else {
+      setCart([...cart, { ...item, quantity: 1 }]);
+    }
+    toast.success(`${item.name} added!`, { duration: 1000 });
+  };
+
+  // Update quantity
+  const updateQuantity = (itemId, delta) => {
+    setCart(cart.map(item => {
+      if (item.id === itemId) {
+        const newQuantity = item.quantity + delta;
+        return newQuantity > 0 ? { ...item, quantity: newQuantity } : null;
+      }
+      return item;
+    }).filter(Boolean));
+  };
+
+  // Remove from cart
+  const removeFromCart = (itemId) => {
+    setCart(cart.filter(item => item.id !== itemId));
+  };
+
+  // Calculate total
+  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  // Hold Order (save as pending)
+  const handleHoldOrder = async () => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('/api/orders', {
+        tableNumber: orderType === 'takeaway' ? 'Takeaway' : 'Table',
+        order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
+        payment_status: 'pending',
+        items: cart.map(item => ({
+          menu_item_id: item.id,
+          quantity: item.quantity,
+          unit_price: item.price,
+          notes: ''
+        }))
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Order held successfully!', { icon: '⏸️' });
+      setCart([]);
+      fetchPendingOrders();
+    } catch (error) {
+      console.error('Error holding order:', error);
+      toast.error('Failed to hold order');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Send to Kitchen
+  const handleSendToKitchen = async () => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/orders', {
+        tableNumber: orderType === 'takeaway' ? 'Takeaway' : 'Table',
+        order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
+        payment_status: 'pending',
+        sent_to_kitchen: true,
+        items: cart.map(item => ({
+          menu_item_id: item.id,
+          quantity: item.quantity,
+          unit_price: item.price,
+          notes: ''
+        }))
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
+      setCart([]);
+      fetchPendingOrders();
+    } catch (error) {
+      console.error('Error sending to kitchen:', error);
+      toast.error('Failed to send to kitchen');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Pay Now (create bill)
+  const handlePayNow = async () => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const orderResponse = await axios.post('/api/orders', {
+        tableNumber: orderType === 'takeaway' ? 'Takeaway' : 'Table',
+        order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
+        payment_status: 'paid',
+        payment_method: paymentMethod,
+        items: cart.map(item => ({
+          menu_item_id: item.id,
+          quantity: item.quantity,
+          unit_price: item.price,
+          notes: ''
+        }))
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Create bill
+      await axios.post('/api/bills', {
+        orderId: orderResponse.data.orderId,
+        payment_method: paymentMethod
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Payment completed!', { icon: '✅' });
+      setCart([]);
+      fetchPaidBills();
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      toast.error('Failed to process payment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Pay from pending order
+  const handlePayPendingOrder = async (orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('/api/bills', {
+        orderId: orderId,
+        payment_method: paymentMethod
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Payment completed!');
+      fetchPendingOrders();
+      fetchPaidBills();
+    } catch (error) {
+      console.error('Error paying order:', error);
+      toast.error('Failed to process payment');
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col gap-4 p-4 max-w-[2000px] mx-auto">
+      {/* Top Navigation */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setView('menu')}
+          className={`px-6 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
+            view === 'menu' ? 'text-white shadow-lg' : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60`
+          }`}
+          style={view === 'menu' ? {
+            background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+            boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+          } : {}}
+        >
+          <FiShoppingCart className="inline mr-2" />
+          New Order
+        </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setView('pending')}
+          className={`px-6 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
+            view === 'pending' ? 'text-white shadow-lg' : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60`
+          }`}
+          style={view === 'pending' ? {
+            background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+            boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+          } : {}}
+        >
+          <FiClock className="inline mr-2" />
+          Pending ({pendingOrders.length})
+        </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setView('paid')}
+          className={`px-6 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
+            view === 'paid' ? 'text-white shadow-lg' : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60`
+          }`}
+          style={view === 'paid' ? {
+            background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+            boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+          } : {}}
+        >
+          <FiCheckCircle className="inline mr-2" />
+          Paid Bills ({paidBills.length})
+        </motion.button>
+      </div>
+
+      {/* NEW ORDER VIEW */}
+      {view === 'menu' && (
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+          {/* LEFT SIDE - Menu */}
+          <div className="flex-1 flex flex-col gap-4 min-h-0">
+            {/* Order Type */}
+            <div className="flex gap-3">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setOrderType('dine-in')}
+                className={`flex-1 py-4 px-6 rounded-2xl font-semibold text-lg transition-all ${
+                  orderType === 'dine-in' ? 'text-white shadow-lg border-2' : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60 border-2 border-transparent`
+                }`}
+                style={orderType === 'dine-in' ? {
+                  background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+                  borderColor: currentTheme.accentColor,
+                  boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+                } : {}}
+              >
+                <FiHome className="inline mr-2" />
+                Dine-In
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setOrderType('takeaway')}
+                className={`flex-1 py-4 px-6 rounded-2xl font-semibold text-lg transition-all ${
+                  orderType === 'takeaway' ? 'text-white shadow-lg border-2' : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60 border-2 border-transparent`
+                }`}
+                style={orderType === 'takeaway' ? {
+                  background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+                  borderColor: currentTheme.accentColor,
+                  boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+                } : {}}
+              >
+                <FiPackage className="inline mr-2" />
+                Takeaway
+              </motion.button>
+            </div>
+
+            {/* Search & Categories */}
+            <div className="space-y-3">
+              <div className="relative">
+                <FiSearch 
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-xl" 
+                  style={{ color: currentTheme.textColor === 'text-white' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Search menu..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full pl-12 pr-4 py-4 ${currentTheme.cardBg} border rounded-2xl ${currentTheme.textColor} text-lg focus:outline-none focus:ring-2`}
+                  style={{ borderColor: `${currentTheme.accentColor}40` }}
+                />
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {categories.map((category) => (
+                  <motion.button
+                    key={category}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
+                      selectedCategory === category ? 'text-white shadow-lg' : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60`
+                    }`}
+                    style={selectedCategory === category ? {
+                      background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}CC)`,
+                      boxShadow: `0 4px 15px ${currentTheme.accentColor}50`
+                    } : {}}
+                  >
+                    {category}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Menu Grid */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredItems.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => addToCart(item)}
+                    className={`${currentTheme.cardBg} rounded-2xl p-4 cursor-pointer border transition-all`}
+                    style={{ borderColor: `${currentTheme.accentColor}30` }}
+                  >
+                    <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-gradient-to-br from-gray-800 to-gray-700">
+                      {item.image_url ? (
+                        <img
+                          src={`https://restaurant-pos-system-1-7h0m.onrender.com${item.image_url}`}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div 
+                          className="w-full h-full flex items-center justify-center text-6xl font-bold"
+                          style={{ color: currentTheme.accentColor }}
+                        >
+                          {item.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <h3 className={`font-bold text-lg ${currentTheme.textColor} mb-1 line-clamp-1`}>
+                      {item.name}
+                    </h3>
+                    
+                    <div className="flex items-center justify-between">
+                      <span 
+                        className="text-2xl font-bold"
+                        style={{ color: currentTheme.accentColor }}
+                      >
+                        {formatCurrency(item.price)}
+                      </span>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        className="text-white p-3 rounded-xl"
+                        style={{
+                          background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`
+                        }}
+                      >
+                        <FiPlus className="text-xl" />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT SIDE - Cart */}
+          <div className="lg:w-96">
+            <div className={`${currentTheme.cardBg} rounded-2xl border p-6 gap-4 flex flex-col h-full`} style={{ borderColor: `${currentTheme.accentColor}40` }}>
+              <h2 className={`text-2xl font-bold ${currentTheme.textColor} flex items-center gap-2`}>
+                <FiShoppingCart style={{ color: currentTheme.accentColor }} />
+                Cart ({cart.length})
+              </h2>
+
+              <div className="flex-1 overflow-y-auto space-y-3">
+                {cart.length === 0 ? (
+                  <div className={`text-center ${currentTheme.textColor} opacity-50 py-12`}>
+                    <FiShoppingCart className="text-6xl mx-auto mb-4 opacity-30" style={{ color: currentTheme.accentColor }} />
+                    <p>Cart is empty</p>
+                  </div>
+                ) : (
+                  cart.map((item) => (
+                    <div key={item.id} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className={`font-semibold ${currentTheme.textColor} flex-1`}>{item.name}</h4>
+                        <button onClick={() => removeFromCart(item.id)} className="text-red-400 p-1">
+                          <FiX />
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 bg-white/10 rounded-lg p-1">
+                          <button onClick={() => updateQuantity(item.id, -1)} className="p-2">
+                            <FiMinus className={currentTheme.textColor} />
+                          </button>
+                          <span className={`${currentTheme.textColor} font-bold w-8 text-center`}>{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, 1)} className="p-2">
+                            <FiPlus className={currentTheme.textColor} />
+                          </button>
+                        </div>
+                        <span className="font-bold text-lg" style={{ color: currentTheme.accentColor }}>
+                          {formatCurrency(item.price * item.quantity)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {cart.length > 0 && (
+                <div className="space-y-4 pt-4 border-t" style={{ borderColor: `${currentTheme.accentColor}40` }}>
+                  {/* Payment Method */}
+                  <div>
+                    <label className={`block text-sm ${currentTheme.textColor} mb-2`}>Payment Method</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Cash', 'Card', 'UPI'].map((method) => (
+                        <button
+                          key={method}
+                          onClick={() => setPaymentMethod(method)}
+                          className={`py-2 rounded-lg font-medium transition-all ${
+                            paymentMethod === method ? 'text-white' : `${currentTheme.textColor} opacity-60`
+                          }`}
+                          style={paymentMethod === method ? {
+                            background: currentTheme.accentColor
+                          } : { background: 'rgba(255,255,255,0.1)' }}
+                        >
+                          {method === 'Cash' && <FiDollarSign className="inline mr-1" />}
+                          {method === 'Card' && <FiCreditCard className="inline mr-1" />}
+                          {method}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`flex justify-between items-center ${currentTheme.textColor}`}>
+                    <span className="text-lg">Total:</span>
+                    <span className="text-3xl font-bold" style={{ color: currentTheme.accentColor }}>
+                      {formatCurrency(total)}
+                    </span>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={handleHoldOrder}
+                      disabled={isSubmitting}
+                      className={`py-3 rounded-xl font-semibold transition-all ${currentTheme.textColor} opacity-80 hover:opacity-100`}
+                      style={{ background: 'rgba(255,193,7,0.2)', border: '2px solid rgb(255,193,7)' }}
+                    >
+                      <FiPause className="inline mr-1" />
+                      Hold
+                    </button>
+
+                    {kitchenSystemEnabled && (
+                      <button
+                        onClick={handleSendToKitchen}
+                        disabled={isSubmitting}
+                        className={`py-3 rounded-xl font-semibold transition-all ${currentTheme.textColor} opacity-80 hover:opacity-100`}
+                        style={{ background: 'rgba(255,87,34,0.2)', border: '2px solid rgb(255,87,34)' }}
+                      >
+                        <FiSend className="inline mr-1" />
+                        Kitchen
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handlePayNow}
+                    disabled={isSubmitting}
+                    className="w-full py-4 text-white font-bold text-lg rounded-xl shadow-lg"
+                    style={{
+                      background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+                      boxShadow: `0 8px 30px ${currentTheme.accentColor}50`
+                    }}
+                  >
+                    <FiCheck className="inline mr-2" />
+                    Pay Now
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PENDING ORDERS VIEW */}
+      {view === 'pending' && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingOrders.map((order) => (
+              <div key={order.id} className={`${currentTheme.cardBg} rounded-2xl p-6 border`} style={{ borderColor: `${currentTheme.accentColor}40` }}>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className={`font-bold text-lg ${currentTheme.textColor}`}>Order #{order.id.substring(0, 8)}</h3>
+                    <p className={`text-sm ${currentTheme.textColor} opacity-60`}>{formatIndianDate(order.created_at)}</p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-sm font-semibold">
+                    Pending
+                  </span>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  {order.items && order.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className={currentTheme.textColor}>{item.quantity}x {item.item_name}</span>
+                      <span style={{ color: currentTheme.accentColor }}>{formatCurrency(item.total_price)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center mb-4 pt-4 border-t" style={{ borderColor: `${currentTheme.accentColor}40` }}>
+                  <span className={currentTheme.textColor}>Total:</span>
+                  <span className="text-2xl font-bold" style={{ color: currentTheme.accentColor }}>
+                    {formatCurrency(order.total_amount)}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => handlePayPendingOrder(order.id)}
+                  className="w-full py-3 text-white font-semibold rounded-xl"
+                  style={{ background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)` }}
+                >
+                  <FiCheck className="inline mr-2" />
+                  Pay Now
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PAID BILLS VIEW */}
+      {view === 'paid' && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paidBills.map((bill) => (
+              <div key={bill.id} className={`${currentTheme.cardBg} rounded-2xl p-6 border`} style={{ borderColor: `${currentTheme.accentColor}40` }}>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className={`font-bold text-lg ${currentTheme.textColor}`}>Bill #{bill.id.substring(0, 8)}</h3>
+                    <p className={`text-sm ${currentTheme.textColor} opacity-60`}>{formatIndianDate(bill.created_at)}</p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-semibold">
+                    Paid
+                  </span>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  {bill.items && bill.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className={currentTheme.textColor}>{item.quantity}x {item.item_name}</span>
+                      <span style={{ color: currentTheme.accentColor }}>{formatCurrency(item.total_price)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center mb-4 pt-4 border-t" style={{ borderColor: `${currentTheme.accentColor}40` }}>
+                  <span className={currentTheme.textColor}>Total:</span>
+                  <span className="text-2xl font-bold" style={{ color: currentTheme.accentColor }}>
+                    {formatCurrency(bill.total_amount)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <span className={`${currentTheme.textColor} opacity-60`}>Payment:</span>
+                  <span className={currentTheme.textColor}>{bill.payment_method}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default OrderTakingComplete;
+
