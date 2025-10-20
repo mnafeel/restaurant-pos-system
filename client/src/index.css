@@ -83,7 +83,7 @@ code {
 }
 
 /* ========================================= */
-/* THEME-AWARE TEXT COLORS */
+/* THEME-AWARE TEXT COLORS - UNIVERSAL */
 /* ========================================= */
 
 /* STEP 1: Apply theme text color to ALL elements by default */
@@ -91,7 +91,7 @@ code {
   color: var(--theme-text-color, #111827);
 }
 
-/* STEP 2: Preserve explicitly colored classes (higher specificity) */
+/* STEP 2: Preserve status and UI colors (must stay visible) */
 .text-blue-600, .text-blue-700, .text-blue-500, .text-blue-400,
 .text-green-600, .text-green-700, .text-green-500, .text-green-400,
 .text-red-600, .text-red-700, .text-red-500, .text-red-400,
@@ -99,20 +99,37 @@ code {
 .text-orange-600, .text-orange-700, .text-orange-500,
 .text-yellow-600, .text-yellow-700, .text-yellow-500, .text-yellow-400,
 .text-pink-600, .text-indigo-600, .text-teal-600,
-.text-emerald-600, .text-emerald-500, .text-emerald-400,
-.text-gray-400, .text-gray-300, .text-gray-200 {
-  /* DO NOT override - keep Tailwind colors */
+.text-emerald-600, .text-emerald-500, .text-emerald-400 {
+  /* Keep original Tailwind colors for status indicators */
 }
 
-/* STEP 3: Force white/dark text on headings and key elements */
-h1:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-gradient"]),
-h2:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-gradient"]),
-h3:not([class*="text-blue"]):not([class*="text-green"]),
-h4, h5, h6 {
-  color: var(--theme-text-color, #111827) !important;
+/* STEP 3: Enhanced contrast for light text colors on dark themes */
+[style*="--theme-is-dark: 1"] .text-gray-400,
+[style*="--theme-is-dark: 1"] .text-gray-300,
+[style*="--theme-is-dark: 1"] .text-gray-200 {
+  color: rgba(255, 255, 255, 0.7) !important;
 }
 
-/* STEP 4: Specific gray text classes */
+/* STEP 4: Force theme color on all typography */
+h1, h2, h3, h4, h5, h6,
+p, span, label, div,
+td, th,
+button, a,
+input::placeholder, textarea::placeholder {
+  color: var(--theme-text-color, #111827);
+}
+
+/* STEP 5: Ensure colored elements stay colored */
+h1[class*="text-"],
+h2[class*="text-"],
+h3[class*="text-"],
+p[class*="text-"],
+span[class*="text-"],
+div[class*="text-"] {
+  /* Don't override if they have explicit color classes */
+}
+
+/* STEP 6: Gray text classes adapt to theme */
 .text-gray-900,
 .text-gray-800,
 .text-gray-700,
@@ -121,17 +138,24 @@ h4, h5, h6 {
   color: var(--theme-text-color, #111827) !important;
 }
 
-/* STEP 5: Tables, labels, divs */
-td:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]),
-th:not([class*="text-blue"]):not([class*="text-green"]),
-label:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]),
-p:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]):not([class*="text-gray-4"]),
-span:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-purple"]):not([class*="text-orange"]):not([class*="text-yellow"]):not([class*="text-gray-4"]),
-div:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]) {
-  color: var(--theme-text-color, #111827) !important;
+/* STEP 7: Buttons and interactive elements */
+button:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]) {
+  color: var(--theme-text-color, #111827);
 }
 
-/* Theme-aware inputs */
+/* STEP 8: Links remain visible */
+a:not([class*="text-blue"]) {
+  color: var(--theme-accent-color, #3B82F6);
+}
+
+a:not([class*="text-blue"]):hover {
+  opacity: 0.8;
+}
+
+/* ========================================= */
+/* THEME-AWARE INPUTS & FORMS */
+/* ========================================= */
+
 input[type="text"],
 input[type="email"],
 input[type="number"],
@@ -149,6 +173,103 @@ input::placeholder,
 textarea::placeholder {
   color: var(--theme-text-color, #9CA3AF) !important;
   opacity: 0.5;
+}
+
+/* ========================================= */
+/* VISIBLE BUTTONS ON ALL THEMES */
+/* ========================================= */
+
+/* Blue buttons - always visible */
+.bg-blue-600, .bg-blue-500, .bg-blue-700 {
+  background-color: #2563EB !important;
+  color: white !important;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: #1D4ED8 !important;
+}
+
+/* Green buttons - always visible */
+.bg-green-600, .bg-green-500, .bg-green-700 {
+  background-color: #059669 !important;
+  color: white !important;
+}
+
+/* Red buttons - always visible */
+.bg-red-600, .bg-red-500, .bg-red-700 {
+  background-color: #DC2626 !important;
+  color: white !important;
+}
+
+/* Yellow/Amber buttons - always visible */
+.bg-yellow-600, .bg-yellow-500, .bg-amber-500 {
+  background-color: #D97706 !important;
+  color: white !important;
+}
+
+/* Purple buttons - always visible */
+.bg-purple-600, .bg-purple-500 {
+  background-color: #9333EA !important;
+  color: white !important;
+}
+
+/* ========================================= */
+/* STATUS BADGES - ALWAYS VISIBLE */
+/* ========================================= */
+
+/* Success badges */
+.bg-green-100 {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.bg-green-100 * {
+  color: #10B981 !important;
+  font-weight: 600;
+}
+
+/* Warning badges */
+.bg-yellow-100, .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.bg-yellow-100 *, .bg-amber-100 * {
+  color: #F59E0B !important;
+  font-weight: 600;
+}
+
+/* Info badges */
+.bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+.bg-blue-100 * {
+  color: #3B82F6 !important;
+  font-weight: 600;
+}
+
+/* Danger badges */
+.bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.bg-red-100 * {
+  color: #EF4444 !important;
+  font-weight: 600;
+}
+
+/* Gray badges */
+.bg-gray-100 {
+  background-color: rgba(156, 163, 175, 0.2) !important;
+  border: 1px solid rgba(156, 163, 175, 0.5);
+}
+
+.bg-gray-100 * {
+  color: var(--theme-text-color, #6B7280) !important;
+  font-weight: 600;
 }
 
 /* Theme-aware table styles */
