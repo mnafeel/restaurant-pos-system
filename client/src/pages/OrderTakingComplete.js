@@ -167,8 +167,8 @@ const OrderTakingComplete = () => {
       return;
     }
 
-    // Check table selection for dine-in
-    if (tableManagementEnabled && orderType === 'dine-in' && !selectedTable) {
+    // Check table selection for dine-in (only if tables exist)
+    if (tableManagementEnabled && orderType === 'dine-in' && tables.length > 0 && !selectedTable) {
       toast.error('Please select a table!');
       return;
     }
@@ -213,8 +213,8 @@ const OrderTakingComplete = () => {
       return;
     }
 
-    // Check table selection for dine-in
-    if (tableManagementEnabled && orderType === 'dine-in' && !selectedTable) {
+    // Check table selection for dine-in (only if tables exist)
+    if (tableManagementEnabled && orderType === 'dine-in' && tables.length > 0 && !selectedTable) {
       toast.error('Please select a table!');
       return;
     }
@@ -259,8 +259,8 @@ const OrderTakingComplete = () => {
       return;
     }
 
-    // Check table selection for dine-in
-    if (tableManagementEnabled && orderType === 'dine-in' && !selectedTable) {
+    // Check table selection for dine-in (only if tables exist)
+    if (tableManagementEnabled && orderType === 'dine-in' && tables.length > 0 && !selectedTable) {
       toast.error('Please select a table!');
       return;
     }

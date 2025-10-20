@@ -25,12 +25,16 @@ root.render(
 );
 
 // Register service worker for offline functionality
-serviceWorkerRegistration.register({
-  onSuccess: () => {
-    console.log('✅ App is now available offline!');
-  },
-  onUpdate: (registration) => {
-    console.log('🔄 New version available! Please refresh.');
-    // Optional: Show notification to user about update
-  }
-});
+// Temporarily disabled to fix offline data deletion issue
+// serviceWorkerRegistration.register({
+//   onSuccess: () => {
+//     console.log('✅ App is now available offline!');
+//   },
+//   onUpdate: (registration) => {
+//     console.log('🔄 New version available! Please refresh.');
+//     // Optional: Show notification to user about update
+//   }
+// });
+
+// Unregister any existing service workers to prevent data issues
+serviceWorkerRegistration.unregister();
