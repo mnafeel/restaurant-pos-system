@@ -641,18 +641,18 @@ const OrderTakingComplete = () => {
                       <motion.button
                         key={table.id}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => table.status === 'Free' || table.status === 'free' ? setSelectedTable(table.table_number) : null}
-                        disabled={table.status !== 'Free' && table.status !== 'free'}
+                        onClick={() => table.status === 'Free' ? setSelectedTable(table.table_number) : null}
+                        disabled={table.status !== 'Free'}
                         className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
                           selectedTable === table.table_number 
                             ? 'text-white' 
-                            : (table.status === 'Free' || table.status === 'free')
+                            : table.status === 'Free'
                               ? `${currentTheme.textColor} opacity-60 hover:opacity-100`
                               : `${currentTheme.textColor} opacity-30`
                         }`}
                         style={selectedTable === table.table_number ? {
                           background: currentTheme.accentColor
-                        } : (table.status === 'Free' || table.status === 'free') ? { 
+                        } : table.status === 'Free' ? { 
                           background: 'rgba(255,255,255,0.1)' 
                         } : { 
                           background: 'rgba(255,0,0,0.1)',
@@ -660,7 +660,7 @@ const OrderTakingComplete = () => {
                         }}
                       >
                         {table.table_number}
-                        {(table.status !== 'Free' && table.status !== 'free') && (
+                        {table.status !== 'Free' && (
                           <span className="ml-1 text-xs">🔒</span>
                         )}
                       </motion.button>

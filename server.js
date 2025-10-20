@@ -2130,6 +2130,19 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
                 return res.status(500).json({ error: 'Failed to create bill: ' + err.message });
               }
               console.log('Bill created successfully:', billId);
+              
+              // Free up table after payment completion
+              if (order.table_number && order.table_number !== 'N/A') {
+                db.run('UPDATE tables SET status = "Free", current_order_id = NULL WHERE table_number = ? AND current_order_id = ?',
+                  [order.table_number, orderId], (err) => {
+                    if (err) {
+                      console.error('Error freeing table after payment:', err);
+                    } else {
+                      console.log('Table freed after payment:', order.table_number);
+                    }
+                  });
+              }
+              
               logAuditEvent(req.user.id, 'PAYMENT_COMPLETED', 'orders', orderId, null, { payment_method, payment_status }, req);
               res.json({ message: 'Payment updated successfully', billId });
             }
@@ -2803,8 +2816,8 @@ app.put('/api/bills/:billId/payment', authenticateToken, (req, res) => {
       }
       
       if (payment_status === 'paid') {
-        // Free up table
-        db.run('UPDATE tables SET status = "Free", current_order_id = NULL WHERE status = "Billed"');
+        // Free up table - update to handle both 'Occupied' and 'Billed' statuses
+        db.run('UPDATE tables SET status = "Free", current_order_id = NULL WHERE status IN ("Occupied", "Billed")');
       }
       
       logAuditEvent(req.user.id, 'BILL_PAYMENT_UPDATED', 'bills', billId, null, req.body, req);
