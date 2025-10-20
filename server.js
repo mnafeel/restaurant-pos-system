@@ -2529,7 +2529,7 @@ app.delete('/api/taxes/:id', authenticateToken, authorize(['admin', 'manager']),
 
 // Generate bill
 app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin']), (req, res) => {
-  const { orderId, discount_amount, discount_type, discount_reason, service_charge_rate, tax_ids } = req.body;
+  const { orderId, discount_amount, discount_type, discount_reason, service_charge_rate, tax_ids, payment_method } = req.body;
   const billId = uuidv4();
   
   db.get('SELECT * FROM orders WHERE id = ?', [orderId], (err, order) => {
@@ -2586,10 +2586,10 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           
           // Insert bill
           db.run(`INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-            discount_amount, discount_type, discount_reason, round_off, total_amount, staff_id, printed_count, last_printed_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
+            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, printed_count, last_printed_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
             [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-             discount_type, discount_reason, roundOff, totalAmount, req.user.id], function(err) {
+             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id], function(err) {
               if (err) {
                 return res.status(500).json({ error: err.message });
               }
