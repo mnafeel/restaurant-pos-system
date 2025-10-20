@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiShoppingCart, FiX, FiPlus, FiMinus, FiCheck, FiClock, FiPackage, FiHome } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const OrderTakingNew = () => {
   const { user } = useAuth();
   const { formatCurrency } = useCurrency();
+  const { currentTheme } = useTheme();
   
   // State
   const [menuItems, setMenuItems] = useState([]);
@@ -119,7 +121,7 @@ const OrderTakingNew = () => {
     <div className="h-full flex flex-col lg:flex-row gap-4 p-4 max-w-[2000px] mx-auto">
       {/* LEFT SIDE - Menu */}
       <div className="flex-1 flex flex-col gap-4 min-h-0">
-        {/* Order Type Selector - Premium Pills */}
+        {/* Order Type Selector - Theme-Aware Premium Pills */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -130,9 +132,14 @@ const OrderTakingNew = () => {
             onClick={() => setOrderType('dine-in')}
             className={`flex-1 py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-300 ${
               orderType === 'dine-in'
-                ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/50'
-                : 'bg-white/10 backdrop-blur-md text-white/70 hover:bg-white/20'
+                ? `${currentTheme.cardBg} text-white shadow-lg border-2`
+                : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60 hover:opacity-100 border-2 border-transparent`
             }`}
+            style={orderType === 'dine-in' ? {
+              background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+              borderColor: currentTheme.accentColor,
+              boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+            } : {}}
           >
             <FiHome className="inline mr-2" />
             Dine-In
@@ -142,9 +149,14 @@ const OrderTakingNew = () => {
             onClick={() => setOrderType('takeaway')}
             className={`flex-1 py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-300 ${
               orderType === 'takeaway'
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/50'
-                : 'bg-white/10 backdrop-blur-md text-white/70 hover:bg-white/20'
+                ? `${currentTheme.cardBg} text-white shadow-lg border-2`
+                : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60 hover:opacity-100 border-2 border-transparent`
             }`}
+            style={orderType === 'takeaway' ? {
+              background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+              borderColor: currentTheme.accentColor,
+              boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+            } : {}}
           >
             <FiPackage className="inline mr-2" />
             Takeaway
@@ -158,19 +170,26 @@ const OrderTakingNew = () => {
           transition={{ delay: 0.1 }}
           className="space-y-3"
         >
-          {/* Search */}
+          {/* Search - Theme-Aware */}
           <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 text-xl" />
+            <FiSearch 
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-xl" 
+              style={{ color: currentTheme.textColor === 'text-white' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
+            />
             <input
               type="text"
               placeholder="Search menu..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
+              className={`w-full pl-12 pr-4 py-4 ${currentTheme.cardBg} border rounded-2xl ${currentTheme.textColor} text-lg focus:outline-none focus:ring-2`}
+              style={{ 
+                borderColor: `${currentTheme.accentColor}40`,
+                '--tw-ring-color': currentTheme.accentColor
+              }}
             />
           </div>
 
-          {/* Categories - Horizontal Scroll */}
+          {/* Categories - Theme-Aware Horizontal Scroll */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/20">
             {categories.map((category, index) => (
               <motion.button
@@ -182,9 +201,13 @@ const OrderTakingNew = () => {
                 onClick={() => setSelectedCategory(category)}
                 className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-all duration-300 ${
                   selectedCategory === category
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                    : 'bg-white/10 backdrop-blur-md text-white/70 hover:bg-white/20'
+                    ? `text-white shadow-lg`
+                    : `${currentTheme.cardBg} ${currentTheme.textColor} opacity-60 hover:opacity-100`
                 }`}
+                style={selectedCategory === category ? {
+                  background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}CC)`,
+                  boxShadow: `0 4px 15px ${currentTheme.accentColor}50`
+                } : {}}
               >
                 {category}
               </motion.button>
@@ -210,31 +233,58 @@ const OrderTakingNew = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => addToCart(item)}
-                  className="bg-white/10 backdrop-blur-md rounded-2xl p-4 cursor-pointer border border-white/20 hover:border-white/40 transition-all duration-300 hover:shadow-xl"
+                  className={`${currentTheme.cardBg} rounded-2xl p-4 cursor-pointer border transition-all duration-300 hover:shadow-xl`}
+                  style={{
+                    borderColor: `${currentTheme.accentColor}30`,
+                    ':hover': { borderColor: `${currentTheme.accentColor}60` }
+                  }}
                 >
-                  {/* Image */}
-                  {item.image_url && (
-                    <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-black/20">
+                  {/* Image - Always Show */}
+                  <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-gradient-to-br from-gray-800 to-gray-700">
+                    {item.image_url ? (
                       <img
                         src={`https://restaurant-pos-system-1-7h0m.onrender.com${item.image_url}`}
                         alt={item.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-4xl">${item.name.charAt(0)}</div>`;
+                        }}
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <div 
+                        className="w-full h-full flex items-center justify-center text-6xl font-bold"
+                        style={{ color: currentTheme.accentColor }}
+                      >
+                        {item.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
                   
                   {/* Info */}
-                  <h3 className="font-bold text-lg text-white mb-1 line-clamp-1">{item.name}</h3>
-                  <p className="text-white/60 text-sm mb-3 line-clamp-2">{item.description}</p>
+                  <h3 className={`font-bold text-lg ${currentTheme.textColor} mb-1 line-clamp-1`}>
+                    {item.name}
+                  </h3>
+                  {item.description && (
+                    <p className={`${currentTheme.textColor} opacity-60 text-sm mb-3 line-clamp-2`}>
+                      {item.description}
+                    </p>
+                  )}
                   
                   {/* Price & Add Button */}
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-emerald-400">
+                    <span 
+                      className="text-2xl font-bold"
+                      style={{ color: currentTheme.accentColor }}
+                    >
                       {formatCurrency(item.price)}
                     </span>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-colors"
+                      className="text-white p-3 rounded-xl transition-colors"
+                      style={{
+                        background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`
+                      }}
                     >
                       <FiPlus className="text-xl" />
                     </motion.button>
@@ -248,15 +298,16 @@ const OrderTakingNew = () => {
 
       {/* RIGHT SIDE - Cart (Desktop) / Floating Button (Mobile) */}
       <div className="lg:w-96 flex-shrink-0">
-        {/* Desktop Cart */}
+        {/* Desktop Cart - Theme-Aware */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="hidden lg:flex flex-col h-full bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 gap-4"
+          className={`hidden lg:flex flex-col h-full ${currentTheme.cardBg} rounded-2xl border p-6 gap-4`}
+          style={{ borderColor: `${currentTheme.accentColor}40` }}
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <FiShoppingCart />
+            <h2 className={`text-2xl font-bold ${currentTheme.textColor} flex items-center gap-2`}>
+              <FiShoppingCart style={{ color: currentTheme.accentColor }} />
               Cart ({cart.length})
             </h2>
           </div>
@@ -268,9 +319,12 @@ const OrderTakingNew = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-center text-white/50 py-12"
+                  className={`text-center ${currentTheme.textColor} opacity-50 py-12`}
                 >
-                  <FiShoppingCart className="text-6xl mx-auto mb-4 opacity-30" />
+                  <FiShoppingCart 
+                    className="text-6xl mx-auto mb-4 opacity-30"
+                    style={{ color: currentTheme.accentColor }}
+                  />
                   <p>Cart is empty</p>
                 </motion.div>
               ) : (
@@ -328,16 +382,25 @@ const OrderTakingNew = () => {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-4 pt-4 border-t border-white/20"
             >
-              <div className="flex justify-between items-center text-white">
+              <div className={`flex justify-between items-center ${currentTheme.textColor}`}>
                 <span className="text-lg">Total:</span>
-                <span className="text-3xl font-bold text-emerald-400">{formatCurrency(total)}</span>
+                <span 
+                  className="text-3xl font-bold"
+                  style={{ color: currentTheme.accentColor }}
+                >
+                  {formatCurrency(total)}
+                </span>
               </div>
               
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="w-full py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold text-lg rounded-xl hover:from-emerald-700 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/50 transition-all duration-300"
+                className="w-full py-4 text-white font-bold text-lg rounded-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-300"
+                style={{
+                  background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+                  boxShadow: `0 8px 30px ${currentTheme.accentColor}50`
+                }}
               >
                 {isSubmitting ? (
                   <FiClock className="inline animate-spin mr-2" />
@@ -350,13 +413,17 @@ const OrderTakingNew = () => {
           )}
         </motion.div>
 
-        {/* Mobile Floating Cart Button */}
+        {/* Mobile Floating Cart Button - Theme-Aware */}
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => setShowCart(true)}
-          className="lg:hidden fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-5 rounded-full shadow-2xl z-50"
+          className="lg:hidden fixed bottom-6 right-6 text-white p-5 rounded-full shadow-2xl z-50"
+          style={{
+            background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
+            boxShadow: `0 8px 30px ${currentTheme.accentColor}80`
+          }}
         >
           <FiShoppingCart className="text-2xl" />
           {cart.length > 0 && (
