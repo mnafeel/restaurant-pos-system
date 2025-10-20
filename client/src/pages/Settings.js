@@ -611,8 +611,38 @@ const Settings = () => {
       {/* Printer Tab */}
       {activeTab === 'printer' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Printer Configuration</h2>
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <FaPrint className="text-blue-600" />
+            Printer Configuration
+          </h2>
           
+          {/* Auto-Print Setting - Prominent */}
+          <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
+            <label className="flex items-start cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.auto_print_bill === 'true'}
+                onChange={(e) => handleUpdateSetting('auto_print_bill', e.target.checked ? 'true' : 'false')}
+                className="mr-3 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+              />
+              <div className="flex-1">
+                <span className="text-lg font-bold text-gray-900 block mb-1">
+                  🖨️ Auto-Print Bills After Payment
+                </span>
+                <p className="text-sm text-gray-700">
+                  When enabled, bills will automatically print after payment without asking. 
+                  This speeds up checkout during busy hours. Disable for manual control.
+                </p>
+                <div className="mt-2 flex gap-4 text-xs">
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded">⚡ Faster checkout</span>
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">🏃 Busy hours</span>
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">⏱️ Saves 5s/order</span>
+                </div>
+              </div>
+            </label>
+          </div>
+          
+          <h3 className="text-lg font-semibold mb-4 text-gray-700">Printer Hardware Settings</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -705,21 +735,6 @@ const Settings = () => {
               </label>
               <p className="text-sm text-gray-500 ml-6 mt-1">
                 When disabled, the "Send to Kitchen" button and Kitchen Display page will be hidden
-              </p>
-            </div>
-
-            <div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={settings.auto_print_bill === 'true'}
-                  onChange={(e) => handleUpdateSetting('auto_print_bill', e.target.checked ? 'true' : 'false')}
-                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm font-medium text-gray-700">Auto-Print Bills After Payment</span>
-              </label>
-              <p className="text-sm text-gray-500 ml-6 mt-1">
-                When enabled, bills will automatically print after payment without asking
               </p>
             </div>
 
