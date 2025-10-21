@@ -1886,9 +1886,18 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
     });
     
     // Create order
+    console.log('Creating order with data:', {
+      orderId, orderNumber, tableNumber, 
+      staffId: req.user.id, totalAmount, 
+      orderType: order_type || 'Dine-In', 
+      paymentStatus: payment_status || 'pending',
+      shopId: req.user.shop_id
+    });
+    
     db.run('INSERT INTO orders (id, order_number, table_number, staff_id, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
       [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
       if (err) {
+        console.error('Error creating order:', err);
         db.run('ROLLBACK');
           return res.status(500).json({ error: err.message });
       }
@@ -2125,11 +2134,11 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
           db.run(`INSERT INTO bills (
             id, order_id, table_number, subtotal, tax_amount, 
             service_charge, discount_amount, total_amount, 
-            payment_method, payment_status, staff_id, shop_id, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            payment_method, payment_status, staff_id, shop_id, order_type, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [billId, orderId, order.table_number || 'N/A', subtotal, taxAmount, 
              serviceCharge, discountAmount, totalAmount, 
-             payment_method, 'paid', req.user.id, order.shop_id || null, currentISTTimestamp],
+             payment_method, 'paid', req.user.id, order.shop_id || null, order.order_type || 'Dine-In', currentISTTimestamp],
             (err) => {
               if (err) {
                 console.error('Error creating bill:', err);
