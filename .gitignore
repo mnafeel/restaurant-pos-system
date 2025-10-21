@@ -5,6 +5,10 @@ client/node_modules/
 # Production build
 client/build/
 
+# Electron build output
+dist/
+out/
+
 # Environment variables
 .env
 .env.local

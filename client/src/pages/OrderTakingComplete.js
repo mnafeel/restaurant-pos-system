@@ -307,7 +307,9 @@ const OrderTakingComplete = () => {
       // If disabled, don't print and don't ask - clean and simple!
     } catch (error) {
       console.error('Error processing payment:', error);
-      toast.error('Failed to process payment');
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -336,7 +338,7 @@ const OrderTakingComplete = () => {
   const handlePayPendingOrder = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post('/api/bills', {
+      const response = await axios.post('/api/bills', {
         orderId: pendingPaymentOrderId,
         payment_method: paymentMethod
       }, {
@@ -348,9 +350,12 @@ const OrderTakingComplete = () => {
       setPendingPaymentOrderId(null);
       fetchPendingOrders();
       fetchPaidBills();
+      fetchTables(); // Refresh tables to update status
     } catch (error) {
       console.error('Error paying order:', error);
-      toast.error('Failed to process payment');
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
+      toast.error(errorMsg);
     }
   };
 
