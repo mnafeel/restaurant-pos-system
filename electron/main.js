@@ -18,7 +18,64 @@ function initLocalDatabase() {
     } else {
       console.log('Local database initialized');
       createLocalTables();
+      seedInitialData();
     }
+  });
+}
+
+// Seed initial data for offline use
+function seedInitialData() {
+  // Check if data already exists
+  localDB.get('SELECT COUNT(*) as count FROM menu_items', (err, row) => {
+    if (err || !row || row.count > 0) {
+      console.log('Database already has data, skipping seed');
+      return;
+    }
+    
+    console.log('🌱 Seeding initial data...');
+    
+    // Add default admin user
+    localDB.run(`INSERT OR IGNORE INTO users (id, username, password, email, first_name, last_name, role, is_active) 
+      VALUES (1, 'admin', 'admin123', 'admin@restaurant.com', 'Admin', 'User', 'admin', 1)`);
+    
+    // Add sample menu items
+    const menuItems = [
+      { name: 'Burger', price: 10.99, category: 'Main Course' },
+      { name: 'Pizza', price: 12.99, category: 'Main Course' },
+      { name: 'Pasta', price: 11.99, category: 'Main Course' },
+      { name: 'Salad', price: 7.99, category: 'Starters' },
+      { name: 'Soup', price: 6.99, category: 'Starters' },
+      { name: 'Coke', price: 2.99, category: 'Beverages' },
+      { name: 'Water', price: 1.99, category: 'Beverages' }
+    ];
+    
+    menuItems.forEach((item, index) => {
+      localDB.run(`INSERT INTO menu_items (id, name, price, category, is_active) 
+        VALUES (?, ?, ?, ?, 1)`, [index + 1, item.name, item.price, item.category]);
+    });
+    
+    // Add sample tables
+    for (let i = 1; i <= 10; i++) {
+      localDB.run(`INSERT INTO tables (id, table_number, capacity, status) 
+        VALUES (?, ?, 4, 'Free')`, [i, i.toString()]);
+    }
+    
+    // Add default settings
+    const settings = {
+      restaurant_name: 'My Restaurant',
+      tax_rate: '10',
+      currency: 'USD',
+      currency_symbol: '$',
+      enable_kds: 'true',
+      enable_table_management: 'true',
+      auto_print_bill: 'false'
+    };
+    
+    Object.entries(settings).forEach(([key, value]) => {
+      localDB.run(`INSERT INTO settings (key, value) VALUES (?, ?)`, [key, value]);
+    });
+    
+    console.log('✅ Initial data seeded successfully');
   });
 }
 

@@ -3,29 +3,37 @@ import axios from 'axios';
 
 // Check if running in Electron
 const isElectron = () => {
-  return window && window.process && window.process.type === 'renderer';
+  try {
+    return window && window.process && window.process.type === 'renderer';
+  } catch (e) {
+    return false;
+  }
 };
 
-let ipcRenderer = null;
-if (isElectron()) {
+// Get IPC renderer lazily
+const getIpcRenderer = () => {
+  if (!isElectron()) return null;
   try {
-    ipcRenderer = window.require('electron').ipcRenderer;
+    return window.require('electron').ipcRenderer;
   } catch (e) {
     console.log('IPC not available');
+    return null;
   }
-}
+};
 
 // Helper function to query local database
 const queryLocalDB = async (sql, params = []) => {
-  if (ipcRenderer) {
-    return await ipcRenderer.invoke('db-query', sql, params);
+  const ipc = getIpcRenderer();
+  if (ipc) {
+    return await ipc.invoke('db-query', sql, params);
   }
   throw new Error('IPC not available');
 };
 
 const runLocalDB = async (sql, params = []) => {
-  if (ipcRenderer) {
-    return await ipcRenderer.invoke('db-run', sql, params);
+  const ipc = getIpcRenderer();
+  if (ipc) {
+    return await ipc.invoke('db-run', sql, params);
   }
   throw new Error('IPC not available');
 };
