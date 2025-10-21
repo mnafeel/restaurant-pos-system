@@ -102,7 +102,7 @@ const OrderTakingComplete = () => {
     try {
       setIsLoadingMenu(true);
       
-      if (!isOnline) {
+      if (!navigator.onLine) {
         // Use cached menu when offline
         const cachedMenu = await getCachedMenuItems();
         if (cachedMenu && cachedMenu.length > 0) {
@@ -337,14 +337,31 @@ const OrderTakingComplete = () => {
         }))
       };
 
-      if (isOnline) {
+      if (navigator.onLine) {
         // Online: Send to server
-        await axios.post('/api/orders', orderData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
-        fetchPendingOrders();
-        fetchTables();
+        try {
+          await axios.post('/api/orders', orderData, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
+          fetchPendingOrders();
+          fetchTables();
+        } catch (onlineError) {
+          // If online request fails, treat as offline
+          console.log('Online request failed, switching to offline mode:', onlineError);
+          await queueOrderForSync(orderData);
+          toast.success('Order saved offline! Will sync when online.', { icon: '💾' });
+          
+          const offlineOrder = {
+            id: Date.now(),
+            tableNumber,
+            order_type: orderData.order_type,
+            items: orderData.items,
+            timestamp: new Date().toISOString(),
+            status: 'offline'
+          };
+          setOfflineOrders(prev => [...prev, offlineOrder]);
+        }
       } else {
         // Offline: Queue for sync
         await queueOrderForSync(orderData);
@@ -406,23 +423,41 @@ const OrderTakingComplete = () => {
 
       let billResponse = null;
 
-      if (isOnline) {
+      if (navigator.onLine) {
         // Online: Process payment normally
-        const orderResponse = await axios.post('/api/orders', orderData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        try {
+          const orderResponse = await axios.post('/api/orders', orderData, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
 
-        // Create bill
-        billResponse = await axios.post('/api/bills', {
-          orderId: orderResponse.data.orderId,
-          payment_method: paymentMethod
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+          // Create bill
+          billResponse = await axios.post('/api/bills', {
+            orderId: orderResponse.data.orderId,
+            payment_method: paymentMethod
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
 
-        toast.success('Payment completed!', { icon: '✅' });
-        fetchPaidBills();
-        fetchTables();
+          toast.success('Payment completed!', { icon: '✅' });
+          fetchPaidBills();
+          fetchTables();
+        } catch (onlineError) {
+          // If online request fails, treat as offline
+          console.log('Online request failed, switching to offline mode:', onlineError);
+          await queueOrderForSync(orderData);
+          toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
+          
+          const offlineOrder = {
+            id: Date.now(),
+            tableNumber,
+            order_type: orderData.order_type,
+            items: orderData.items,
+            timestamp: new Date().toISOString(),
+            status: 'offline_paid',
+            payment_method: paymentMethod
+          };
+          setOfflineOrders(prev => [...prev, offlineOrder]);
+        }
       } else {
         // Offline: Queue for sync
         await queueOrderForSync(orderData);
@@ -445,7 +480,7 @@ const OrderTakingComplete = () => {
       setSelectedTable(null);
       
       // Simple auto-print - only if enabled and online
-      if (autoPrintEnabled && isOnline && billResponse) {
+      if (autoPrintEnabled && navigator.onLine && billResponse) {
         handlePrintBillById(billResponse.data.billId);
         toast.success('Bill printed!', { icon: '🖨️', duration: 2000 });
       }
