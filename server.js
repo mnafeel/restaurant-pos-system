@@ -1908,7 +1908,7 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
               if (completed === items.length) {
                 // Update table status only for Dine-In orders
                 if (order_type === 'Dine-In' && tableNumber && tableNumber !== 'Takeaway') {
-                  db.run('UPDATE tables SET status = "Occupied", current_order_id = ?, updated_at = CURRENT_TIMESTAMP WHERE table_number = ?',
+                  db.run('UPDATE tables SET status = \'Occupied\', current_order_id = ?, updated_at = CURRENT_TIMESTAMP WHERE table_number = ?',
                     [orderId, tableNumber], (err) => {
               if (err) {
                 db.run('ROLLBACK');
@@ -2139,7 +2139,7 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
               
               // Free up table after payment completion
               if (order.table_number && order.table_number !== 'N/A') {
-                db.run('UPDATE tables SET status = "Free", current_order_id = NULL WHERE table_number = ? AND current_order_id = ?',
+                db.run('UPDATE tables SET status = \'Free\', current_order_id = NULL WHERE table_number = ? AND current_order_id = ?',
                   [order.table_number, orderId], (err) => {
                     if (err) {
                       console.error('Error freeing table after payment:', err);
@@ -2344,7 +2344,7 @@ app.delete('/api/orders/:orderId', authenticateToken, authorize(['cashier', 'man
           
           // Free up table if it was occupied
           if (order.table_number && order.table_number !== 'Takeaway') {
-            db.run('UPDATE tables SET status = "Free", current_order_id = NULL WHERE table_number = ? AND current_order_id = ?',
+            db.run('UPDATE tables SET status = \'Free\', current_order_id = NULL WHERE table_number = ? AND current_order_id = ?',
               [order.table_number, orderId], (err) => {
                 if (err) {
                   console.error('Error freeing table:', err);
@@ -2601,8 +2601,8 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               }
               
               // Update order and table status
-              db.run('UPDATE orders SET status = "Billed" WHERE id = ?', [orderId]);
-              db.run('UPDATE tables SET status = "Billed" WHERE current_order_id = ?', [orderId]);
+              db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId]);
+              db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId]);
               
               logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
         
@@ -2823,7 +2823,7 @@ app.put('/api/bills/:billId/payment', authenticateToken, (req, res) => {
       
       if (payment_status === 'paid') {
         // Free up table - update to handle both 'Occupied' and 'Billed' statuses
-        db.run('UPDATE tables SET status = "Free", current_order_id = NULL WHERE status IN ("Occupied", "Billed")');
+        db.run('UPDATE tables SET status = \'Free\', current_order_id = NULL WHERE status IN (\'Occupied\', \'Billed\')');
       }
       
       logAuditEvent(req.user.id, 'BILL_PAYMENT_UPDATED', 'bills', billId, null, req.body, req);
@@ -2875,8 +2875,8 @@ app.post('/api/bills/:billId/void', authenticateToken, authorize(['manager', 'ad
         }
         
         // Revert order and table status
-        db.run('UPDATE orders SET status = "New" WHERE id = ?', [bill.order_id]);
-        db.run('UPDATE tables SET status = "Occupied" WHERE current_order_id = ?', [bill.order_id]);
+        db.run('UPDATE orders SET status = \'New\' WHERE id = ?', [bill.order_id]);
+        db.run('UPDATE tables SET status = \'Occupied\' WHERE current_order_id = ?', [bill.order_id]);
         
         logAuditEvent(req.user.id, 'BILL_VOIDED', 'bills', billId, bill, { void_reason }, req);
         res.json({ message: 'Bill voided successfully' });
