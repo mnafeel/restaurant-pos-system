@@ -82,7 +82,7 @@ const OrderTakingComplete = () => {
       const response = await axios.get('/api/settings', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setKitchenSystemEnabled(response.data.enable_kitchen_system === 'true');
+      setKitchenSystemEnabled(response.data.enable_kds === 'true');
       setTableManagementEnabled(response.data.enable_table_management === 'true');
       setAutoPrintEnabled(response.data.auto_print_bill === 'true');
       const defaultPayment = response.data.default_payment_method || 'Cash';

@@ -730,8 +730,8 @@ const Settings = () => {
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={settings.enable_kitchen_system === 'true'}
-                  onChange={(e) => handleUpdateSetting('enable_kitchen_system', e.target.checked ? 'true' : 'false')}
+                  checked={settings.enable_kds === 'true'}
+                  onChange={(e) => handleUpdateSetting('enable_kds', e.target.checked ? 'true' : 'false')}
                   className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-sm font-medium text-gray-700">Enable Kitchen System</span>
