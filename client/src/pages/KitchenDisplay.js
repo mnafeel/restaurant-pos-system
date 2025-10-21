@@ -8,7 +8,10 @@ const KitchenDisplay = () => {
 
   useEffect(() => {
     // Initialize socket connection
-    const newSocket = io('https://restaurant-pos-system-1-7h0m.onrender.com');
+    const socketUrl = window.location.origin.includes('localhost') 
+      ? 'http://localhost:5002' 
+      : 'https://restaurant-pos-system-1-7h0m.onrender.com';
+    const newSocket = io(socketUrl);
     newSocket.emit('join-kitchen');
 
     // Fetch initial orders
