@@ -66,11 +66,33 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = useCallback(async () => {
     try {
+      // Try to load cached user data first for offline mode
+      const cachedUser = localStorage.getItem('cached_user');
+      if (!navigator.onLine && cachedUser) {
+        console.log('Using cached user data (offline mode)');
+        setUser(JSON.parse(cachedUser));
+        setLoading(false);
+        return;
+      }
+
       const response = await axios.get('/api/auth/me');
       setUser(response.data);
+      
+      // Cache user data for offline use
+      localStorage.setItem('cached_user', JSON.stringify(response.data));
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user:', error);
+      
+      // Try to use cached user data as fallback
+      const cachedUser = localStorage.getItem('cached_user');
+      if (cachedUser) {
+        console.log('Using cached user data as fallback');
+        setUser(JSON.parse(cachedUser));
+        setLoading(false);
+        return;
+      }
+      
       // Only logout if it's an authentication error (401/403)
       if (error.response?.status === 401 || error.response?.status === 403) {
         console.log('Token invalid, logging out...');
@@ -85,6 +107,41 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
+      // Check if offline and has cached credentials
+      if (!navigator.onLine) {
+        const cachedToken = localStorage.getItem('token');
+        const cachedUser = localStorage.getItem('cached_user');
+        const cachedCredentials = localStorage.getItem('cached_credentials');
+        
+        if (cachedToken && cachedUser && cachedCredentials) {
+          const { username: cachedUsername, password: cachedPassword } = JSON.parse(cachedCredentials);
+          
+          // Simple credential check (in production, use better encryption)
+          if (username === cachedUsername && password === cachedPassword) {
+            console.log('Offline login successful with cached credentials');
+            const userData = JSON.parse(cachedUser);
+            setToken(cachedToken);
+            setUser(userData);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${cachedToken}`;
+            
+            return { 
+              success: true, 
+              message: 'Logged in offline with cached credentials' 
+            };
+          } else {
+            return {
+              success: false,
+              error: 'Invalid credentials (offline mode)'
+            };
+          }
+        } else {
+          return {
+            success: false,
+            error: 'No internet connection. Please connect to login for the first time.'
+          };
+        }
+      }
+
       console.log('Attempting login...');
       const response = await axios.post('/api/auth/login', { username, password }, {
         timeout: 30000, // 30 second timeout (for server wake up)
@@ -120,6 +177,11 @@ export const AuthProvider = ({ children }) => {
       
       console.log('Normalized user:', normalizedUser);
       console.log('Token stored:', newToken.substring(0, 20) + '...');
+      
+      // Cache user data and credentials for offline login
+      localStorage.setItem('cached_user', JSON.stringify(normalizedUser));
+      // WARNING: In production, encrypt the password!
+      localStorage.setItem('cached_credentials', JSON.stringify({ username, password }));
       
       // Then update state
       setToken(newToken);
