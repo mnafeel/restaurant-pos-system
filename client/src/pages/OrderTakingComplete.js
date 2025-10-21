@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSearch, FiShoppingCart, FiX, FiPlus, FiMinus, FiCheck, FiClock, 
   FiPackage, FiHome, FiSend, FiPause, FiDollarSign, FiCreditCard,
-  FiList, FiCheckCircle, FiPrinter, FiEdit, FiRefreshCw, FiTrash2
+  FiList, FiCheckCircle, FiPrinter, FiEdit, FiRefreshCw, FiTrash2, FiWifiOff
 } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -404,6 +404,8 @@ const OrderTakingComplete = () => {
         }))
       };
 
+      let billResponse = null;
+
       if (isOnline) {
         // Online: Process payment normally
         const orderResponse = await axios.post('/api/orders', orderData, {
@@ -411,7 +413,7 @@ const OrderTakingComplete = () => {
         });
 
         // Create bill
-        const billResponse = await axios.post('/api/bills', {
+        billResponse = await axios.post('/api/bills', {
           orderId: orderResponse.data.orderId,
           payment_method: paymentMethod
         }, {
@@ -443,7 +445,7 @@ const OrderTakingComplete = () => {
       setSelectedTable(null);
       
       // Simple auto-print - only if enabled and online
-      if (autoPrintEnabled && isOnline) {
+      if (autoPrintEnabled && isOnline && billResponse) {
         handlePrintBillById(billResponse.data.billId);
         toast.success('Bill printed!', { icon: '🖨️', duration: 2000 });
       }
