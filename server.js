@@ -1908,8 +1908,11 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
         shopId: req.user.shop_id
       });
       
+      // Set kds_status based on payment_status
+      const kdsStatus = payment_status === 'paid' ? null : 'Pending';
+      
       db.run('INSERT INTO orders (id, order_number, table_number, created_by, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-        [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
+        [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', kdsStatus, req.user.shop_id], function(err) {
         if (err) {
           console.error('Error creating order:', err);
           console.error('Order creation error details:', err.message, err.code);
@@ -1921,8 +1924,8 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
         let completed = 0;
         items.forEach((item) => {
           const finalPrice = item.price + (item.variant_price_adjustment || 0);
-          db.run('INSERT INTO order_items (order_id, menu_item_id, variant_id, quantity, unit_price, price, special_instructions) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [orderId, item.menu_item_id, item.variant_id || null, item.quantity, item.price, finalPrice, item.special_instructions || ''], (err) => {
+          db.run('INSERT INTO order_items (order_id, menu_item_id, variant_id, quantity, unit_price, price, special_instructions, kds_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [orderId, item.menu_item_id, item.variant_id || null, item.quantity, item.price, finalPrice, item.special_instructions || '', kdsStatus], (err) => {
           if (err) {
             console.error('Order item insert error:', err);
             db.run('ROLLBACK');
