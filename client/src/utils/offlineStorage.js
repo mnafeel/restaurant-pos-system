@@ -1,14 +1,19 @@
 // IndexedDB utility for offline data storage
 
 const DB_NAME = 'RestaurantPOS';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Store names
 const STORES = {
   PENDING_ORDERS: 'pendingOrders',
+  PAID_BILLS: 'paidBills',
   MENU_ITEMS: 'menuItems',
+  CATEGORIES: 'categories',
+  TABLES: 'tables',
   SETTINGS: 'settings',
-  SYNC_QUEUE: 'syncQueue'
+  SYNC_QUEUE: 'syncQueue',
+  REPORTS: 'reports',
+  USER_DATA: 'userData'
 };
 
 // Initialize IndexedDB
@@ -31,15 +36,33 @@ export const initDB = () => {
 
       // Create object stores if they don't exist
       if (!db.objectStoreNames.contains(STORES.PENDING_ORDERS)) {
-        const orderStore = db.createObjectStore(STORES.PENDING_ORDERS, { keyPath: 'id', autoIncrement: true });
+        const orderStore = db.createObjectStore(STORES.PENDING_ORDERS, { keyPath: 'id' });
         orderStore.createIndex('timestamp', 'timestamp', { unique: false });
         orderStore.createIndex('synced', 'synced', { unique: false });
+        orderStore.createIndex('payment_status', 'payment_status', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.PAID_BILLS)) {
+        const billStore = db.createObjectStore(STORES.PAID_BILLS, { keyPath: 'id' });
+        billStore.createIndex('timestamp', 'timestamp', { unique: false });
+        billStore.createIndex('created_at', 'created_at', { unique: false });
       }
 
       if (!db.objectStoreNames.contains(STORES.MENU_ITEMS)) {
         const menuStore = db.createObjectStore(STORES.MENU_ITEMS, { keyPath: 'id' });
         menuStore.createIndex('category', 'category', { unique: false });
         menuStore.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.CATEGORIES)) {
+        const categoryStore = db.createObjectStore(STORES.CATEGORIES, { keyPath: 'id' });
+        categoryStore.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.TABLES)) {
+        const tableStore = db.createObjectStore(STORES.TABLES, { keyPath: 'id' });
+        tableStore.createIndex('status', 'status', { unique: false });
+        tableStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
 
       if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
@@ -50,6 +73,16 @@ export const initDB = () => {
         const syncStore = db.createObjectStore(STORES.SYNC_QUEUE, { keyPath: 'id', autoIncrement: true });
         syncStore.createIndex('timestamp', 'timestamp', { unique: false });
         syncStore.createIndex('type', 'type', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.REPORTS)) {
+        const reportStore = db.createObjectStore(STORES.REPORTS, { keyPath: 'key' });
+        reportStore.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.USER_DATA)) {
+        const userStore = db.createObjectStore(STORES.USER_DATA, { keyPath: 'key' });
+        userStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
 
       console.log('IndexedDB stores created');
@@ -266,6 +299,168 @@ export const getCachedSetting = async (key) => {
       resolve(request.result?.value || null);
     };
 
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+};
+
+// Cache pending orders
+export const cachePendingOrders = async (orders) => {
+  const db = await initDB();
+  const transaction = db.transaction([STORES.PENDING_ORDERS], 'readwrite');
+  const store = transaction.objectStore(STORES.PENDING_ORDERS);
+  
+  // Clear existing pending orders
+  store.clear();
+  
+  // Add new pending orders with timestamp
+  orders.forEach(order => {
+    store.add({
+      ...order,
+      timestamp: Date.now(),
+      cached: true
+    });
+  });
+  
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      console.log('Pending orders cached successfully');
+      resolve();
+    };
+    transaction.onerror = () => {
+      console.error('Error caching pending orders:', transaction.error);
+      reject(transaction.error);
+    };
+  });
+};
+
+// Get cached pending orders
+export const getCachedPendingOrders = async () => {
+  return getAllFromStore(STORES.PENDING_ORDERS);
+};
+
+// Cache paid bills
+export const cachePaidBills = async (bills) => {
+  const db = await initDB();
+  const transaction = db.transaction([STORES.PAID_BILLS], 'readwrite');
+  const store = transaction.objectStore(STORES.PAID_BILLS);
+  
+  // Clear existing paid bills
+  store.clear();
+  
+  // Add new paid bills with timestamp
+  bills.forEach(bill => {
+    store.add({
+      ...bill,
+      timestamp: Date.now(),
+      cached: true
+    });
+  });
+  
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      console.log('Paid bills cached successfully');
+      resolve();
+    };
+    transaction.onerror = () => {
+      console.error('Error caching paid bills:', transaction.error);
+      reject(transaction.error);
+    };
+  });
+};
+
+// Get cached paid bills
+export const getCachedPaidBills = async () => {
+  return getAllFromStore(STORES.PAID_BILLS);
+};
+
+// Cache tables
+export const cacheTables = async (tables) => {
+  const db = await initDB();
+  const transaction = db.transaction([STORES.TABLES], 'readwrite');
+  const store = transaction.objectStore(STORES.TABLES);
+  
+  // Clear existing tables
+  store.clear();
+  
+  // Add new tables with timestamp
+  tables.forEach(table => {
+    store.add({
+      ...table,
+      timestamp: Date.now(),
+      cached: true
+    });
+  });
+  
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      console.log('Tables cached successfully');
+      resolve();
+    };
+    transaction.onerror = () => {
+      console.error('Error caching tables:', transaction.error);
+      reject(transaction.error);
+    };
+  });
+};
+
+// Get cached tables
+export const getCachedTables = async () => {
+  return getAllFromStore(STORES.TABLES);
+};
+
+// Cache categories
+export const cacheCategories = async (categories) => {
+  const db = await initDB();
+  const transaction = db.transaction([STORES.CATEGORIES], 'readwrite');
+  const store = transaction.objectStore(STORES.CATEGORIES);
+  
+  // Clear existing categories
+  store.clear();
+  
+  // Add new categories with timestamp
+  categories.forEach(category => {
+    store.add({
+      ...category,
+      timestamp: Date.now(),
+      cached: true
+    });
+  });
+  
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      console.log('Categories cached successfully');
+      resolve();
+    };
+    transaction.onerror = () => {
+      console.error('Error caching categories:', transaction.error);
+      reject(transaction.error);
+    };
+  });
+};
+
+// Get cached categories
+export const getCachedCategories = async () => {
+  return getAllFromStore(STORES.CATEGORIES);
+};
+
+// Cache report data
+export const cacheReportData = async (key, data) => {
+  return updateInStore(STORES.REPORTS, { key, data, timestamp: Date.now() });
+};
+
+// Get cached report data
+export const getCachedReportData = async (key) => {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORES.REPORTS], 'readonly');
+    const store = transaction.objectStore(STORES.REPORTS);
+    const request = store.get(key);
+    
+    request.onsuccess = () => {
+      resolve(request.result?.data || null);
+    };
     request.onerror = () => {
       reject(request.error);
     };

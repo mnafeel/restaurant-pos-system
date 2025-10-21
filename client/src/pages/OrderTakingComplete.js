@@ -16,7 +16,13 @@ import {
   getCachedMenuItems, 
   cacheMenuItems,
   getCachedSetting,
-  cacheSetting 
+  cacheSetting,
+  cachePendingOrders,
+  getCachedPendingOrders,
+  cachePaidBills,
+  getCachedPaidBills,
+  cacheTables,
+  getCachedTables
 } from '../utils/offlineStorage';
 
 const OrderTakingComplete = () => {
@@ -80,6 +86,17 @@ const OrderTakingComplete = () => {
   const fetchTables = async () => {
     try {
       setIsLoadingTables(true);
+      
+      if (!navigator.onLine) {
+        // Use cached tables when offline
+        const cachedTables = await getCachedTables();
+        if (cachedTables && cachedTables.length > 0) {
+          setTables(cachedTables);
+          console.log('Using cached tables:', cachedTables.length);
+          return;
+        }
+      }
+      
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/tables', {
         headers: { Authorization: `Bearer ${token}` }
@@ -91,8 +108,22 @@ const OrderTakingComplete = () => {
         table_number: String(t.table_number)
       }));
       setTables(normalized);
+      
+      // Cache tables for offline use
+      await cacheTables(normalized);
     } catch (error) {
       console.error('Error fetching tables:', error);
+      
+      // Try to use cached tables as fallback
+      try {
+        const cachedTables = await getCachedTables();
+        if (cachedTables && cachedTables.length > 0) {
+          setTables(cachedTables);
+          console.log('Using cached tables as fallback:', cachedTables.length);
+        }
+      } catch (cacheError) {
+        console.error('Error loading cached tables:', cacheError);
+      }
     } finally {
       setIsLoadingTables(false);
     }
@@ -163,25 +194,77 @@ const OrderTakingComplete = () => {
 
   const fetchPendingOrders = async () => {
     try {
+      if (!navigator.onLine) {
+        // Use cached pending orders when offline
+        const cachedOrders = await getCachedPendingOrders();
+        if (cachedOrders && cachedOrders.length > 0) {
+          // Combine cached orders with offline orders
+          const allOrders = [...cachedOrders.filter(o => !o.cached || o.payment_status === 'pending')];
+          setPendingOrders(allOrders);
+          console.log('Using cached pending orders:', allOrders.length);
+          return;
+        }
+      }
+      
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/orders?status=pending', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPendingOrders(response.data);
+      
+      // Cache pending orders for offline use
+      await cachePendingOrders(response.data);
     } catch (error) {
       console.error('Error fetching pending orders:', error);
+      
+      // Try to use cached orders as fallback
+      try {
+        const cachedOrders = await getCachedPendingOrders();
+        if (cachedOrders && cachedOrders.length > 0) {
+          setPendingOrders(cachedOrders);
+          console.log('Using cached pending orders as fallback:', cachedOrders.length);
+          toast.info('Showing cached orders - some may be outdated');
+        }
+      } catch (cacheError) {
+        console.error('Error loading cached pending orders:', cacheError);
+      }
     }
   };
 
   const fetchPaidBills = async () => {
     try {
+      if (!navigator.onLine) {
+        // Use cached paid bills when offline
+        const cachedBills = await getCachedPaidBills();
+        if (cachedBills && cachedBills.length > 0) {
+          setPaidBills(cachedBills);
+          console.log('Using cached paid bills:', cachedBills.length);
+          return;
+        }
+      }
+      
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/bills?filter=today', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPaidBills(response.data);
+      
+      // Cache paid bills for offline use
+      await cachePaidBills(response.data);
     } catch (error) {
       console.error('Error fetching paid bills:', error);
+      
+      // Try to use cached bills as fallback
+      try {
+        const cachedBills = await getCachedPaidBills();
+        if (cachedBills && cachedBills.length > 0) {
+          setPaidBills(cachedBills);
+          console.log('Using cached paid bills as fallback:', cachedBills.length);
+          toast.info('Showing cached bills - some may be outdated');
+        }
+      } catch (cacheError) {
+        console.error('Error loading cached paid bills:', cacheError);
+      }
     }
   };
 
