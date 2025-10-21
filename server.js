@@ -686,10 +686,16 @@ db.serialize(() => {
   db.all("PRAGMA table_info(bills)", (err, columns) => {
     if (!err && columns) {
       const hasShopId = columns.some(col => col.name === 'shop_id');
+      const hasOrderType = columns.some(col => col.name === 'order_type');
       
       if (!hasShopId) {
         console.log('Adding shop_id column to bills table...');
         db.run("ALTER TABLE bills ADD COLUMN shop_id INTEGER");
+      }
+      
+      if (!hasOrderType) {
+        console.log('Adding order_type column to bills table...');
+        db.run("ALTER TABLE bills ADD COLUMN order_type TEXT DEFAULT 'Dine-In'");
       }
     }
   });
@@ -2586,10 +2592,10 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           
           // Insert bill
           db.run(`INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, printed_count, last_printed_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
+            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, printed_count, last_printed_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
             [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id], function(err) {
+             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type], function(err) {
               if (err) {
                 return res.status(500).json({ error: err.message });
               }
