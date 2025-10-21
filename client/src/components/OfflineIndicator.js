@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiWifiOff, FiWifi, FiAlertCircle } from 'react-icons/fi';
+import { FiWifiOff, FiWifi, FiAlertCircle, FiX } from 'react-icons/fi';
 
 const OfflineIndicator = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showOfflineWarning, setShowOfflineWarning] = useState(false);
   const [justCameOnline, setJustCameOnline] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
       setShowOfflineWarning(false);
       setJustCameOnline(true);
+      setIsDismissed(false); // Reset dismissal when back online
       
       // Hide "back online" message after 5 seconds
       setTimeout(() => {
@@ -43,24 +45,31 @@ const OfflineIndicator = () => {
     <>
       {/* Offline Warning Banner */}
       <AnimatePresence>
-        {showOfflineWarning && (
+        {showOfflineWarning && !isDismissed && (
           <motion.div
             initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-3 shadow-lg"
+            className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-2 shadow-lg"
+            style={{ marginTop: '0px' }}
           >
             <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FiWifiOff className="text-2xl animate-pulse" />
+              <div className="flex items-center gap-2">
+                <FiWifiOff className="text-lg animate-pulse" />
                 <div>
-                  <p className="font-bold text-sm">You are offline</p>
+                  <p className="font-bold text-xs">You are offline</p>
                   <p className="text-xs opacity-90">
-                    Changes will be saved and synced when you're back online
+                    Orders will be saved locally and synced when online
                   </p>
                 </div>
               </div>
-              <FiAlertCircle className="text-xl opacity-70" />
+              <button
+                onClick={() => setIsDismissed(true)}
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition-colors"
+                aria-label="Dismiss offline warning"
+              >
+                <FiX className="text-sm" />
+              </button>
             </div>
           </motion.div>
         )}
@@ -73,22 +82,22 @@ const OfflineIndicator = () => {
             initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 shadow-lg"
+            className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 shadow-lg"
           >
             <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FiWifi className="text-2xl" />
+              <div className="flex items-center gap-2">
+                <FiWifi className="text-lg" />
                 <div>
-                  <p className="font-bold text-sm">You're back online!</p>
+                  <p className="font-bold text-xs">You're back online!</p>
                   <p className="text-xs opacity-90">
-                    Syncing your offline changes...
+                    Syncing offline changes...
                   </p>
                 </div>
               </div>
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="text-xl"
+                className="text-sm"
               >
                 ⟳
               </motion.div>
