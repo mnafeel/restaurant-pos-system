@@ -1873,34 +1873,43 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
   const orderId = uuidv4();
   const orderNumber = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   
+  console.log('Order creation request:', {
+    tableNumber, order_type, payment_status, 
+    itemsCount: items?.length, 
+    userId: req.user.id, 
+    shopId: req.user.shop_id
+  });
+  
   if (!items || items.length === 0) {
     return res.status(400).json({ error: 'Order must contain at least one item' });
   }
   
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    
-    let totalAmount = 0;
-    items.forEach(item => {
-      totalAmount += (item.price + (item.variant_price_adjustment || 0)) * item.quantity;
-    });
-    
-    // Create order
-    console.log('Creating order with data:', {
-      orderId, orderNumber, tableNumber, 
-      staffId: req.user.id, totalAmount, 
-      orderType: order_type || 'Dine-In', 
-      paymentStatus: payment_status || 'pending',
-      shopId: req.user.shop_id
-    });
-    
-    db.run('INSERT INTO orders (id, order_number, table_number, staff_id, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-      [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
-      if (err) {
-        console.error('Error creating order:', err);
-        db.run('ROLLBACK');
-          return res.status(500).json({ error: err.message });
-      }
+  try {
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      
+      let totalAmount = 0;
+      items.forEach(item => {
+        totalAmount += (item.price + (item.variant_price_adjustment || 0)) * item.quantity;
+      });
+      
+      // Create order
+      console.log('Creating order with data:', {
+        orderId, orderNumber, tableNumber, 
+        staffId: req.user.id, totalAmount, 
+        orderType: order_type || 'Dine-In', 
+        paymentStatus: payment_status || 'pending',
+        shopId: req.user.shop_id
+      });
+      
+      db.run('INSERT INTO orders (id, order_number, table_number, staff_id, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+        [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
+        if (err) {
+          console.error('Error creating order:', err);
+          console.error('Order creation error details:', err.message, err.code);
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: 'Failed to create order: ' + err.message });
+        }
 
     // Add order items
         let completed = 0;
@@ -1953,7 +1962,11 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
             });
         });
       });
-  });
+    });
+  } catch (error) {
+    console.error('Order creation catch error:', error);
+    return res.status(500).json({ error: 'Order creation failed: ' + error.message });
+  }
 });
 
 // Get pending orders - MUST be before /api/orders/:id to avoid route conflict
