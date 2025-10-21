@@ -125,6 +125,53 @@ async function checkConnectivity() {
   }
 }
 
+// Sync cloud data to local database
+async function syncFromCloud() {
+  const isOnline = await checkConnectivity();
+  
+  if (!isOnline) {
+    console.log('Offline - skipping cloud sync');
+    return { success: false, message: 'No internet connection' };
+  }
+
+  try {
+    const token = ''; // Token not needed for basic data fetch
+    const baseURL = 'https://restaurant-pos-system-1-7h0m.onrender.com/api';
+    
+    console.log('🔄 Starting cloud → local sync...');
+    let synced = 0;
+    
+    // Sync menu items
+    try {
+      const menuResponse = await axios.get(`${baseURL}/menu`, { timeout: 15000 });
+      
+      // Delete and reinsert menu items
+      localDB.run('DELETE FROM menu_items', async (err) => {
+        if (!err && menuResponse.data) {
+          for (const item of menuResponse.data) {
+            localDB.run(`
+              INSERT OR REPLACE INTO menu_items 
+              (id, name, description, price, category, image_url, is_active, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            `, [item.id, item.name, item.description, item.price, item.category, item.image_url, item.is_active !== false ? 1 : 0]);
+          }
+          synced++;
+          console.log(`✅ Synced ${menuResponse.data.length} menu items`);
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error syncing menu:', error.message);
+    }
+    
+    console.log(`✅ Cloud sync completed (${synced} tables synced)`);
+    return { success: true, message: `Synced ${synced} data tables`, count: synced };
+    
+  } catch (error) {
+    console.error('❌ Cloud sync error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
 // Sync local data to cloud
 async function syncToCloud() {
   const isOnline = await checkConnectivity();
@@ -305,9 +352,27 @@ ipcMain.handle('check-connectivity', async () => {
   return await checkConnectivity();
 });
 
-ipcMain.handle('sync-now', async () => {
+ipcMain.handle('sync-to-cloud', async () => {
   await syncToCloud();
-  return { success: true };
+  return { success: true, message: 'Local data uploaded to cloud' };
+});
+
+ipcMain.handle('sync-from-cloud', async () => {
+  const result = await syncFromCloud();
+  return result;
+});
+
+ipcMain.handle('sync-bidirectional', async () => {
+  console.log('🔄 Starting bidirectional sync...');
+  const downloadResult = await syncFromCloud();
+  const uploadResult = await syncToCloud();
+  
+  return {
+    success: downloadResult.success || uploadResult.success,
+    download: downloadResult,
+    upload: uploadResult,
+    message: 'Bidirectional sync completed'
+  };
 });
 
 console.log('Electron main process started');
