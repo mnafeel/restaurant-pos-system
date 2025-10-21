@@ -11,6 +11,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatIndianDate } from '../hooks/useServerTime';
+import { 
+  queueOrderForSync, 
+  getCachedMenuItems, 
+  cacheMenuItems,
+  getCachedSetting,
+  cacheSetting 
+} from '../utils/offlineStorage';
 
 const OrderTakingComplete = () => {
   const { user } = useAuth();
@@ -39,6 +46,8 @@ const OrderTakingComplete = () => {
   const [isLoadingMenu, setIsLoadingMenu] = useState(true);
   const [isLoadingTables, setIsLoadingTables] = useState(true);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [offlineOrders, setOfflineOrders] = useState([]);
 
   useEffect(() => {
     fetchMenu();
@@ -46,6 +55,26 @@ const OrderTakingComplete = () => {
     fetchPendingOrders();
     fetchPaidBills();
     fetchTables();
+    
+    // Add online/offline event listeners
+    const handleOnline = () => {
+      setIsOnline(true);
+      console.log('Back online - syncing offline orders...');
+      syncOfflineOrders();
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log('Gone offline - switching to offline mode');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const fetchTables = async () => {
@@ -72,14 +101,42 @@ const OrderTakingComplete = () => {
   const fetchMenu = async () => {
     try {
       setIsLoadingMenu(true);
+      
+      if (!isOnline) {
+        // Use cached menu when offline
+        const cachedMenu = await getCachedMenuItems();
+        if (cachedMenu && cachedMenu.length > 0) {
+          setMenuItems(cachedMenu);
+          console.log('Using cached menu items:', cachedMenu.length);
+          return;
+        }
+      }
+      
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/menu', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMenuItems(response.data);
+      
+      // Cache menu items for offline use
+      await cacheMenuItems(response.data);
     } catch (error) {
       console.error('Error fetching menu:', error);
-      toast.error('Failed to load menu');
+      
+      // Try to use cached menu as fallback
+      try {
+        const cachedMenu = await getCachedMenuItems();
+        if (cachedMenu && cachedMenu.length > 0) {
+          setMenuItems(cachedMenu);
+          console.log('Using cached menu as fallback:', cachedMenu.length);
+          toast.info('Using cached menu - some items may be outdated');
+        } else {
+          toast.error('Failed to load menu');
+        }
+      } catch (cacheError) {
+        console.error('Error loading cached menu:', cacheError);
+        toast.error('Failed to load menu');
+      }
     } finally {
       setIsLoadingMenu(false);
     }
@@ -218,6 +275,37 @@ const OrderTakingComplete = () => {
     }
   };
 
+  // Sync offline orders when back online
+  const syncOfflineOrders = async () => {
+    try {
+      const { getSyncQueue, markAsSynced } = await import('../utils/offlineStorage');
+      const queue = await getSyncQueue();
+      
+      if (queue.length > 0) {
+        console.log(`Syncing ${queue.length} offline orders...`);
+        
+        for (const item of queue) {
+          try {
+            const token = localStorage.getItem('token');
+            await axios.post('/api/orders', item.data, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            await markAsSynced(item.id);
+            console.log('Synced order:', item.id);
+          } catch (error) {
+            console.error('Failed to sync order:', item.id, error);
+          }
+        }
+        
+        toast.success(`Synced ${queue.length} offline orders`);
+        fetchPendingOrders();
+      }
+    } catch (error) {
+      console.error('Error syncing offline orders:', error);
+    }
+  };
+
   // Send to Kitchen
   const handleSendToKitchen = async () => {
     if (cart.length === 0) {
@@ -236,7 +324,7 @@ const OrderTakingComplete = () => {
       const token = localStorage.getItem('token');
       const tableNumber = orderType === 'takeaway' ? 'Takeaway' : (selectedTable || 'Table');
       
-      await axios.post('/api/orders', {
+      const orderData = {
         tableNumber: tableNumber,
         order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
         payment_status: 'pending',
@@ -247,15 +335,35 @@ const OrderTakingComplete = () => {
           variant_price_adjustment: 0,
           special_instructions: ''
         }))
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      };
 
-      toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
+      if (isOnline) {
+        // Online: Send to server
+        await axios.post('/api/orders', orderData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
+        fetchPendingOrders();
+        fetchTables();
+      } else {
+        // Offline: Queue for sync
+        await queueOrderForSync(orderData);
+        toast.success('Order saved offline! Will sync when online.', { icon: '💾' });
+        
+        // Add to local offline orders display
+        const offlineOrder = {
+          id: Date.now(),
+          tableNumber,
+          order_type: orderData.order_type,
+          items: orderData.items,
+          timestamp: new Date().toISOString(),
+          status: 'offline'
+        };
+        setOfflineOrders(prev => [...prev, offlineOrder]);
+      }
+
       setCart([]);
       setSelectedTable(null);
-      fetchPendingOrders();
-      fetchTables();
     } catch (error) {
       console.error('Error sending to kitchen:', error);
       toast.error(error.response?.data?.error || 'Failed to send to kitchen');
@@ -282,10 +390,11 @@ const OrderTakingComplete = () => {
       const token = localStorage.getItem('token');
       const tableNumber = orderType === 'takeaway' ? 'Takeaway' : (selectedTable || 'Table');
       
-      const orderResponse = await axios.post('/api/orders', {
+      const orderData = {
         tableNumber: tableNumber,
         order_type: orderType === 'dine-in' ? 'Dine-In' : 'Takeaway',
         payment_status: 'paid',
+        payment_method: paymentMethod,
         items: cart.map(item => ({
           menu_item_id: item.id,
           quantity: item.quantity,
@@ -293,26 +402,48 @@ const OrderTakingComplete = () => {
           variant_price_adjustment: 0,
           special_instructions: ''
         }))
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      };
 
-      // Create bill
-      const billResponse = await axios.post('/api/bills', {
-        orderId: orderResponse.data.orderId,
-        payment_method: paymentMethod
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (isOnline) {
+        // Online: Process payment normally
+        const orderResponse = await axios.post('/api/orders', orderData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-      toast.success('Payment completed!', { icon: '✅' });
+        // Create bill
+        const billResponse = await axios.post('/api/bills', {
+          orderId: orderResponse.data.orderId,
+          payment_method: paymentMethod
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        toast.success('Payment completed!', { icon: '✅' });
+        fetchPaidBills();
+        fetchTables();
+      } else {
+        // Offline: Queue for sync
+        await queueOrderForSync(orderData);
+        toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
+        
+        // Add to local offline orders display
+        const offlineOrder = {
+          id: Date.now(),
+          tableNumber,
+          order_type: orderData.order_type,
+          items: orderData.items,
+          timestamp: new Date().toISOString(),
+          status: 'offline_paid',
+          payment_method: paymentMethod
+        };
+        setOfflineOrders(prev => [...prev, offlineOrder]);
+      }
+
       setCart([]);
       setSelectedTable(null);
-      fetchPaidBills();
-      fetchTables();
       
-      // Simple auto-print - only if enabled, otherwise nothing
-      if (autoPrintEnabled) {
+      // Simple auto-print - only if enabled and online
+      if (autoPrintEnabled && isOnline) {
         handlePrintBillById(billResponse.data.billId);
         toast.success('Bill printed!', { icon: '🖨️', duration: 2000 });
       }
@@ -1007,6 +1138,69 @@ const OrderTakingComplete = () => {
                   >
                     <FiCheck className="inline" />
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* OFFLINE ORDERS VIEW */}
+      {view === 'pending' && offlineOrders.length > 0 && (
+        <div className="mt-6">
+          <h3 className={`text-lg font-bold ${currentTheme.textColor} mb-4 flex items-center gap-2`}>
+            <FiWifiOff className="text-orange-500" />
+            Offline Orders ({offlineOrders.length})
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {offlineOrders.map((order) => (
+              <div key={order.id} className={`${currentTheme.cardBg} rounded-2xl p-6 border border-orange-500/40`}>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className={`font-bold text-lg ${currentTheme.textColor}`}>Offline Order #{order.id}</h3>
+                    <p className={`text-sm ${currentTheme.textColor} opacity-60`}>
+                      {new Date(order.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    order.status === 'offline_paid' 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : 'bg-orange-500/20 text-orange-400'
+                  }`}>
+                    {order.status === 'offline_paid' ? 'Paid (Offline)' : 'Pending (Offline)'}
+                  </span>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  <p className={`text-sm ${currentTheme.textColor}`}>
+                    <strong>Table:</strong> {order.tableNumber}
+                  </p>
+                  <p className={`text-sm ${currentTheme.textColor}`}>
+                    <strong>Type:</strong> {order.order_type}
+                  </p>
+                  {order.payment_method && (
+                    <p className={`text-sm ${currentTheme.textColor}`}>
+                      <strong>Payment:</strong> {order.payment_method}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1 mb-4">
+                  {order.items.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                      <span className={`${currentTheme.textColor}`}>
+                        {item.quantity}x {item.name || `Item ${item.menu_item_id}`}
+                      </span>
+                      <span className={`font-semibold ${currentTheme.textColor}`}>
+                        {formatCurrency(item.price * item.quantity)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-orange-400">
+                  <FiWifiOff className="animate-pulse" />
+                  <span>Will sync when online</span>
                 </div>
               </div>
             ))}
