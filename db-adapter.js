@@ -344,7 +344,7 @@ if (hasMongoDb) {
           capacity INTEGER DEFAULT 4,
           location VARCHAR(100),
           status VARCHAR(50) DEFAULT 'Free',
-          current_order_id INTEGER,
+          current_order_id VARCHAR(255),
           merged_with INTEGER,
           shop_id INTEGER,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -388,6 +388,15 @@ if (hasMongoDb) {
         } catch (err) {
           // Column might already exist, ignore
         }
+      }
+
+      // Fix tables.current_order_id to be VARCHAR(255) to match order IDs
+      try {
+        await pool.query(`ALTER TABLE tables ALTER COLUMN current_order_id TYPE VARCHAR(255)`);
+        console.log('✅ Updated tables.current_order_id to VARCHAR(255)');
+      } catch (err) {
+        // Column might already be correct type, ignore
+        console.log('Note: tables.current_order_id type update skipped:', err.message);
       }
 
       await pool.query(`
