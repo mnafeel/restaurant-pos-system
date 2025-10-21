@@ -33,6 +33,26 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 5002;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
+// Performance optimization: In-memory cache
+const cache = {
+  menu: { data: null, timestamp: 0, ttl: 30000 }, // 30 seconds TTL
+  categories: { data: null, timestamp: 0, ttl: 60000 }, // 1 minute TTL
+  tables: { data: null, timestamp: 0, ttl: 15000 }, // 15 seconds TTL
+  settings: { data: null, timestamp: 0, ttl: 120000 } // 2 minutes TTL
+};
+
+const getCachedData = (key) => {
+  const cached = cache[key];
+  if (cached && cached.data && (Date.now() - cached.timestamp) < cached.ttl) {
+    return cached.data;
+  }
+  return null;
+};
+
+const setCachedData = (key, data) => {
+  cache[key] = { data, timestamp: Date.now(), ttl: cache[key]?.ttl || 30000 };
+};
+
 // Trust proxy for rate limiting
 app.set('trust proxy', 1);
 
@@ -1407,6 +1427,14 @@ app.put('/api/users/:id', authenticateToken, authorize(['admin', 'manager']), [
 // Get all tables
 app.get('/api/tables', authenticateToken, (req, res) => {
   const userShopId = req.user.shop_id;
+  
+  // Check cache first
+  const cacheKey = `tables_${userShopId}`;
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) {
+    return res.json(cachedData);
+  }
+  
   const whereClause = userShopId ? `WHERE shop_id = ${userShopId} OR shop_id IS NULL` : '';
   
   db.all(`SELECT * FROM tables ${whereClause} ORDER BY table_number`, (err, rows) => {
@@ -1414,7 +1442,10 @@ app.get('/api/tables', authenticateToken, (req, res) => {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows || []);
+    
+    const tables = rows || [];
+    setCachedData(cacheKey, tables);
+    res.json(tables);
   });
 });
 
@@ -1541,11 +1572,20 @@ app.delete('/api/tables/:id', authenticateToken, authorize(['admin', 'manager'])
 
 // Get all categories
 app.get('/api/categories', authenticateToken, (req, res) => {
+  // Check cache first
+  const cachedData = getCachedData('categories');
+  if (cachedData) {
+    return res.json(cachedData);
+  }
+  
   db.all('SELECT * FROM categories WHERE is_active = true ORDER BY display_order, name', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(rows || []);
+    
+    const categories = rows || [];
+    setCachedData('categories', categories);
+    res.json(categories);
   });
 });
 
@@ -1697,6 +1737,13 @@ app.get('/api/menu', authenticateToken, (req, res) => {
   const { include_unavailable } = req.query;
   const userShopId = req.user.shop_id;
   
+  // Check cache first
+  const cacheKey = `menu_${include_unavailable}_${userShopId}`;
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) {
+    return res.json(cachedData);
+  }
+  
   // Build WHERE clause with shop filtering
   let whereConditions = [];
   if (!include_unavailable) {
@@ -1731,6 +1778,9 @@ app.get('/api/menu', authenticateToken, (req, res) => {
       }) : []
     }));
     
+    // Cache the result
+    setCachedData(cacheKey, items);
+    
     res.json(items);
   });
 });
@@ -1760,6 +1810,13 @@ app.post('/api/menu', authenticateToken, authorize(['admin', 'manager']), upload
       }
       
       logAuditEvent(req.user.id, 'MENU_ITEM_CREATED', 'menu_items', menuItemId, null, req.body, req);
+      // Invalidate menu cache
+      Object.keys(cache).forEach(key => {
+        if (key.startsWith('menu_')) {
+          cache[key] = { data: null, timestamp: 0, ttl: cache[key].ttl };
+        }
+      });
+      
       res.json({ id: menuItemId, message: 'Menu item created successfully' });
     });
 });
@@ -3974,6 +4031,12 @@ app.put('/api/users/:id/password', authenticateToken, authorize(['admin', 'owner
 
 // Get all settings
 app.get('/api/settings', authenticateToken, (req, res) => {
+  // Check cache first
+  const cachedData = getCachedData('settings');
+  if (cachedData) {
+    return res.json(cachedData);
+  }
+  
   db.all('SELECT * FROM settings', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
@@ -3986,6 +4049,7 @@ app.get('/api/settings', authenticateToken, (req, res) => {
       });
     }
     
+    setCachedData('settings', settings);
     res.json(settings);
   });
 });

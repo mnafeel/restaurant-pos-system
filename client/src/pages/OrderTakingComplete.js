@@ -36,6 +36,9 @@ const OrderTakingComplete = () => {
   const [selectedTable, setSelectedTable] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState(null);
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true);
+  const [isLoadingTables, setIsLoadingTables] = useState(true);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   useEffect(() => {
     fetchMenu();
@@ -47,6 +50,7 @@ const OrderTakingComplete = () => {
 
   const fetchTables = async () => {
     try {
+      setIsLoadingTables(true);
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/tables', {
         headers: { Authorization: `Bearer ${token}` }
@@ -60,11 +64,14 @@ const OrderTakingComplete = () => {
       setTables(normalized);
     } catch (error) {
       console.error('Error fetching tables:', error);
+    } finally {
+      setIsLoadingTables(false);
     }
   };
 
   const fetchMenu = async () => {
     try {
+      setIsLoadingMenu(true);
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/menu', {
         headers: { Authorization: `Bearer ${token}` }
@@ -73,11 +80,14 @@ const OrderTakingComplete = () => {
     } catch (error) {
       console.error('Error fetching menu:', error);
       toast.error('Failed to load menu');
+    } finally {
+      setIsLoadingMenu(false);
     }
   };
 
   const fetchSettings = async () => {
     try {
+      setIsLoadingSettings(true);
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/settings', {
         headers: { Authorization: `Bearer ${token}` }
@@ -89,6 +99,8 @@ const OrderTakingComplete = () => {
       setPaymentMethod(defaultPayment);
     } catch (error) {
       console.error('Error fetching settings:', error);
+    } finally {
+      setIsLoadingSettings(false);
     }
   };
 
