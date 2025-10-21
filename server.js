@@ -1964,6 +1964,12 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
                       io.emit('table-status-updated', { table_number: tableNumber, status: 'Occupied' });
                     }
                     
+                    // Emit new order event for kitchen display
+                    if (payment_status === 'pending') {
+                      io.emit('new-order', { orderId, tableNumber, order_type });
+                      io.to('kitchen').emit('new-order', { orderId, tableNumber, order_type });
+                    }
+                    
                     res.json({ orderId, totalAmount, message: 'Order created successfully' });
                   });
                 }
