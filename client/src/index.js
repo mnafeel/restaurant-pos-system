@@ -7,9 +7,13 @@ import App from './App';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import { setupAxios } from './utils/axiosSetup';
 
 // Configure axios base URL - Backend on Render
 axios.defaults.baseURL = 'https://restaurant-pos-system-1-7h0m.onrender.com';
+
+// Setup axios interceptors for desktop/web mode
+setupAxios();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
