@@ -531,6 +531,7 @@ db.serialize(() => {
   // Migrate orders table
   db.all("PRAGMA table_info(orders)", (err, columns) => {
     if (!err && columns) {
+      const hasOrderNumber = columns.some(col => col.name === 'order_number');
       const hasPaymentStatus = columns.some(col => col.name === 'payment_status');
       const hasPaymentMethod = columns.some(col => col.name === 'payment_method');
       const hasOrderType = columns.some(col => col.name === 'order_type');
@@ -539,6 +540,11 @@ db.serialize(() => {
       const hasTaxAmount = columns.some(col => col.name === 'tax_amount');
       const hasServiceCharge = columns.some(col => col.name === 'service_charge');
       const hasDiscountAmount = columns.some(col => col.name === 'discount_amount');
+      
+      if (!hasOrderNumber) {
+        console.log('Adding order_number column to orders table...');
+        db.run("ALTER TABLE orders ADD COLUMN order_number TEXT");
+      }
       
       if (!hasPaymentStatus) {
         console.log('Adding payment_status column to orders table...');
@@ -1902,7 +1908,7 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
         shopId: req.user.shop_id
       });
       
-      db.run('INSERT INTO orders (id, order_number, table_number, staff_id, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+      db.run('INSERT INTO orders (id, order_number, table_number, created_by, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
         [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', null, req.user.shop_id], function(err) {
         if (err) {
           console.error('Error creating order:', err);
