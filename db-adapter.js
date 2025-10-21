@@ -399,6 +399,22 @@ if (hasMongoDb) {
         console.log('Note: tables.current_order_id type update skipped:', err.message);
       }
 
+      // Add missing order_type column to bills table
+      try {
+        await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS order_type VARCHAR(50) DEFAULT 'Dine-In'`);
+        console.log('✅ Added order_type column to bills table');
+      } catch (err) {
+        console.log('Note: bills.order_type column update skipped:', err.message);
+      }
+
+      // Fix audit_logs.record_id to be VARCHAR(255) to handle UUID strings
+      try {
+        await pool.query(`ALTER TABLE audit_logs ALTER COLUMN record_id TYPE VARCHAR(255)`);
+        console.log('✅ Updated audit_logs.record_id to VARCHAR(255)');
+      } catch (err) {
+        console.log('Note: audit_logs.record_id type update skipped:', err.message);
+      }
+
       await pool.query(`
         CREATE TABLE IF NOT EXISTS order_items (
           id SERIAL PRIMARY KEY,
@@ -470,6 +486,7 @@ if (hasMongoDb) {
           split_count INTEGER DEFAULT 1,
           staff_id INTEGER,
           shop_id INTEGER,
+          order_type VARCHAR(50) DEFAULT 'Dine-In',
           voided BOOLEAN DEFAULT false,
           void_reason TEXT,
           voided_by INTEGER,
@@ -517,7 +534,7 @@ if (hasMongoDb) {
           user_id INTEGER,
           action VARCHAR(255) NOT NULL,
           table_name VARCHAR(255),
-          record_id INTEGER,
+          record_id VARCHAR(255),
           old_values TEXT,
           new_values TEXT,
           ip_address VARCHAR(100),
