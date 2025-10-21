@@ -18,64 +18,7 @@ function initLocalDatabase() {
     } else {
       console.log('Local database initialized');
       createLocalTables();
-      seedInitialData();
     }
-  });
-}
-
-// Seed initial data for offline use
-function seedInitialData() {
-  // Check if data already exists
-  localDB.get('SELECT COUNT(*) as count FROM menu_items', (err, row) => {
-    if (err || !row || row.count > 0) {
-      console.log('Database already has data, skipping seed');
-      return;
-    }
-    
-    console.log('🌱 Seeding initial data...');
-    
-    // Add default admin user
-    localDB.run(`INSERT OR IGNORE INTO users (id, username, password, email, first_name, last_name, role, is_active) 
-      VALUES (1, 'admin', 'admin123', 'admin@restaurant.com', 'Admin', 'User', 'admin', 1)`);
-    
-    // Add sample menu items
-    const menuItems = [
-      { name: 'Burger', price: 10.99, category: 'Main Course' },
-      { name: 'Pizza', price: 12.99, category: 'Main Course' },
-      { name: 'Pasta', price: 11.99, category: 'Main Course' },
-      { name: 'Salad', price: 7.99, category: 'Starters' },
-      { name: 'Soup', price: 6.99, category: 'Starters' },
-      { name: 'Coke', price: 2.99, category: 'Beverages' },
-      { name: 'Water', price: 1.99, category: 'Beverages' }
-    ];
-    
-    menuItems.forEach((item, index) => {
-      localDB.run(`INSERT INTO menu_items (id, name, price, category, is_active) 
-        VALUES (?, ?, ?, ?, 1)`, [index + 1, item.name, item.price, item.category]);
-    });
-    
-    // Add sample tables
-    for (let i = 1; i <= 10; i++) {
-      localDB.run(`INSERT INTO tables (id, table_number, capacity, status) 
-        VALUES (?, ?, 4, 'Free')`, [i, i.toString()]);
-    }
-    
-    // Add default settings
-    const settings = {
-      restaurant_name: 'My Restaurant',
-      tax_rate: '10',
-      currency: 'USD',
-      currency_symbol: '$',
-      enable_kds: 'true',
-      enable_table_management: 'true',
-      auto_print_bill: 'false'
-    };
-    
-    Object.entries(settings).forEach(([key, value]) => {
-      localDB.run(`INSERT INTO settings (key, value) VALUES (?, ?)`, [key, value]);
-    });
-    
-    console.log('✅ Initial data seeded successfully');
   });
 }
 
@@ -163,9 +106,92 @@ function createLocalTables() {
     )`
   ];
 
-  tables.forEach(sql => {
-    localDB.run(sql, (err) => {
-      if (err) console.error('Error creating table:', err);
+  localDB.serialize(() => {
+    tables.forEach(sql => {
+      localDB.run(sql, (err) => {
+        if (err) console.error('Error creating table:', err);
+      });
+    });
+    
+    // After all tables are created, seed data
+    console.log('Tables created, checking for initial data...');
+    setTimeout(() => {
+      seedInitialDataNow();
+    }, 1000);
+  });
+}
+
+// Seed data after tables are ready
+function seedInitialDataNow() {
+  localDB.get('SELECT COUNT(*) as count FROM users', (err, row) => {
+    if (err) {
+      console.error('Error checking users:', err);
+      return;
+    }
+    
+    if (row && row.count > 0) {
+      console.log('✅ Database already has users, skipping seed');
+      return;
+    }
+    
+    console.log('🌱 Seeding initial data...');
+    
+    localDB.serialize(() => {
+      // Add default admin user  
+      localDB.run(`INSERT INTO users (id, username, password, email, first_name, last_name, role, is_active) 
+        VALUES (1, 'admin', 'admin123', 'admin@restaurant.com', 'Admin', 'User', 'admin', 1)`, (err) => {
+        if (err) console.error('Error creating admin:', err);
+        else console.log('✅ Admin user created');
+      });
+      
+      // Add sample menu items
+      const menuItems = [
+        { id: 1, name: 'Burger', price: 10.99, category: 'Main Course' },
+        { id: 2, name: 'Pizza', price: 12.99, category: 'Main Course' },
+        { id: 3, name: 'Pasta', price: 11.99, category: 'Main Course' },
+        { id: 4, name: 'Salad', price: 7.99, category: 'Starters' },
+        { id: 5, name: 'Soup', price: 6.99, category: 'Starters' },
+        { id: 6, name: 'Coke', price: 2.99, category: 'Beverages' },
+        { id: 7, name: 'Water', price: 1.99, category: 'Beverages' }
+      ];
+      
+      menuItems.forEach((item) => {
+        localDB.run(`INSERT INTO menu_items (id, name, price, category, is_available) 
+          VALUES (?, ?, ?, ?, 1)`, [item.id, item.name, item.price, item.category], (err) => {
+          if (err) console.error('Error creating menu item:', err);
+        });
+      });
+      console.log('✅ Menu items created');
+      
+      // Add sample tables
+      for (let i = 1; i <= 10; i++) {
+        localDB.run(`INSERT INTO tables (id, table_number, capacity, status) 
+          VALUES (?, ?, 4, 'Free')`, [i, i.toString()], (err) => {
+          if (err) console.error('Error creating table:', err);
+        });
+      }
+      console.log('✅ Tables created');
+      
+      // Add default settings
+      const settings = {
+        restaurant_name: 'My Restaurant',
+        tax_rate: '10',
+        currency: 'USD',
+        currency_symbol: '$',
+        enable_kds: 'true',
+        enable_table_management: 'true',
+        auto_print_bill: 'false',
+        default_payment_method: 'Cash'
+      };
+      
+      Object.entries(settings).forEach(([key, value]) => {
+        localDB.run(`INSERT INTO settings (key, value) VALUES (?, ?)`, [key, value], (err) => {
+          if (err) console.error('Error creating setting:', err);
+        });
+      });
+      console.log('✅ Settings created');
+      
+      console.log('🎉 Initial data seeded successfully - Desktop app ready for offline use!');
     });
   });
 }
