@@ -1,3 +1,4 @@
+// Fixed SQL quotes for PostgreSQL - Deploy v2
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
