@@ -486,31 +486,11 @@ db.serialize(() => {
     FOREIGN KEY (user_id) REFERENCES users (id)
   )`);
 
-  // Insert default categories (safe, no new columns needed)
-  db.run(`INSERT OR IGNORE INTO categories (name, display_order) VALUES 
-    ('Appetizers', 1), ('Main Course', 2), ('Pizza', 3), ('Pasta', 4), ('Salads', 5), ('Desserts', 6), ('Beverages', 7)`);
+  // No default categories - owner must create categories from scratch for fresh start
 
-  // Insert sample tables (safe, no new columns needed)
-  const tableNumbers = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'];
-  tableNumbers.forEach((num, idx) => {
-    db.run(`INSERT OR IGNORE INTO tables (table_number, capacity, location) VALUES (?, ?, ?)`, 
-      [num, idx % 3 === 0 ? 6 : 4, idx < 5 ? 'main' : 'patio']);
-  });
+  // No default tables - owner must create tables from scratch for fresh start
 
-  // Insert sample menu items (safe, no new columns needed)
-  db.run(`INSERT OR IGNORE INTO menu_items (name, description, price, category, preparation_time, stock_quantity) VALUES 
-    ('Margherita Pizza', 'Classic tomato and mozzarella pizza', 12.99, 'Pizza', 20, 50),
-    ('Pepperoni Pizza', 'Pepperoni with mozzarella cheese', 14.99, 'Pizza', 20, 45),
-    ('Caesar Salad', 'Fresh romaine lettuce with caesar dressing', 8.99, 'Salads', 10, 30),
-    ('Grilled Chicken', 'Grilled chicken breast with herbs', 16.99, 'Main Course', 25, 25),
-    ('Pasta Carbonara', 'Creamy pasta with bacon and parmesan', 13.99, 'Pasta', 18, 40),
-    ('Fish and Chips', 'Beer-battered fish with fries', 15.99, 'Main Course', 22, 20),
-    ('Chocolate Cake', 'Rich chocolate cake with ganache', 6.99, 'Desserts', 5, 15),
-    ('Ice Cream', 'Vanilla, chocolate, or strawberry', 4.99, 'Desserts', 2, 100),
-    ('Spring Rolls', 'Crispy vegetable spring rolls', 6.99, 'Appetizers', 12, 40),
-    ('Garlic Bread', 'Toasted bread with garlic butter', 4.99, 'Appetizers', 8, 60),
-    ('Coke', 'Coca-Cola 330ml', 2.99, 'Beverages', 1, 200),
-    ('Orange Juice', 'Freshly squeezed orange juice', 3.99, 'Beverages', 3, 100)`);
+  // No default menu items - owner must create menu from scratch for fresh start
 
   // Insert default taxes (safe, no new columns needed)
   db.run(`INSERT OR IGNORE INTO taxes (name, rate, is_inclusive, is_active) VALUES 
@@ -752,39 +732,7 @@ db.serialize(() => {
         }
       );
       
-      // Create admin account for default shop
-      const adminPasswordHash = bcrypt.hashSync('admin123', 10);
-      db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        ['admin', 'admin@restaurant.com', adminPasswordHash, 'admin', 'Admin', 'User', 1, 1],
-        function(err) {
-          if (err) {
-            console.error('❌ Error creating admin account:', err);
-          } else {
-            console.log('✅ Admin account created!');
-            console.log('   Username: admin');
-            console.log('   Password: admin123');
-          }
-        }
-      );
-      
-      // Create cashier account
-      const cashierPasswordHash = bcrypt.hashSync('cashier123', 10);
-      db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        ['cashier', 'cashier@restaurant.com', cashierPasswordHash, 'cashier', 'Cashier', 'User', 1, 1],
-        function(err) {
-          if (err) {
-            console.error('❌ Error creating cashier account:', err);
-          } else {
-            console.log('✅ Cashier account created!');
-            console.log('   Username: cashier');
-            console.log('   Password: cashier123');
-            console.log('');
-            console.log('⚠️  IMPORTANT: Change all passwords after first login!');
-          }
-        }
-      );
+      console.log('⚠️  IMPORTANT: Only owner account created. Create shops and users manually.');
     } else {
       console.log(`✅ Database has ${result.count} user(s)`);
     }
@@ -891,39 +839,13 @@ app.post('/api/debug/create-accounts', (req, res) => {
           return res.status(500).json({ error: 'Failed to create owner: ' + err.message });
         }
         
-        // Create admin
-        const adminPasswordHash = bcrypt.hashSync('admin123', 10);
-        db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          ['admin', 'admin@restaurant.com', adminPasswordHash, 'admin', 'Admin', 'User', 1, 1],
-          function(err) {
-            if (err) {
-              return res.status(500).json({ error: 'Failed to create admin: ' + err.message });
-            }
-            
-            // Create cashier
-            const cashierPasswordHash = bcrypt.hashSync('cashier123', 10);
-            db.run(`INSERT INTO users (username, email, password_hash, role, first_name, last_name, shop_id, is_active) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              ['cashier', 'cashier@restaurant.com', cashierPasswordHash, 'cashier', 'Cashier', 'User', 1, 1],
-              function(err) {
-                if (err) {
-                  return res.status(500).json({ error: 'Failed to create cashier: ' + err.message });
-                }
-                
-                res.json({ 
-                  success: true,
-                  message: 'All accounts created successfully!',
-                  accounts: [
-                    { username: 'owner', password: 'owner123', role: 'owner' },
-                    { username: 'admin', password: 'admin123', role: 'admin' },
-                    { username: 'cashier', password: 'cashier123', role: 'cashier' }
-                  ]
-                });
-              }
-            );
-          }
-        );
+        res.json({ 
+          success: true,
+          message: 'Owner account created successfully!',
+          accounts: [
+            { username: 'owner', password: 'owner123', role: 'owner' }
+          ]
+        });
       }
     );
   });
@@ -4331,8 +4253,7 @@ app.get('/', (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`\nDefault login credentials:`);
-  console.log(`Admin: username=admin, password=admin123`);
-  console.log(`Cashier: username=cashier, password=cashier123`);
-  console.log(`Chef: username=chef, password=chef123`);
+  console.log(`\nFresh Start - Owner Login Only:`);
+  console.log(`Owner: username=owner, password=owner123`);
+  console.log(`\nNote: No shops or other users exist. Owner must create them manually.`);
 });
