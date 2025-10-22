@@ -139,11 +139,11 @@ function seedInitialDataNow() {
     console.log('🌱 Seeding initial data...');
     
     localDB.serialize(() => {
-      // Add default admin user  
+      // Add default owner user  
       localDB.run(`INSERT INTO users (id, username, password, email, first_name, last_name, role, is_active) 
-        VALUES (1, 'admin', 'admin123', 'admin@restaurant.com', 'Admin', 'User', 'admin', 1)`, (err) => {
-        if (err) console.error('Error creating admin:', err);
-        else console.log('✅ Admin user created');
+        VALUES (1, 'owner', 'owner123', 'owner@restaurant.com', 'Owner', 'User', 'owner', 1)`, (err) => {
+        if (err) console.error('Error creating owner:', err);
+        else console.log('✅ Owner user created');
       });
       
       // Add sample menu items

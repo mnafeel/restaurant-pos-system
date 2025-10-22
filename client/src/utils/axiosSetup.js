@@ -85,7 +85,8 @@ export const setupAxios = () => {
             status: 200,
             statusText: 'OK (Local)',
             headers: {},
-            config: config
+            config: config,
+            request: {}
           };
         }
         
@@ -96,7 +97,8 @@ export const setupAxios = () => {
             status: 200,
             statusText: 'OK (Local)',
             headers: {},
-            config: config
+            config: config,
+            request: {}
           };
         }
         
@@ -293,12 +295,15 @@ export const setupAxios = () => {
         else if (url.includes('/api/auth/login')) {
           const { username, password } = config.data;
           
+          console.log('🔍 DB Query: SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
           const users = await queryLocalDB('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
+          console.log('✅ DB Query Result:', users.length, 'rows');
           
           if (users.length > 0) {
             const user = users[0];
             const token = 'local-token-' + Date.now();
             
+            console.log('✅ Login successful for user:', user.username);
             return {
               data: { 
                 token, 
@@ -318,6 +323,7 @@ export const setupAxios = () => {
               request: {}
             };
           } else {
+            console.log('❌ Login failed - no user found');
             return Promise.reject({
               response: {
                 data: { error: 'Invalid credentials' },
@@ -332,7 +338,7 @@ export const setupAxios = () => {
         
         else if (url.includes('/api/auth/me')) {
           // For now, return a default user - in real implementation, decode token
-          const users = await queryLocalDB('SELECT * FROM users WHERE username = ?', ['admin']);
+          const users = await queryLocalDB('SELECT * FROM users WHERE username = ?', ['owner']);
           
           if (users.length > 0) {
             const user = users[0];
@@ -348,7 +354,8 @@ export const setupAxios = () => {
               status: 200,
               statusText: 'OK (Local)',
               headers: {},
-              config: config
+              config: config,
+              request: {}
             };
           } else {
             return Promise.reject({
