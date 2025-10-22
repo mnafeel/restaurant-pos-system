@@ -415,9 +415,15 @@ app.on('window-all-closed', () => {
 // IPC handlers for database operations
 ipcMain.handle('db-query', async (event, sql, params) => {
   return new Promise((resolve, reject) => {
+    console.log('🔍 DB Query:', sql, params);
     localDB.all(sql, params || [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
+      if (err) {
+        console.error('❌ DB Query Error:', err);
+        reject(err);
+      } else {
+        console.log('✅ DB Query Result:', rows?.length || 0, 'rows');
+        resolve(rows);
+      }
     });
   });
 });

@@ -50,12 +50,13 @@ export const setupAxios = () => {
       try {
         // Handle different API endpoints
         if (url.includes('/api/menu')) {
+          console.log('🍽️ Fetching menu from local DB...');
           const items = await queryLocalDB(`
             SELECT m.*, 
               GROUP_CONCAT(v.id || ':' || v.name || ':' || COALESCE(v.price_adjustment, 0)) as variants
             FROM menu_items m
             LEFT JOIN menu_variants v ON m.id = v.menu_item_id
-            WHERE m.is_active = 1
+            WHERE m.is_available = 1
             GROUP BY m.id
             ORDER BY m.category, m.name
           `);
@@ -69,6 +70,7 @@ export const setupAxios = () => {
             }) : []
           }));
           
+          console.log('🍽️ Menu items fetched:', processedItems.length);
           return {
             data: processedItems,
             status: 200,
