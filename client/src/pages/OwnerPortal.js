@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
@@ -29,12 +30,16 @@ import {
   FiBarChart2,
   FiPieChart,
   FiPackage,
-  FiDownload
+  FiDownload,
+  FiSun,
+  FiMoon,
+  FiStar
 } from 'react-icons/fi';
 
 const OwnerPortal = () => {
   const { user, updateUser } = useAuth();
   const { formatCurrency } = useCurrency();
+  const { themeMode, changeTheme, themeModes } = useTheme();
   const [shops, setShops] = useState([]);
   const [staff, setStaff] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -1277,10 +1282,154 @@ const OwnerPortal = () => {
                 <p className="text-sm text-gray-600 mb-1">Total Shops</p>
                 <p className="text-lg font-semibold text-gray-900">{shops.length}</p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Total Users</p>
-                <p className="text-lg font-semibold text-gray-900">{allUsers.length}</p>
+            </div>
+          </div>
+
+          {/* Theme Settings */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <FiSettings className="text-purple-600" />
+              Theme Settings
+            </h3>
+            <p className="text-gray-600 mb-6">Choose the visual theme for your restaurant POS system.</p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {/* Dark Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'dark' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('dark')}
+              >
+                <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 h-16 rounded-lg mb-2 flex items-center justify-center">
+                  <FiMoon className="text-white text-xl" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Dark</h4>
+                <p className="text-xs text-gray-600">Modern dark theme</p>
               </div>
+
+              {/* Light Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'light' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('light')}
+              >
+                <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 h-16 rounded-lg mb-2 flex items-center justify-center">
+                  <FiSun className="text-blue-600 text-xl" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Light</h4>
+                <p className="text-xs text-gray-600">Clean light theme</p>
+              </div>
+
+              {/* Gold Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'gold' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('gold')}
+              >
+                <div className="bg-gradient-to-br from-amber-800 via-amber-700 to-amber-600 h-16 rounded-lg mb-2 flex items-center justify-center">
+                  <FiStar className="text-amber-200 text-xl" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Gold</h4>
+                <p className="text-xs text-gray-600">Luxury gold theme</p>
+              </div>
+
+              {/* Teal Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'teal' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('teal')}
+              >
+                <div className="bg-gradient-to-br from-teal-800 via-teal-700 to-teal-600 h-16 rounded-lg mb-2 flex items-center justify-center">
+                  <FiActivity className="text-teal-200 text-xl" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Teal</h4>
+                <p className="text-xs text-gray-600">Fresh teal theme</p>
+              </div>
+
+              {/* Cafe Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'cafe' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('cafe')}
+              >
+                <div className="bg-gradient-to-br from-amber-900 via-amber-800 to-amber-700 h-16 rounded-lg mb-2 flex items-center justify-center">
+                  <FiShoppingBag className="text-amber-200 text-xl" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Cafe</h4>
+                <p className="text-xs text-gray-600">Warm cafe theme</p>
+              </div>
+
+              {/* Neon Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'neon' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('neon')}
+              >
+                <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-700 h-16 rounded-lg mb-2 flex items-center justify-center border border-emerald-500/30">
+                  <FiActivity className="text-emerald-300 text-xl" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Neon</h4>
+                <p className="text-xs text-gray-600">Glowing neon theme</p>
+              </div>
+
+              {/* Glass Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'glass' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('glass')}
+              >
+                <div className="bg-gradient-to-br from-sky-200 via-blue-200 to-indigo-200 h-16 rounded-lg mb-2 flex items-center justify-center backdrop-blur-sm border border-white/40">
+                  <FiSettings className="text-blue-600 text-xl" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Glass</h4>
+                <p className="text-xs text-gray-600">Glass morphism theme</p>
+              </div>
+
+              {/* Restaurant Theme */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  themeMode === 'restaurant' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => changeTheme('restaurant')}
+              >
+                <div className="bg-gradient-to-br from-orange-600 via-red-600 to-pink-600 h-16 rounded-lg mb-2 flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-black/20"></div>
+                  <FiShoppingCart className="text-white text-xl relative z-10" />
+                </div>
+                <h4 className="font-semibold text-gray-900">Restaurant</h4>
+                <p className="text-xs text-gray-600">Photo overlay theme</p>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-semibold text-gray-900 mb-2">Current Theme: {themeMode.charAt(0).toUpperCase() + themeMode.slice(1)}</h4>
+              <p className="text-sm text-gray-600">
+                The theme change will be applied immediately across all pages. 
+                Your preference is saved automatically.
+              </p>
             </div>
           </div>
 
