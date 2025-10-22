@@ -4,8 +4,16 @@ import axios from 'axios';
 // Check if running in Electron
 const isElectron = () => {
   try {
-    return window && window.process && window.process.type === 'renderer';
+    // Multiple ways to detect Electron
+    return (
+      (window && window.process && window.process.type === 'renderer') ||
+      (window && window.require && typeof window.require === 'function') ||
+      (window && window.electronAPI) ||
+      (typeof process !== 'undefined' && process.versions && process.versions.electron) ||
+      (navigator && navigator.userAgent && navigator.userAgent.includes('Electron'))
+    );
   } catch (e) {
+    console.log('Electron detection error:', e);
     return false;
   }
 };
@@ -40,6 +48,14 @@ const runLocalDB = async (sql, params = []) => {
 
 // Setup axios interceptor for desktop mode
 export const setupAxios = () => {
+  console.log('🔍 Electron detection check:');
+  console.log('  window.process:', window && window.process);
+  console.log('  window.require:', window && window.require);
+  console.log('  window.electronAPI:', window && window.electronAPI);
+  console.log('  process.versions:', typeof process !== 'undefined' && process.versions);
+  console.log('  navigator.userAgent:', navigator && navigator.userAgent);
+  console.log('  isElectron result:', isElectron());
+  
   if (isElectron()) {
     console.log('🖥️ Desktop mode detected - using local database');
     
