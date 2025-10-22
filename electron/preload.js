@@ -1,5 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+console.log('🚀 Preload script loaded!');
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -22,3 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 // Also expose a simple flag for detection
 window.isElectronApp = true;
+
+console.log('✅ Preload script setup complete!');
+console.log('  window.isElectronApp:', window.isElectronApp);
+console.log('  window.electronAPI:', window.electronAPI);

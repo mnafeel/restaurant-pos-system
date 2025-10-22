@@ -306,7 +306,7 @@ function createWindow() {
     icon: path.join(__dirname, '../client/public/favicon.ico'),
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true,
+      contextIsolation: false,
       preload: path.join(__dirname, 'preload.js')
     },
     autoHideMenuBar: false,
