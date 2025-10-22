@@ -12,6 +12,11 @@ import { setupAxios } from './utils/axiosSetup';
 // Configure axios base URL - Backend on Render
 axios.defaults.baseURL = 'https://restaurant-pos-system-1-7h0m.onrender.com';
 
+// Test preload script immediately
+console.log('🧪 Testing preload script:');
+console.log('  window.isElectronApp:', window.isElectronApp);
+console.log('  window.electronAPI:', window.electronAPI);
+
 // Setup axios interceptors for desktop/web mode
 setupAxios();
 

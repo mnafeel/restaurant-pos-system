@@ -47,6 +47,7 @@ const runLocalDB = async (sql, params = []) => {
 
 // Setup axios interceptor for desktop mode
 export const setupAxios = () => {
+  console.log('🚀 setupAxios() called!');
   console.log('🔍 Electron detection check:');
   console.log('  window.isElectronApp:', window && window.isElectronApp);
   console.log('  window.electronAPI:', window && window.electronAPI);
