@@ -69,18 +69,24 @@ export const setupAxios = () => {
             }) : []
           }));
           
-          return Promise.reject({
-            isLocalResponse: true,
-            data: processedItems
-          });
+          return {
+            data: processedItems,
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
         }
         
         else if (url.includes('/api/tables')) {
           const tables = await queryLocalDB('SELECT * FROM tables ORDER BY table_number');
-          return Promise.reject({
-            isLocalResponse: true,
-            data: tables
-          });
+          return {
+            data: tables,
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
         }
         
         else if (url.includes('/api/orders') && url.includes('status=pending')) {
@@ -107,10 +113,13 @@ export const setupAxios = () => {
             }) : []
           }));
           
-          return Promise.reject({
-            isLocalResponse: true,
-            data: processedOrders
-          });
+          return {
+            data: processedOrders,
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
         }
         
         else if (url.includes('/api/bills')) {
@@ -119,10 +128,13 @@ export const setupAxios = () => {
             WHERE DATE(created_at) = DATE('now', 'localtime')
             ORDER BY created_at DESC
           `);
-          return Promise.reject({
-            isLocalResponse: true,
-            data: bills
-          });
+          return {
+            data: bills,
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
         }
         
         else if (url.includes('/api/settings')) {
@@ -131,10 +143,13 @@ export const setupAxios = () => {
           rows.forEach(row => {
             settings[row.key] = row.value;
           });
-          return Promise.reject({
-            isLocalResponse: true,
-            data: settings
-          });
+          return {
+            data: settings,
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
         }
         
         else if (url.includes('/api/orders') && config.method === 'post') {
@@ -164,10 +179,172 @@ export const setupAxios = () => {
             );
           }
           
-          return Promise.reject({
-            isLocalResponse: true,
-            data: { orderId, success: true, message: 'Order created locally' }
-          });
+          return {
+            data: { orderId, success: true, message: 'Order created locally' },
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
+        }
+        
+        else if (url.includes('/api/kitchen/orders')) {
+          const orders = await queryLocalDB(`
+            SELECT o.*, 
+              GROUP_CONCAT(
+                oi.id || ':' || oi.menu_item_id || ':' || oi.quantity || ':' || 
+                oi.price || ':' || COALESCE(m.name, 'Unknown') || ':' || COALESCE(oi.kds_status, 'Pending')
+              ) as items
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN menu_items m ON oi.menu_item_id = m.id
+            WHERE o.payment_status = 'pending' AND oi.kds_status IN ('Pending', 'Preparing')
+            GROUP BY o.id
+            ORDER BY o.created_at DESC
+          `);
+          
+          // Parse items for each order
+          const processedOrders = orders.map(order => ({
+            ...order,
+            items: order.items ? order.items.split(',').map(i => {
+              const [id, menu_item_id, quantity, price, name, kds_status] = i.split(':');
+              return { 
+                id: parseInt(id), 
+                menu_item_id: parseInt(menu_item_id), 
+                quantity: parseInt(quantity), 
+                price: parseFloat(price), 
+                name,
+                kds_status: kds_status || 'Pending'
+              };
+            }) : []
+          }));
+          
+          return {
+            data: processedOrders,
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
+        }
+        
+        else if (url.includes('/api/orders') && config.method === 'put' && url.includes('/status')) {
+          const urlParts = url.split('/');
+          const orderId = urlParts[urlParts.indexOf('orders') + 1];
+          const itemId = urlParts[urlParts.indexOf('items') + 1];
+          const newStatus = config.data.status;
+          
+          await runLocalDB(
+            'UPDATE order_items SET kds_status = ? WHERE order_id = ? AND id = ?',
+            [newStatus, orderId, itemId]
+          );
+          
+          return {
+            data: { success: true, message: 'Status updated locally' },
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
+        }
+        
+        else if (url.includes('/api/orders') && config.method === 'delete') {
+          const urlParts = url.split('/');
+          const orderId = urlParts[urlParts.indexOf('orders') + 1];
+          
+          await runLocalDB('DELETE FROM order_items WHERE order_id = ?', [orderId]);
+          await runLocalDB('DELETE FROM orders WHERE id = ?', [orderId]);
+          
+          return {
+            data: { success: true, message: 'Order deleted locally' },
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
+        }
+        
+        else if (url.includes('/api/bills') && config.method === 'delete') {
+          const urlParts = url.split('/');
+          const billId = urlParts[urlParts.indexOf('bills') + 1];
+          
+          await runLocalDB('DELETE FROM bills WHERE id = ?', [billId]);
+          
+          return {
+            data: { success: true, message: 'Bill deleted locally' },
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
+        }
+        
+        else if (url.includes('/api/auth/login')) {
+          const { username, password } = config.data;
+          
+          const users = await queryLocalDB('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
+          
+          if (users.length > 0) {
+            const user = users[0];
+            const token = 'local-token-' + Date.now();
+            
+            return {
+              data: { 
+                token, 
+                user: {
+                  id: user.id,
+                  username: user.username,
+                  email: user.email,
+                  first_name: user.first_name,
+                  last_name: user.last_name,
+                  role: user.role
+                }
+              },
+              status: 200,
+              statusText: 'OK (Local)',
+              headers: {},
+              config: config
+            };
+          } else {
+            return Promise.reject({
+              response: {
+                data: { error: 'Invalid credentials' },
+                status: 401,
+                statusText: 'Unauthorized'
+              }
+            });
+          }
+        }
+        
+        else if (url.includes('/api/auth/me')) {
+          // For now, return a default user - in real implementation, decode token
+          const users = await queryLocalDB('SELECT * FROM users WHERE username = ?', ['admin']);
+          
+          if (users.length > 0) {
+            const user = users[0];
+            return {
+              data: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                role: user.role
+              },
+              status: 200,
+              statusText: 'OK (Local)',
+              headers: {},
+              config: config
+            };
+          } else {
+            return Promise.reject({
+              response: {
+                data: { error: 'User not found' },
+                status: 404,
+                statusText: 'Not Found'
+              }
+            });
+          }
         }
         
         else if (url.includes('/api/bills') && config.method === 'post') {
@@ -201,10 +378,13 @@ export const setupAxios = () => {
             );
           }
           
-          return Promise.reject({
-            isLocalResponse: true,
-            data: { billId, success: true, message: 'Bill created locally' }
-          });
+          return {
+            data: { billId, success: true, message: 'Bill created locally' },
+            status: 200,
+            statusText: 'OK (Local)',
+            headers: {},
+            config: config
+          };
         }
         
       } catch (error) {
@@ -214,23 +394,6 @@ export const setupAxios = () => {
       // If not intercepted, continue with normal request
       return config;
     });
-    
-    // Handle local responses
-    axios.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.isLocalResponse) {
-          return Promise.resolve({
-            data: error.data,
-            status: 200,
-            statusText: 'OK (Local)',
-            headers: {},
-            config: {}
-          });
-        }
-        return Promise.reject(error);
-      }
-    );
   } else {
     console.log('🌐 Web mode detected - using cloud API');
   }
