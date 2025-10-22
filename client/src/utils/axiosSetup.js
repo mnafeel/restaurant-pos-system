@@ -48,14 +48,6 @@ const runLocalDB = async (sql, params = []) => {
 // Setup axios interceptor for desktop mode
 export const setupAxios = () => {
   console.log('🚀 setupAxios() called!');
-  console.log('🔍 Electron detection check:');
-  console.log('  window.isElectronApp:', window && window.isElectronApp);
-  console.log('  window.electronAPI:', window && window.electronAPI);
-  console.log('  window.process:', window && window.process);
-  console.log('  window.require:', window && window.require);
-  console.log('  process.versions:', typeof process !== 'undefined' && process.versions);
-  console.log('  navigator.userAgent:', navigator && navigator.userAgent);
-  console.log('  isElectron result:', isElectron());
   
   if (isElectron()) {
     console.log('🖥️ Desktop mode detected - using local database');
@@ -320,16 +312,19 @@ export const setupAxios = () => {
                 }
               },
               status: 200,
-              statusText: 'OK (Local)',
+              statusText: 'OK',
               headers: {},
-              config: config
+              config: config,
+              request: {}
             };
           } else {
             return Promise.reject({
               response: {
                 data: { error: 'Invalid credentials' },
                 status: 401,
-                statusText: 'Unauthorized'
+                statusText: 'Unauthorized',
+                headers: {},
+                config: config
               }
             });
           }

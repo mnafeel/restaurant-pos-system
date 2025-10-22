@@ -107,17 +107,19 @@ function createLocalTables() {
   ];
 
   localDB.serialize(() => {
+    let completed = 0;
     tables.forEach(sql => {
       localDB.run(sql, (err) => {
         if (err) console.error('Error creating table:', err);
+        completed++;
+        if (completed === tables.length) {
+          console.log('All tables created, checking for initial data...');
+          setTimeout(() => {
+            seedInitialDataNow();
+          }, 500);
+        }
       });
     });
-    
-    // After all tables are created, seed data
-    console.log('Tables created, checking for initial data...');
-    setTimeout(() => {
-      seedInitialDataNow();
-    }, 1000);
   });
 }
 
