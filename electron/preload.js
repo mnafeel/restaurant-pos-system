@@ -1,10 +1,9 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { ipcRenderer } = require('electron');
 
 console.log('🚀 Preload script loaded!');
 
-// Expose protected methods that allow the renderer process to use
-// the ipcRenderer without exposing the entire object
-contextBridge.exposeInMainWorld('electronAPI', {
+// Since contextIsolation is disabled, we can directly assign to window
+window.electronAPI = {
   // Database operations
   queryDB: (sql, params) => ipcRenderer.invoke('db-query', sql, params),
   runDB: (sql, params) => ipcRenderer.invoke('db-run', sql, params),
@@ -20,7 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Platform info
   platform: process.platform,
   isElectron: true
-});
+};
 
 // Also expose a simple flag for detection
 window.isElectronApp = true;
