@@ -9,7 +9,8 @@ async function clearPostgreSQLDatabase() {
   console.log('🔵 Clearing PostgreSQL cloud database...');
   
   const pool = new Pool({
-    connectionString: hasPostgres
+    connectionString: hasPostgres,
+    ssl: { rejectUnauthorized: false }
   });
 
   try {
@@ -28,21 +29,15 @@ async function clearPostgreSQLDatabase() {
       return;
     }
     
-    // Disable foreign key checks temporarily
-    await pool.query('SET session_replication_role = replica;');
-    
-    // Clear all tables
+    // Clear all tables (without disabling foreign key checks)
     for (const table of tables) {
       try {
-        await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+        await pool.query(`DELETE FROM ${table}`);
         console.log(`✅ Cleared PostgreSQL table: ${table}`);
       } catch (error) {
         console.log(`⚠️ Could not clear ${table}:`, error.message);
       }
     }
-    
-    // Re-enable foreign key checks
-    await pool.query('SET session_replication_role = DEFAULT;');
     
     console.log('✅ PostgreSQL cloud database completely cleared!');
     
