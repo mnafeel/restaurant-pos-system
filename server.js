@@ -517,9 +517,7 @@ db.serialize(() => {
     ('GST', 9.00, 0, 1),
     ('Service Tax', 5.00, 0, 1)`);
 
-  // Insert default shop (safe, no new columns needed)
-  db.run(`INSERT OR IGNORE INTO shops (id, name, address, city, state, zip_code, phone, email, tax_id, is_primary) VALUES 
-    (1, 'Restaurant POS Main', '123 Main Street', 'New York', 'NY', '10001', '+1234567890', 'info@restaurant.com', 'TAX123456', 1)`);
+  // No default shop created - owner must create shops manually for fresh start
 
   // Insert default settings (safe, no new columns needed)
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES 
