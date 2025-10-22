@@ -4,19 +4,21 @@ const { contextBridge, ipcRenderer } = require('electron');
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // Database operations
-  dbQuery: (sql, params) => ipcRenderer.invoke('db-query', sql, params),
-  dbRun: (sql, params) => ipcRenderer.invoke('db-run', sql, params),
+  queryDB: (sql, params) => ipcRenderer.invoke('db-query', sql, params),
+  runDB: (sql, params) => ipcRenderer.invoke('db-run', sql, params),
+  
+  // Sync operations
+  syncFromCloud: () => ipcRenderer.invoke('sync-from-cloud'),
+  syncToCloud: () => ipcRenderer.invoke('sync-to-cloud'),
+  syncBidirectional: () => ipcRenderer.invoke('sync-bidirectional'),
   
   // Connectivity check
   checkConnectivity: () => ipcRenderer.invoke('check-connectivity'),
-  
-  // Manual sync
-  syncNow: () => ipcRenderer.invoke('sync-now'),
   
   // Platform info
   platform: process.platform,
   isElectron: true
 });
 
-console.log('Preload script loaded');
-
+// Also expose a simple flag for detection
+window.isElectronApp = true;

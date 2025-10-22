@@ -6,9 +6,10 @@ const isElectron = () => {
   try {
     // Multiple ways to detect Electron
     return (
+      (window && window.isElectronApp) ||
+      (window && window.electronAPI) ||
       (window && window.process && window.process.type === 'renderer') ||
       (window && window.require && typeof window.require === 'function') ||
-      (window && window.electronAPI) ||
       (typeof process !== 'undefined' && process.versions && process.versions.electron) ||
       (navigator && navigator.userAgent && navigator.userAgent.includes('Electron'))
     );
@@ -31,27 +32,26 @@ const getIpcRenderer = () => {
 
 // Helper function to query local database
 const queryLocalDB = async (sql, params = []) => {
-  const ipc = getIpcRenderer();
-  if (ipc) {
-    return await ipc.invoke('db-query', sql, params);
+  if (window.electronAPI) {
+    return await window.electronAPI.queryDB(sql, params);
   }
-  throw new Error('IPC not available');
+  throw new Error('Electron API not available');
 };
 
 const runLocalDB = async (sql, params = []) => {
-  const ipc = getIpcRenderer();
-  if (ipc) {
-    return await ipc.invoke('db-run', sql, params);
+  if (window.electronAPI) {
+    return await window.electronAPI.runDB(sql, params);
   }
-  throw new Error('IPC not available');
+  throw new Error('Electron API not available');
 };
 
 // Setup axios interceptor for desktop mode
 export const setupAxios = () => {
   console.log('🔍 Electron detection check:');
+  console.log('  window.isElectronApp:', window && window.isElectronApp);
+  console.log('  window.electronAPI:', window && window.electronAPI);
   console.log('  window.process:', window && window.process);
   console.log('  window.require:', window && window.require);
-  console.log('  window.electronAPI:', window && window.electronAPI);
   console.log('  process.versions:', typeof process !== 'undefined' && process.versions);
   console.log('  navigator.userAgent:', navigator && navigator.userAgent);
   console.log('  isElectron result:', isElectron());
