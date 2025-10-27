@@ -42,7 +42,7 @@ const Layout = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         setTableManagementEnabled(response.data.enable_table_management === 'true');
-        setKitchenSystemEnabled(response.data.enable_kitchen_system === 'true');
+        setKitchenSystemEnabled(response.data.enable_kds === 'true');
       } catch (error) {
         console.error('Error fetching settings:', error);
         setTableManagementEnabled(true);
