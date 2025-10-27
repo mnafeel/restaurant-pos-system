@@ -1,5 +1,6 @@
 // Axios configuration for desktop/web mode
 import axios from 'axios';
+import bcrypt from 'bcryptjs';
 
 // Check if running in Electron
 const isElectron = () => {
@@ -295,33 +296,58 @@ export const setupAxios = () => {
         else if (url.includes('/api/auth/login')) {
           const { username, password } = config.data;
           
-          console.log('🔍 DB Query: SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
-          const users = await queryLocalDB('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
+          console.log('🔍 DB Query: SELECT * FROM users WHERE username = ?', [username]);
+          const users = await queryLocalDB('SELECT * FROM users WHERE username = ?', [username]);
           console.log('✅ DB Query Result:', users.length, 'rows');
           
           if (users.length > 0) {
             const user = users[0];
-            const token = 'local-token-' + Date.now();
             
-            console.log('✅ Login successful for user:', user.username);
-            return {
-              data: { 
-                token, 
-                user: {
-                  id: user.id,
-                  username: user.username,
-                  email: user.email,
-                  first_name: user.first_name,
-                  last_name: user.last_name,
-                  role: user.role
+            // Simple password comparison (for plain text passwords)
+            const passwordMatch = user.password === password;
+            console.log('🔐 Password match:', passwordMatch);
+            console.log('🔐 User password:', user.password);
+            console.log('🔐 Entered password:', password);
+            
+            if (passwordMatch) {
+              const token = 'local-token-' + Date.now();
+              
+              console.log('✅ Login successful for user:', user.username);
+              
+              // Create a proper axios response object
+              const mockResponse = {
+                data: { 
+                  token, 
+                  user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    role: user.role
+                  }
+                },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: config,
+                request: {}
+              };
+              
+              // Return the response wrapped in Promise.resolve
+              return Promise.resolve(mockResponse);
+            } else {
+              console.log('❌ Login failed - password mismatch');
+              return Promise.reject({
+                response: {
+                  data: { error: 'Invalid credentials' },
+                  status: 401,
+                  statusText: 'Unauthorized',
+                  headers: {},
+                  config: config
                 }
-              },
-              status: 200,
-              statusText: 'OK',
-              headers: {},
-              config: config,
-              request: {}
-            };
+              });
+            }
           } else {
             console.log('❌ Login failed - no user found');
             return Promise.reject({
