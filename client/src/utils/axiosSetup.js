@@ -46,16 +46,21 @@ const runLocalDB = async (sql, params = []) => {
   throw new Error('Electron API not available');
 };
 
-// Setup axios interceptor for desktop mode
+// Setup axios interceptor for web mode only
 export const setupAxios = () => {
   console.log('🚀 setupAxios() called!');
+  console.log('🌐 Web mode - using cloud API');
   
+  // Removed desktop/offline functionality - web only now
+  /*
   if (isElectron()) {
     console.log('🖥️ Desktop mode detected - using local database');
     
-    // Intercept all axios requests
+    // Use request interceptor to handle desktop API calls
     axios.interceptors.request.use(async (config) => {
       const url = config.url;
+      
+      console.log('🔍 Intercepting request:', url);
       
       try {
         // Handle different API endpoints
@@ -314,8 +319,8 @@ export const setupAxios = () => {
               
               console.log('✅ Login successful for user:', user.username);
               
-              // Create a proper axios response object
-              const mockResponse = {
+              // Store the mock response in the config for later processing
+              config.__mockResponse = {
                 data: { 
                   token, 
                   user: {
@@ -326,16 +331,11 @@ export const setupAxios = () => {
                     last_name: user.last_name,
                     role: user.role
                   }
-                },
-                status: 200,
-                statusText: 'OK',
-                headers: {},
-                config: config,
-                request: {}
+                }
               };
               
-              // Return the response wrapped in Promise.resolve
-              return Promise.resolve(mockResponse);
+              // Prevent actual request by cancelling it
+              throw new Error('LOCAL_HANDLE');
             } else {
               console.log('❌ Login failed - password mismatch');
               return Promise.reject({
@@ -438,12 +438,25 @@ export const setupAxios = () => {
         console.error('Local DB error:', error);
       }
       
-      // If not intercepted, continue with normal request
+      // If not intercepted, continue with normal request to server
       return config;
     });
+    
+    // Add response interceptor to handle LOCAL_HANDLE
+    axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.message === 'LOCAL_HANDLE' && error.config?.__mockResponse) {
+          console.log('✅ Returning mock response');
+          return Promise.resolve(error.config.__mockResponse);
+        }
+        return Promise.reject(error);
+      }
+    );
   } else {
     console.log('🌐 Web mode detected - using cloud API');
   }
+  */
 };
 
 export default setupAxios;

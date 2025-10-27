@@ -9,7 +9,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import { setupAxios } from './utils/axiosSetup';
 
-// Configure axios base URL - Backend on Render
+// Configure axios base URL - Always use cloud API
 axios.defaults.baseURL = 'https://restaurant-pos-system-1-7h0m.onrender.com';
 
 // Test preload script immediately
