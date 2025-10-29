@@ -1868,15 +1868,15 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
   }
   
   try {
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION');
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
       
       let totalAmount = 0;
       items.forEach(item => {
         totalAmount += (item.price + (item.variant_price_adjustment || 0)) * item.quantity;
       });
-      
-      // Create order
+    
+    // Create order
       console.log('Creating order with data:', {
         orderId, orderNumber, tableNumber, 
         staffId: req.user.id, totalAmount, 
@@ -1890,12 +1890,12 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
       
       db.run('INSERT INTO orders (id, order_number, table_number, created_by, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
         [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', kdsStatus, req.user.shop_id], function(err) {
-        if (err) {
+      if (err) {
           console.error('Error creating order:', err);
           console.error('Order creation error details:', err.message, err.code);
-          db.run('ROLLBACK');
+        db.run('ROLLBACK');
           return res.status(500).json({ error: 'Failed to create order: ' + err.message });
-        }
+      }
 
     // Add order items
         let completed = 0;
@@ -2605,12 +2605,12 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           const roundOff = Math.round(beforeRounding) - beforeRounding;
           const totalAmount = Math.round(beforeRounding);
           
-          // Insert bill
+          // Insert bill with shop_id from order
           db.run(`INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, printed_count, last_printed_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
+            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, printed_count, last_printed_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
             [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type], function(err) {
+             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id], function(err) {
               if (err) {
                 return res.status(500).json({ error: err.message });
               }
@@ -2742,18 +2742,36 @@ app.put('/api/bills/:billId', authenticateToken, authorize(['manager', 'admin'])
 // Delete bill
 app.delete('/api/bills/:billId', authenticateToken, authorize(['cashier', 'manager', 'admin']), (req, res) => {
   const { billId } = req.params;
+  const userShopId = req.user.shop_id;
   
-  db.run('DELETE FROM bills WHERE id = ?', [billId], function(err) {
+  // First check if bill exists and belongs to user's shop (or allow if owner/no shop_id)
+  db.get('SELECT shop_id FROM bills WHERE id = ?', [billId], (err, bill) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     
-    if (this.changes === 0) {
+    if (!bill) {
       return res.status(404).json({ error: 'Bill not found' });
     }
     
-    logAuditEvent(req.user.id, 'BILL_DELETED', 'bills', billId, null, null, req);
-    res.json({ message: 'Bill deleted successfully' });
+    // If user has shop_id, verify bill belongs to that shop (unless admin/owner with no shop_id)
+    if (userShopId && bill.shop_id && bill.shop_id !== userShopId) {
+      return res.status(403).json({ error: 'You can only delete bills from your own shop' });
+    }
+    
+    // Delete the bill
+    db.run('DELETE FROM bills WHERE id = ?', [billId], function(deleteErr) {
+      if (deleteErr) {
+        return res.status(500).json({ error: deleteErr.message });
+      }
+      
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Bill not found' });
+      }
+      
+      logAuditEvent(req.user.id, 'BILL_DELETED', 'bills', billId, null, null, req);
+      res.json({ message: 'Bill deleted successfully' });
+    });
   });
 });
 
@@ -2865,6 +2883,7 @@ app.post('/api/bills/:billId/reprint', authenticateToken, (req, res) => {
 app.post('/api/bills/:billId/void', authenticateToken, authorize(['manager', 'admin']), (req, res) => {
   const { billId } = req.params;
   const { void_reason } = req.body;
+  const userShopId = req.user.shop_id;
   
   if (!void_reason) {
     return res.status(400).json({ error: 'Void reason is required' });
@@ -2877,6 +2896,11 @@ app.post('/api/bills/:billId/void', authenticateToken, authorize(['manager', 'ad
     
     if (!bill) {
       return res.status(404).json({ error: 'Bill not found' });
+    }
+    
+    // Verify bill belongs to user's shop
+    if (userShopId && bill.shop_id && bill.shop_id !== userShopId) {
+      return res.status(403).json({ error: 'You can only void bills from your own shop' });
     }
     
     if (bill.voided) {
@@ -3132,7 +3156,7 @@ app.get('/api/reports/daily-payments', authenticateToken, authorize(['manager', 
       SUM(CASE WHEN payment_method = 'Cash' THEN total_amount ELSE 0 END) as cash,
       SUM(CASE WHEN payment_method = 'Card' THEN total_amount ELSE 0 END) as card,
       SUM(CASE WHEN payment_method = 'UPI' THEN total_amount ELSE 0 END) as upi
-    FROM bills
+    FROM bills 
     ${whereClause}
     GROUP BY DATE(created_at)
     ORDER BY DATE(created_at) ASC
@@ -3192,7 +3216,7 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       FROM bills b
       INNER JOIN orders o ON b.order_id = o.id
       WHERE b.created_at >= ? AND b.created_at <= ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [todayRange.start, todayRange.end, shopId], (err, todayData) => {
-    if (err) {
+      if (err) {
       console.error('Dashboard today error:', err);
       console.error('Error details:', err.message, err.code);
       // Return empty data instead of failing
@@ -3203,13 +3227,13 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
     }
     
     // Yesterday's sales - SHOP FILTERED with business day range
-    db.get(`SELECT 
+      db.get(`SELECT 
       COALESCE(SUM(b.total_amount), 0) as yesterday_sales,
       COALESCE(COUNT(b.id), 0) as yesterday_orders
       FROM bills b
       INNER JOIN orders o ON b.order_id = o.id
       WHERE b.created_at >= ? AND b.created_at <= ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [yesterdayRange.start, yesterdayRange.end, shopId], (err, yesterdayData) => {
-      if (err) {
+        if (err) {
         console.error('Dashboard yesterday error:', err);
         console.error('Error details:', err.message, err.code);
         yesterdayData = { yesterday_sales: 0, yesterday_orders: 0 };
@@ -3219,13 +3243,13 @@ app.get('/api/reports/dashboard', authenticateToken, authorize(['manager', 'admi
       }
       
       // This month's sales - SHOP FILTERED
-      db.get(`SELECT 
+        db.get(`SELECT 
         COALESCE(SUM(b.total_amount), 0) as month_sales,
         COALESCE(COUNT(b.id), 0) as month_orders
         FROM bills b
         INNER JOIN orders o ON b.order_id = o.id
         WHERE ${SQL.YEAR_MONTH('b.created_at')} = ? AND b.payment_status = 'paid' AND o.shop_id = ?`, [thisMonth, shopId], (err, monthData) => {
-        if (err) {
+          if (err) {
           console.error('Dashboard thisMonth error:', err);
           console.error('Error details:', err.message, err.code);
           monthData = { month_sales: 0, month_orders: 0 };
