@@ -304,12 +304,13 @@ db.serialize(() => {
     FOREIGN KEY (current_order_id) REFERENCES orders (id)
   )`);
 
-  // Categories table
+  // Categories table (shop-scoped)
   db.run(`CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
     display_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT 1,
+    shop_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
@@ -659,6 +660,16 @@ db.serialize(() => {
       }
     }
   });
+
+  // Postgres-safe migrations for new columns
+  try {
+    if (db.type === 'postgres') {
+      db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_applicable BOOLEAN DEFAULT TRUE");
+      db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_rate DECIMAL(5,2)");
+    }
+  } catch (e) {
+    console.log('Postgres migration (gst columns) error (safe to ignore if already applied):', e?.message || e);
+  }
 
   // Migrate order_items table - add missing columns
   db.all("PRAGMA table_info(order_items)", (err, columns) => {
@@ -1504,29 +1515,30 @@ app.delete('/api/tables/:id', authenticateToken, authorize(['admin', 'manager'])
 
 // Get all categories
 app.get('/api/categories', authenticateToken, (req, res) => {
-  // Check cache first
-  const cachedData = getCachedData('categories');
-  if (cachedData) {
-    return res.json(cachedData);
+  const userShopId = req.user.shop_id;
+  const params = [];
+  let whereClause = 'WHERE is_active = true';
+  if (userShopId) {
+    whereClause += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(userShopId);
   }
   
-  db.all('SELECT * FROM categories WHERE is_active = true ORDER BY display_order, name', [], (err, rows) => {
+  db.all(`SELECT * FROM categories ${whereClause} ORDER BY display_order, name`, params, (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     
-    const categories = rows || [];
-    setCachedData('categories', categories);
-    res.json(categories);
+    res.json(rows || []);
   });
 });
 
 // Create category
 app.post('/api/categories', authenticateToken, authorize(['admin', 'manager']), (req, res) => {
   const { name, display_order } = req.body;
+  const userShopId = req.user.shop_id || null;
   
-  db.run('INSERT INTO categories (name, display_order) VALUES (?, ?)',
-    [name, display_order || 0], function(err) {
+  db.run('INSERT INTO categories (name, display_order, shop_id) VALUES (?, ?, ?)',
+    [name, display_order || 0, userShopId], function(err) {
       if (err) {
         if (err.message.includes('UNIQUE constraint failed')) {
           return res.status(400).json({ error: 'Category already exists' });
@@ -1543,6 +1555,7 @@ app.post('/api/categories', authenticateToken, authorize(['admin', 'manager']), 
 app.put('/api/categories/:id', authenticateToken, authorize(['admin', 'manager']), (req, res) => {
   const { id } = req.params;
   const { name, display_order, is_active } = req.body;
+  const userShopId = req.user.shop_id;
   
   const updates = [];
   const values = [];
@@ -1566,7 +1579,10 @@ app.put('/api/categories/:id', authenticateToken, authorize(['admin', 'manager']
   
   values.push(id);
   
-  db.run(`UPDATE categories SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
+  const shopGuard = userShopId ? ' AND (shop_id = ? OR shop_id IS NULL)' : '';
+  if (userShopId) values.push(userShopId);
+  
+  db.run(`UPDATE categories SET ${updates.join(', ')} WHERE id = ?${shopGuard}`, values, function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -4036,26 +4052,29 @@ app.put('/api/users/:id/password', authenticateToken, authorize(['admin', 'owner
 
 // Get all settings
 app.get('/api/settings', authenticateToken, (req, res) => {
-  // Check cache first
-  const cachedData = getCachedData('settings');
-  if (cachedData) {
-    return res.json(cachedData);
-  }
+  const userShopId = req.user.shop_id;
   
-  db.all('SELECT * FROM settings', [], (err, rows) => {
+  db.all('SELECT key, value FROM settings', [], (err, globalRows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
+    const base = {};
+    (globalRows || []).forEach(r => { base[r.key] = r.value; });
     
-    const settings = {};
-    if (rows && Array.isArray(rows)) {
-      rows.forEach(row => {
-        settings[row.key] = row.value;
-      });
+    if (!userShopId) {
+      return res.json(base);
     }
     
-    setCachedData('settings', settings);
-    res.json(settings);
+    db.all('SELECT key, value FROM shop_settings WHERE shop_id = ?', [userShopId], (sErr, shopRows) => {
+      if (sErr) {
+        return res.status(500).json({ error: sErr.message });
+      }
+      const overrides = {};
+      (shopRows || []).forEach(r => { overrides[r.key] = r.value; });
+      // Merge shop overrides over global
+      const merged = { ...base, ...overrides };
+      return res.json(merged);
+    });
   });
 });
 
@@ -4063,6 +4082,22 @@ app.get('/api/settings', authenticateToken, (req, res) => {
 app.put('/api/settings/:key', authenticateToken, authorize(['admin', 'manager']), (req, res) => {
   const { key } = req.params;
   const { value } = req.body;
+  const userShopId = req.user.shop_id;
+  
+  if (userShopId) {
+    // Shop-specific override
+    const upsert = db.type === 'postgres'
+      ? 'INSERT INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT (shop_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP'
+      : 'INSERT OR REPLACE INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)';
+    db.run(upsert, [userShopId, key, value], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      logAuditEvent(req.user.id, 'SHOP_SETTING_UPDATED', 'shop_settings', key, null, { key, value, shop_id: userShopId }, req);
+      return res.json({ message: 'Shop setting updated successfully' });
+    });
+    return;
+  }
   
   db.run('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
     [key, value], function(err) {
@@ -4078,6 +4113,7 @@ app.put('/api/settings/:key', authenticateToken, authorize(['admin', 'manager'])
 // Bulk update settings
 app.post('/api/settings/bulk', authenticateToken, authorize(['admin', 'manager']), (req, res) => {
   const settings = req.body;
+  const userShopId = req.user.shop_id;
   
   if (!settings || typeof settings !== 'object') {
     return res.status(400).json({ error: 'Invalid settings object' });
@@ -4093,13 +4129,19 @@ app.post('/api/settings/bulk', authenticateToken, authorize(['admin', 'manager']
   }
   
   keys.forEach(key => {
-    const upsertQuery = db.type === 'postgres' 
-      ? 'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT (key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP'
-      : 'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)';
+    const upsertQuery = userShopId
+      ? (db.type === 'postgres'
+        ? 'INSERT INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT (shop_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP'
+        : 'INSERT OR REPLACE INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)')
+      : (db.type === 'postgres'
+        ? 'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT (key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP'
+        : 'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)');
     
-    const params = db.type === 'postgres' 
-      ? [key, settings[key], settings[key]]
-      : [key, settings[key]];
+    const params = userShopId
+      ? [userShopId, key, settings[key]]
+      : (db.type === 'postgres' 
+        ? [key, settings[key], settings[key]]
+        : [key, settings[key]]);
     
     db.run(upsertQuery, params, (err) => {
       if (err && !hasError) {
@@ -4110,7 +4152,7 @@ app.post('/api/settings/bulk', authenticateToken, authorize(['admin', 'manager']
       
       completed++;
       if (completed === keys.length && !hasError) {
-        logAuditEvent(req.user.id, 'SETTINGS_BULK_UPDATE', 'settings', null, null, settings, req);
+        logAuditEvent(req.user.id, userShopId ? 'SHOP_SETTINGS_BULK_UPDATE' : 'SETTINGS_BULK_UPDATE', userShopId ? 'shop_settings' : 'settings', null, null, settings, req);
         res.json({ message: 'Settings updated successfully' });
       }
     });
