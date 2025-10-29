@@ -47,15 +47,25 @@ const ShopManagement = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      await axios.post('/api/shops', formData, {
+      const response = await axios.post('/api/shops', formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       toast.success('Shop created successfully');
       setShowAddModal(false);
       resetForm();
-      fetchShops();
+      
+      // Force refresh shops list
+      await fetchShops();
+      
+      // Clear any cached data and refresh window data after a short delay
+      setTimeout(() => {
+        // Trigger a custom event to notify other components to refresh
+        window.dispatchEvent(new Event('shopCreated'));
+      }, 500);
+      
     } catch (error) {
+      console.error('Error creating shop:', error);
       toast.error(error.response?.data?.error || 'Failed to create shop');
     }
   };
