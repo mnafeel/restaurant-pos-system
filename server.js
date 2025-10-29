@@ -1605,6 +1605,55 @@ app.put('/api/categories/:id', authenticateToken, authorize(['admin', 'manager']
   });
 });
 
+// Delete category (safe): reassign menu items then delete
+app.delete('/api/categories/:id', authenticateToken, authorize(['admin', 'manager']), (req, res) => {
+  const { id } = req.params;
+  const userShopId = req.user.shop_id;
+
+  // Only allow deleting categories from the user's shop (or global if no shop_id)
+  const selectGuard = userShopId ? 'AND (shop_id = ? OR shop_id IS NULL)' : '';
+  const selectParams = userShopId ? [id, userShopId] : [id];
+
+  db.get(`SELECT * FROM categories WHERE id = ? ${selectGuard}`, selectParams, (err, category) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    const categoryName = category.name;
+
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+
+      // 1) Detach menu items from this category (by id)
+      db.run('UPDATE menu_items SET category_id = NULL WHERE category_id = ?', [id]);
+
+      // 2) Ensure a fallback category label on items that used the name
+      db.run('UPDATE menu_items SET category = ? WHERE category = ?', ['Uncategorized', categoryName]);
+
+      // 3) Delete the category (shop-guarded)
+      const deleteGuard = userShopId ? ' AND (shop_id = ? OR shop_id IS NULL)' : '';
+      const deleteParams = userShopId ? [id, userShopId] : [id];
+      db.run(`DELETE FROM categories WHERE id = ?${deleteGuard}`, deleteParams, function(deleteErr) {
+        if (deleteErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: deleteErr.message });
+        }
+        if (this.changes === 0) {
+          db.run('ROLLBACK');
+          return res.status(404).json({ error: 'Category not found' });
+        }
+
+        db.run('COMMIT');
+        logAuditEvent(req.user.id, 'CATEGORY_DELETED', 'categories', id, category, null, req);
+        return res.json({ message: 'Category deleted successfully' });
+      });
+    });
+  });
+});
+
 // Get menu items for specific shop (owner only)
 app.get('/api/shops/:shopId/menu', authenticateToken, authorize(['owner']), (req, res) => {
   const { shopId } = req.params;
