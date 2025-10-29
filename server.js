@@ -337,6 +337,8 @@ db.serialize(() => {
     low_stock_threshold INTEGER DEFAULT 10,
     image_url TEXT,
     tax_applicable BOOLEAN DEFAULT 1,
+    gst_applicable BOOLEAN DEFAULT 1,
+    gst_rate DECIMAL(5,2),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories (id)
@@ -636,6 +638,8 @@ db.serialize(() => {
     if (!err && columns) {
       const hasTaxApplicable = columns.some(col => col.name === 'tax_applicable');
       const hasShopId = columns.some(col => col.name === 'shop_id');
+      const hasGstApplicable = columns.some(col => col.name === 'gst_applicable');
+      const hasGstRate = columns.some(col => col.name === 'gst_rate');
       
       if (!hasTaxApplicable) {
         console.log('Adding tax_applicable column to menu_items table...');
@@ -644,6 +648,14 @@ db.serialize(() => {
       if (!hasShopId) {
         console.log('Adding shop_id column to menu_items table...');
         db.run("ALTER TABLE menu_items ADD COLUMN shop_id INTEGER");
+      }
+      if (!hasGstApplicable) {
+        console.log('Adding gst_applicable column to menu_items table...');
+        db.run("ALTER TABLE menu_items ADD COLUMN gst_applicable BOOLEAN DEFAULT 1");
+      }
+      if (!hasGstRate) {
+        console.log('Adding gst_rate column to menu_items table...');
+        db.run("ALTER TABLE menu_items ADD COLUMN gst_rate DECIMAL(5,2)");
       }
     }
   });
@@ -1707,12 +1719,12 @@ app.get('/api/menu', authenticateToken, (req, res) => {
 
 // Create menu item
 app.post('/api/menu', authenticateToken, authorize(['admin', 'manager']), upload.single('image'), (req, res) => {
-  const { name, description, price, category, preparation_time, stock_quantity, tax_applicable, variants } = req.body;
+  const { name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, variants } = req.body;
   const image_url = req.file ? `/uploads/menu-items/${req.file.filename}` : null;
   
-  db.run(`INSERT INTO menu_items (name, description, price, category, preparation_time, stock_quantity, tax_applicable, image_url, shop_id) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, description, price, category, preparation_time || 15, stock_quantity || 0, tax_applicable !== false, image_url, req.user.shop_id || null], 
+  db.run(`INSERT INTO menu_items (name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, image_url, shop_id) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, description, price, category, preparation_time || 15, stock_quantity || 0, tax_applicable !== false, gst_applicable !== 'false', gst_rate || null, image_url, req.user.shop_id || null], 
     function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
@@ -1744,7 +1756,7 @@ app.post('/api/menu', authenticateToken, authorize(['admin', 'manager']), upload
 // Update menu item
 app.put('/api/menu/:id', authenticateToken, authorize(['admin', 'manager']), upload.single('image'), (req, res) => {
   const { id } = req.params;
-  const { name, description, price, category, preparation_time, is_available, stock_quantity, low_stock_threshold, tax_applicable } = req.body;
+  const { name, description, price, category, preparation_time, is_available, stock_quantity, low_stock_threshold, tax_applicable, gst_applicable, gst_rate } = req.body;
   
   const updates = [];
   const values = [];
@@ -1784,6 +1796,14 @@ app.put('/api/menu/:id', authenticateToken, authorize(['admin', 'manager']), upl
   if (tax_applicable !== undefined) {
     updates.push('tax_applicable = ?');
     values.push(tax_applicable);
+  }
+  if (gst_applicable !== undefined) {
+    updates.push('gst_applicable = ?');
+    values.push(gst_applicable);
+  }
+  if (gst_rate !== undefined) {
+    updates.push('gst_rate = ?');
+    values.push(gst_rate);
   }
   if (req.file) {
     updates.push('image_url = ?');
@@ -2565,7 +2585,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
     }
     
     // Get order items
-    db.all(`SELECT oi.*, mi.tax_applicable 
+        db.all(`SELECT oi.*, mi.tax_applicable, mi.gst_applicable, mi.gst_rate 
       FROM order_items oi
       JOIN menu_items mi ON oi.menu_item_id = mi.id
       WHERE oi.order_id = ?`, [orderId], (err, items) => {
@@ -2599,24 +2619,43 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           let taxAmount = 0;
           // Track GST split (CGST/SGST) when GST is applied
           let gstSplit = null;
-          taxes.forEach(tax => {
-            if (!tax.is_inclusive) {
-              const baseAmount = (afterDiscount + serviceCharge);
-              const thisTax = (baseAmount * tax.rate) / 100;
-              taxAmount += thisTax;
-              // If tax name is GST, split into CGST/SGST for display
-              if (typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst')) {
-                const half = +(thisTax / 2).toFixed(2);
-                gstSplit = {
-                  type: 'GST',
-                  rate: tax.rate,
-                  base_amount: +baseAmount.toFixed(2),
-                  cgst: half,
-                  sgst: half
-                };
+          // Prefer item-wise GST if present
+          let itemWiseTax = 0;
+          if (Array.isArray(items)) {
+            items.forEach(it => {
+              const gstApplicable = it.gst_applicable === 1 || it.gst_applicable === true;
+              const rate = Number(it.gst_rate);
+              if (gstApplicable && rate) {
+                const base = (it.price || it.unit_price || 0) * (it.quantity || 1);
+                itemWiseTax += (base * rate) / 100;
               }
-            }
-          });
+            });
+          }
+          if (itemWiseTax > 0) {
+            taxAmount = itemWiseTax;
+            const baseAmount = (afterDiscount + serviceCharge);
+            const half = +(taxAmount / 2).toFixed(2);
+            gstSplit = { type: 'GST', rate: null, base_amount: +baseAmount.toFixed(2), cgst: half, sgst: half };
+          } else {
+            taxes.forEach(tax => {
+              if (!tax.is_inclusive) {
+                const baseAmount = (afterDiscount + serviceCharge);
+                const thisTax = (baseAmount * tax.rate) / 100;
+                taxAmount += thisTax;
+                // If tax name is GST, split into CGST/SGST for display
+                if (typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst')) {
+                  const half = +(thisTax / 2).toFixed(2);
+                  gstSplit = {
+                    type: 'GST',
+                    rate: tax.rate,
+                    base_amount: +baseAmount.toFixed(2),
+                    cgst: half,
+                    sgst: half
+                  };
+                }
+              }
+            });
+          }
           
           const beforeRounding = afterDiscount + serviceCharge + taxAmount;
           const roundOff = Math.round(beforeRounding) - beforeRounding;

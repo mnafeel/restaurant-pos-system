@@ -406,6 +406,23 @@ const Settings = () => {
             </button>
           </div>
 
+          {/* GST Global Toggle */}
+          <div className="mb-6 p-4 border rounded-lg bg-gray-50 flex items-center justify-between">
+            <div>
+              <div className="font-medium">Enable GST</div>
+              <div className="text-sm text-gray-600">Turn GST calculation on or off globally</div>
+            </div>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={(settings.gst_enabled || 'true') === 'true'}
+                onChange={(e) => handleUpdateSetting('gst_enabled', e.target.checked ? 'true' : 'false')}
+                className="mr-2 h-4 w-4"
+              />
+              <span className="text-sm">GST Enabled</span>
+            </label>
+          </div>
+
           <div className="space-y-4">
             {taxes.map(tax => (
               <div key={tax.id} className="flex items-center justify-between p-4 border rounded-lg hover:border-blue-300 transition-colors">
