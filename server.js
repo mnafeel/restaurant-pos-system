@@ -466,6 +466,19 @@ db.serialize(() => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Postgres migrations for categories uniqueness per shop
+  try {
+    if (db.type === 'postgres') {
+      db.run("ALTER TABLE categories ADD COLUMN IF NOT EXISTS shop_id INTEGER");
+      // Drop old unique on name if it exists (constraint name may vary). Attempt common default.
+      db.run("ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_name_key");
+      // Ensure composite uniqueness by shop
+      db.run("CREATE UNIQUE INDEX IF NOT EXISTS categories_shop_name_uniq ON categories (shop_id, name)");
+    }
+  } catch (e) {
+    console.log('Postgres categories migration note:', e?.message || e);
+  }
+
   // Settings table
   db.run(`CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
