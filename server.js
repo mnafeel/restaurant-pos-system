@@ -4129,6 +4129,11 @@ app.get('/api/settings', authenticateToken, (req, res) => {
     
     db.all('SELECT key, value FROM shop_settings WHERE shop_id = ?', [userShopId], (sErr, shopRows) => {
       if (sErr) {
+        const msg = (sErr && sErr.message) || '';
+        // If shop_settings table doesn't exist yet, fall back to global settings
+        if (msg.includes('no such table') || msg.includes('does not exist')) {
+          return res.json(base);
+        }
         return res.status(500).json({ error: sErr.message });
       }
       const overrides = {};
