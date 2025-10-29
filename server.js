@@ -1964,7 +1964,8 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
 // Get pending orders - MUST be before /api/orders/:id to avoid route conflict
 app.get('/api/orders/pending', authenticateToken, authorize(['cashier', 'manager', 'admin']), (req, res) => {
   const userShopId = req.user.shop_id;
-  const shopFilter = userShopId ? `AND (o.shop_id = ${userShopId} OR o.shop_id IS NULL)` : '';
+  // Strict shop filter - only show orders with matching shop_id
+  const shopFilter = userShopId ? `AND o.shop_id = ${userShopId}` : '';
   
   db.all(`SELECT o.* FROM orders o WHERE o.payment_status = 'pending' ${shopFilter} ORDER BY o.created_at DESC`, [], (err, orders) => {
     if (err) {
@@ -2025,9 +2026,9 @@ app.get('/api/orders', authenticateToken, (req, res) => {
     params.push(table_number);
   }
   
-  // Add shop filter - only show orders for user's shop (or all if owner/no shop_id)
+  // Add shop filter - strict shop isolation (only show orders with matching shop_id)
   if (userShopId) {
-    whereClause += (whereClause ? ' AND ' : 'WHERE ') + '(o.shop_id = ? OR o.shop_id IS NULL)';
+    whereClause += (whereClause ? ' AND ' : 'WHERE ') + 'o.shop_id = ?';
     params.push(userShopId);
   }
   
@@ -2386,7 +2387,8 @@ app.delete('/api/orders/:orderId', authenticateToken, authorize(['cashier', 'man
 // Get orders for kitchen
 app.get('/api/kitchen/orders', authenticateToken, authorize(['chef', 'cashier', 'manager', 'admin']), (req, res) => {
   const userShopId = req.user.shop_id;
-  const shopFilter = userShopId ? `AND (o.shop_id = ${userShopId} OR o.shop_id IS NULL)` : '';
+  // Strict shop filter - only show kitchen orders for user's shop
+  const shopFilter = userShopId ? `AND o.shop_id = ${userShopId}` : '';
   
   const query = `
     SELECT 
@@ -2643,13 +2645,17 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
 app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin', 'owner']), (req, res) => {
   const userShopId = req.user.shop_id;
   
-  // Add shop filter - only show bills for user's shop (or all if owner/no shop_id)
+  // Add shop filter - only show bills for user's shop (strict shop isolation)
   let whereClause = 'WHERE b.voided = false';
   const params = [];
   
   if (userShopId) {
-    whereClause += ' AND (b.shop_id = ? OR b.shop_id IS NULL)';
+    // Strict: only show bills with matching shop_id (exclude NULL bills)
+    whereClause += ' AND b.shop_id = ?';
     params.push(userShopId);
+  } else {
+    // Admin/Owner with no shop_id: can see all bills including NULL (old bills)
+    // This allows admins to see everything
   }
   
   const query = `
