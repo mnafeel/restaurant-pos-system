@@ -2597,9 +2597,24 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           }
           
           let taxAmount = 0;
+          // Track GST split (CGST/SGST) when GST is applied
+          let gstSplit = null;
           taxes.forEach(tax => {
             if (!tax.is_inclusive) {
-              taxAmount += ((afterDiscount + serviceCharge) * tax.rate) / 100;
+              const baseAmount = (afterDiscount + serviceCharge);
+              const thisTax = (baseAmount * tax.rate) / 100;
+              taxAmount += thisTax;
+              // If tax name is GST, split into CGST/SGST for display
+              if (typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst')) {
+                const half = +(thisTax / 2).toFixed(2);
+                gstSplit = {
+                  type: 'GST',
+                  rate: tax.rate,
+                  base_amount: +baseAmount.toFixed(2),
+                  cgst: half,
+                  sgst: half
+                };
+              }
             }
           });
           
@@ -2631,6 +2646,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                 discountAmount,
                 serviceCharge,
           taxAmount,
+          gstSplit,
                 roundOff,
           totalAmount,
                 message: 'Bill generated successfully'
