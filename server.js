@@ -466,6 +466,24 @@ db.serialize(() => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Migrate shops table missing columns
+  db.all("PRAGMA table_info(shops)", (err, columns) => {
+    if (!err && columns) {
+      const hasCurrency = columns.some(col => col.name === 'currency');
+      if (!hasCurrency) {
+        console.log('Adding currency column to shops table...');
+        db.run("ALTER TABLE shops ADD COLUMN currency TEXT DEFAULT 'INR'");
+      }
+    }
+  });
+  try {
+    if (db.type === 'postgres') {
+      db.run("ALTER TABLE shops ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'INR'");
+    }
+  } catch (e) {
+    console.log('Postgres migration (shops.currency) note:', e?.message || e);
+  }
+
   // Postgres migrations for categories uniqueness per shop
   try {
     if (db.type === 'postgres') {
@@ -3563,7 +3581,24 @@ app.post('/api/shops', authenticateToken, authorize(['admin', 'owner']), (req, r
         
         const shopId = this.lastID || (this.rows && this.rows[0] && this.rows[0].id);
         logAuditEvent(req.user.id, 'SHOP_CREATED', 'shops', shopId, null, req.body, req);
-        res.json({ id: shopId, message: 'Shop created successfully' });
+
+        // Auto-populate shop_settings from provided shop info and global defaults
+        const defaults = {
+          shop_name: name,
+          shop_phone: phone || '',
+          shop_address: address || '',
+          shop_email: email || '',
+          currency: currency || 'INR'
+        };
+        const upsertShopSetting = (k, v, cb) => {
+          const upsert = db.type === 'postgres'
+            ? 'INSERT INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT (shop_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP'
+            : 'INSERT OR REPLACE INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)';
+          db.run(upsert, [shopId, k, v], cb || (() => {}));
+        };
+        Object.keys(defaults).forEach(k => upsertShopSetting(k, defaults[k]));
+        
+        return res.json({ id: shopId, message: 'Shop created successfully' });
       });
   });
 });
