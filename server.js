@@ -4175,7 +4175,23 @@ app.get('/api/settings', authenticateToken, (req, res) => {
       (shopRows || []).forEach(r => { overrides[r.key] = r.value; });
       // Merge shop overrides over global
       const merged = { ...base, ...overrides };
-      return res.json(merged);
+
+      // Fallbacks from shops table if keys are missing
+      const neededKeys = ['shop_name', 'shop_phone', 'shop_address', 'shop_email', 'currency'];
+      const missing = neededKeys.filter(k => merged[k] === undefined || merged[k] === null || merged[k] === '');
+      if (missing.length === 0) {
+        return res.json(merged);
+      }
+      db.get('SELECT name, phone, address, email, currency FROM shops WHERE id = ?', [userShopId], (shopErr, shopRow) => {
+        if (!shopErr && shopRow) {
+          if (!merged.shop_name && shopRow.name) merged.shop_name = shopRow.name;
+          if (!merged.shop_phone && shopRow.phone) merged.shop_phone = shopRow.phone;
+          if (!merged.shop_address && shopRow.address) merged.shop_address = shopRow.address;
+          if (!merged.shop_email && shopRow.email) merged.shop_email = shopRow.email;
+          if (!merged.currency && shopRow.currency) merged.currency = shopRow.currency;
+        }
+        return res.json(merged);
+      });
     });
   });
 });
