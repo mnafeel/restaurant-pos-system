@@ -4189,6 +4189,21 @@ app.get('/api/settings', authenticateToken, (req, res) => {
           if (!merged.shop_address && shopRow.address) merged.shop_address = shopRow.address;
           if (!merged.shop_email && shopRow.email) merged.shop_email = shopRow.email;
           if (!merged.currency && shopRow.currency) merged.currency = shopRow.currency;
+
+          // Persist backfill so future requests get correct values without fallback
+          const upsert = db.type === 'postgres'
+            ? 'INSERT INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT (shop_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP'
+            : 'INSERT OR REPLACE INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)';
+          const maybeUpsert = (k, v) => {
+            if (v !== undefined && v !== null && v !== '') {
+              db.run(upsert, [userShopId, k, String(v)], () => {});
+            }
+          };
+          maybeUpsert('shop_name', merged.shop_name);
+          maybeUpsert('shop_phone', merged.shop_phone);
+          maybeUpsert('shop_address', merged.shop_address);
+          maybeUpsert('shop_email', merged.shop_email);
+          maybeUpsert('currency', merged.currency);
         }
         return res.json(merged);
       });
