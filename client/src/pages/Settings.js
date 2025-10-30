@@ -76,15 +76,31 @@ const Settings = () => {
   const handleSaveSettings = async () => {
     try {
       const token = localStorage.getItem('token');
+      // 1) If shop-scoped, save shop info directly on shop record
+      if (user?.shop_id && shopData) {
+        const payload = {
+          name: shopData.name || '',
+          phone: shopData.phone || '',
+          address: shopData.address || '',
+          email: shopData.email || '',
+          currency: shopData.currency || 'INR'
+        };
+        await axios.put(`/api/shops/${user.shop_id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      // 2) Save feature toggles and other system settings
       await axios.post('/api/settings/bulk', settings, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Trigger currency change event to refresh currency display
+      // Refresh local shop info and currency display
+      if (user?.shop_id) await fetchShopData();
       window.dispatchEvent(new Event('currencyChanged'));
       
       toast.success('Settings saved successfully');
     } catch (error) {
+      console.error('Save settings error:', error);
       toast.error('Failed to save settings');
     }
   };
@@ -263,8 +279,8 @@ const Settings = () => {
               </label>
               <input
                 type="text"
-                value={settings.shop_name || ''}
-                onChange={(e) => handleUpdateSetting('shop_name', e.target.value)}
+                value={shopData?.name || ''}
+                onChange={(e) => setShopData(prev => ({ ...(prev||{}), name: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -275,8 +291,8 @@ const Settings = () => {
               </label>
               <input
                 type="text"
-                value={settings.shop_phone || ''}
-                onChange={(e) => handleUpdateSetting('shop_phone', e.target.value)}
+                value={shopData?.phone || ''}
+                onChange={(e) => setShopData(prev => ({ ...(prev||{}), phone: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -286,8 +302,8 @@ const Settings = () => {
                 Address
               </label>
               <textarea
-                value={settings.shop_address || ''}
-                onChange={(e) => handleUpdateSetting('shop_address', e.target.value)}
+                value={shopData?.address || ''}
+                onChange={(e) => setShopData(prev => ({ ...(prev||{}), address: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 rows="3"
               />
@@ -299,8 +315,8 @@ const Settings = () => {
               </label>
               <input
                 type="email"
-                value={settings.shop_email || ''}
-                onChange={(e) => handleUpdateSetting('shop_email', e.target.value)}
+                value={shopData?.email || ''}
+                onChange={(e) => setShopData(prev => ({ ...(prev||{}), email: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
