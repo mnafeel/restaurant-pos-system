@@ -24,6 +24,7 @@ import {
   cacheTables,
   getCachedTables
 } from '../utils/offlineStorage';
+import io from 'socket.io-client';
 
 const OrderTakingComplete = () => {
   const { user } = useAuth();
@@ -71,6 +72,29 @@ const OrderTakingComplete = () => {
     fetchPendingOrders();
     fetchPaidBills();
     fetchTables();
+    // Live updates via sockets
+    try {
+      const socketUrl = axios.defaults.baseURL || 'https://restaurant-pos-system-1-7h0m.onrender.com';
+      const socket = io(socketUrl);
+      socket.emit('join-orders');
+      const handlePaid = () => {
+        fetchPendingOrders();
+        fetchPaidBills();
+        fetchTables();
+      };
+      socket.on('order-paid', handlePaid);
+      socket.on('bill-created', handlePaid);
+      socket.on('stats-updated', handlePaid);
+      // Cleanup
+      return () => {
+        try {
+          socket.off('order-paid', handlePaid);
+          socket.off('bill-created', handlePaid);
+          socket.off('stats-updated', handlePaid);
+          socket.disconnect();
+        } catch (_) {}
+      };
+    } catch (_) {}
     
     // Add online/offline event listeners
     const handleOnline = () => {

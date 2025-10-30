@@ -2438,6 +2438,11 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
                   });
               }
               
+              // Emit realtime updates
+              io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
+              io.emit('order-paid', { orderId, payment_method, totalAmount });
+              io.emit('stats-updated', { shop_id: order.shop_id });
+
               logAuditEvent(req.user.id, 'PAYMENT_COMPLETED', 'orders', orderId, null, { payment_method, payment_status }, req);
               res.json({ message: 'Payment updated successfully', billId });
             }
@@ -2974,6 +2979,11 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               // Update order and table status
               db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId]);
               db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId]);
+
+              // Emit realtime updates
+              io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
+              io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
+              io.emit('stats-updated', { shop_id: order.shop_id });
               
               logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
         
