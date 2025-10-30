@@ -31,7 +31,7 @@ const io = socketIo(server, {
 });
 
 // Runtime capability flags (set after DB init)
-let MENU_GST_COLUMNS = true;
+let MENU_GST_COLUMNS = false;
 
 const PORT = process.env.PORT || 5002;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
@@ -2817,11 +2817,13 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
       return res.status(404).json({ error: 'Order not found' });
     }
     
-    // Get order items
-        db.all(`SELECT oi.*, mi.tax_applicable, mi.gst_applicable, mi.gst_rate 
+      // Get order items (tolerate missing GST columns)
+        const gstCols = MENU_GST_COLUMNS ? ', mi.gst_applicable, mi.gst_rate' : '';
+        const itemsSql = `SELECT oi.*, mi.tax_applicable${gstCols}
       FROM order_items oi
       JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE oi.order_id = ?`, [orderId], (err, items) => {
+      WHERE oi.order_id = ?`;
+        db.all(itemsSql, [orderId], (err, items) => {
         if (err) {
           return res.status(500).json({ error: err.message });
         }
