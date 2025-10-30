@@ -56,6 +56,15 @@ const OrderTakingComplete = () => {
   const [offlineOrders, setOfflineOrders] = useState([]);
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState('Cash');
 
+  const normalizePaymentMethod = (val) => {
+    if (!val) return 'Cash';
+    const s = String(val).toLowerCase();
+    if (s === 'cash') return 'Cash';
+    if (s === 'card') return 'Card';
+    if (s === 'upi') return 'UPI';
+    return 'Cash';
+  };
+
   useEffect(() => {
     fetchMenu();
     fetchSettings();
@@ -184,9 +193,9 @@ const OrderTakingComplete = () => {
       setKitchenSystemEnabled(response.data.enable_kds === 'true');
       setTableManagementEnabled(response.data.enable_table_management === 'true');
       setAutoPrintEnabled(response.data.auto_print_bill === 'true');
-      const defaultPayment = response.data.default_payment_method || 'Cash';
-      setDefaultPaymentMethod(defaultPayment);
-      setPaymentMethod(prev => prev || defaultPayment);
+    const defaultPayment = normalizePaymentMethod(response.data.default_payment_method || 'Cash');
+    setDefaultPaymentMethod(defaultPayment);
+    setPaymentMethod(prev => prev || defaultPayment);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
