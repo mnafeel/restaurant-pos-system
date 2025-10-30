@@ -2815,54 +2815,70 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
         const serviceChargeRate = service_charge_rate || 5.0;
         const serviceCharge = (afterDiscount * serviceChargeRate) / 100;
         
-        // Calculate tax
-        db.all('SELECT * FROM taxes WHERE is_active = true', [], (err, taxes) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
+        // Calculate tax with GST setting and safeguards
+        const shopId = order.shop_id || req.user.shop_id || null;
+        const gstSettingQuery = shopId
+          ? `SELECT value FROM shop_settings WHERE key = 'gst_enabled' AND shop_id = ?
+             UNION ALL SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`
+          : `SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`;
+        const gstParams = shopId ? [shopId] : [];
+        db.get(gstSettingQuery, gstParams, (gstErr, gstRow) => {
+          if (gstErr) {
+            return res.status(500).json({ error: gstErr.message });
           }
-          
-          let taxAmount = 0;
-          // Track GST split (CGST/SGST) when GST is applied
-          let gstSplit = null;
-          // Prefer item-wise GST if present
-          let itemWiseTax = 0;
-          if (Array.isArray(items)) {
-            items.forEach(it => {
-              const gstApplicable = it.gst_applicable === 1 || it.gst_applicable === true;
-              const rate = Number(it.gst_rate);
-              if (gstApplicable && rate) {
-                const base = (it.price || it.unit_price || 0) * (it.quantity || 1);
-                itemWiseTax += (base * rate) / 100;
-              }
-            });
-          }
-          if (itemWiseTax > 0) {
-            taxAmount = itemWiseTax;
-            const baseAmount = (afterDiscount + serviceCharge);
-            const half = +(taxAmount / 2).toFixed(2);
-            gstSplit = { type: 'GST', rate: null, base_amount: +baseAmount.toFixed(2), cgst: half, sgst: half };
-          } else {
-            taxes.forEach(tax => {
-              if (!tax.is_inclusive) {
-                const baseAmount = (afterDiscount + serviceCharge);
-                const thisTax = (baseAmount * tax.rate) / 100;
-                taxAmount += thisTax;
-                // If tax name is GST, split into CGST/SGST for display
-                if (typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst')) {
-                  const half = +(thisTax / 2).toFixed(2);
-                  gstSplit = {
-                    type: 'GST',
-                    rate: tax.rate,
-                    base_amount: +baseAmount.toFixed(2),
-                    cgst: half,
-                    sgst: half
-                  };
+          const gstEnabled = String(gstRow?.value || 'true').toLowerCase() === 'true';
+
+          db.all('SELECT * FROM taxes WHERE is_active = true', [], (err, taxes) => {
+            if (err) {
+              return res.status(500).json({ error: err.message });
+            }
+
+            let taxAmount = 0;
+            let gstSplit = null;
+
+            // Item-wise GST (only if enabled)
+            if (gstEnabled && Array.isArray(items)) {
+              let itemWiseTax = 0;
+              items.forEach(it => {
+                const gstApplicable = it.gst_applicable === 1 || it.gst_applicable === true;
+                const rateNum = Number(it.gst_rate);
+                const rate = Number.isFinite(rateNum) ? rateNum : 0;
+                if (gstApplicable && rate > 0) {
+                  const unit = Number(it.price ?? it.unit_price ?? 0) || 0;
+                  const qty = Number(it.quantity ?? 1) || 1;
+                  const base = unit * qty;
+                  itemWiseTax += (base * rate) / 100;
                 }
+              });
+              if (itemWiseTax > 0) {
+                taxAmount += itemWiseTax;
+                const baseAmount = (afterDiscount + serviceCharge);
+                const half = +(itemWiseTax / 2).toFixed(2);
+                gstSplit = { type: 'GST', rate: null, base_amount: +baseAmount.toFixed(2), cgst: half, sgst: half };
+              }
+            }
+
+            // Table taxes (apply non-GST always; apply GST rows only if enabled and no item-wise GST was used)
+            taxes.forEach(tax => {
+              if (tax.is_inclusive) return;
+              const isGST = typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst');
+              if (isGST && !gstEnabled) return; // skip GST entirely if disabled
+              // If item-wise GST already applied, skip GST table rows to avoid double tax
+              if (isGST && gstSplit) return;
+
+              const rateNum = Number(tax.rate);
+              const rate = Number.isFinite(rateNum) ? rateNum : 0;
+              if (rate <= 0) return;
+              const baseAmount = (afterDiscount + serviceCharge);
+              const thisTax = (baseAmount * rate) / 100;
+              taxAmount += thisTax;
+              if (isGST) {
+                const half = +(thisTax / 2).toFixed(2);
+                gstSplit = { type: 'GST', rate: tax.rate, base_amount: +baseAmount.toFixed(2), cgst: half, sgst: half };
               }
             });
-          }
-          
-          const beforeRounding = afterDiscount + serviceCharge + taxAmount;
+
+            const beforeRounding = afterDiscount + serviceCharge + taxAmount;
           const roundOff = Math.round(beforeRounding) - beforeRounding;
           const totalAmount = Math.round(beforeRounding);
           
@@ -2896,6 +2912,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                 message: 'Bill generated successfully'
               });
             });
+          });
         });
       });
   });
