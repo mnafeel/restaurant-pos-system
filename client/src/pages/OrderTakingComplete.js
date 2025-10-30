@@ -54,6 +54,7 @@ const OrderTakingComplete = () => {
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineOrders, setOfflineOrders] = useState([]);
+  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState('Cash');
 
   useEffect(() => {
     fetchMenu();
@@ -184,7 +185,8 @@ const OrderTakingComplete = () => {
       setTableManagementEnabled(response.data.enable_table_management === 'true');
       setAutoPrintEnabled(response.data.auto_print_bill === 'true');
       const defaultPayment = response.data.default_payment_method || 'Cash';
-      setPaymentMethod(defaultPayment);
+      setDefaultPaymentMethod(defaultPayment);
+      setPaymentMethod(prev => prev || defaultPayment);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
@@ -594,6 +596,8 @@ const OrderTakingComplete = () => {
   // Show payment modal for pending order
   const showPendingPaymentModal = (orderId) => {
     setPendingPaymentOrderId(orderId);
+    // Ensure a payment method is selected (use default if empty)
+    setPaymentMethod(prev => prev || defaultPaymentMethod || 'Cash');
     setShowPaymentModal(true);
   };
 
