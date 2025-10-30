@@ -572,7 +572,7 @@ const OrderTakingComplete = () => {
           fetchPendingOrders();
           fetchPaidBills();
           fetchTables();
-          setView('paid');
+          setView('menu');
 
           // Clear cart
           setCart([]);
