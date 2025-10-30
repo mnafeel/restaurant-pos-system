@@ -196,6 +196,17 @@ const OrderTakingComplete = () => {
     const defaultPayment = normalizePaymentMethod(response.data.default_payment_method || 'Cash');
     setDefaultPaymentMethod(defaultPayment);
     setPaymentMethod(prev => prev || defaultPayment);
+
+      // Per-user override for auto print
+      try {
+        const me = await axios.get('/api/users/me/settings', { headers: { Authorization: `Bearer ${token}` } });
+        if (me.data && Object.prototype.hasOwnProperty.call(me.data, 'auto_print_bill_user')) {
+          const val = String(me.data.auto_print_bill_user).toLowerCase() === 'true';
+          setAutoPrintEnabled(val);
+        }
+      } catch (_) {
+        // ignore per-user settings fetch errors
+      }
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
