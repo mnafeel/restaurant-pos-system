@@ -76,6 +76,10 @@ const Layout = () => {
       fetchSettings();
       fetchShopName();
     }
+    // Live refresh when shop is updated from Settings
+    const onShopUpdated = () => fetchShopName();
+    window.addEventListener('shopUpdated', onShopUpdated);
+    return () => window.removeEventListener('shopUpdated', onShopUpdated);
   }, [user]);
 
   const navigation = [

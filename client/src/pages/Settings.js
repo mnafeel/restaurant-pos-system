@@ -104,6 +104,7 @@ const Settings = () => {
       // Refresh local shop info and currency display
       if (user?.shop_id) await fetchShopData();
       window.dispatchEvent(new Event('currencyChanged'));
+      window.dispatchEvent(new Event('shopUpdated'));
       
       toast.success('Settings saved successfully');
     } catch (error) {
