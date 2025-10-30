@@ -1186,7 +1186,7 @@ const OrderTakingComplete = () => {
                       style={{ background: 'rgba(255,193,7,0.2)', border: '2px solid rgb(255,193,7)' }}
                       title="Hold order"
                     >
-                      <FiPause className="inline text-lg mr-2" /> Hold
+                      <FiPause className="inline text-lg" />
                     </button>
 
                     {kitchenSystemEnabled && (
