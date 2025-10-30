@@ -5020,3 +5020,5 @@ server.listen(PORT, () => {
   console.log(`Owner: username=owner, password=owner123`);
   console.log(`\nNote: No shops or other users exist. Owner must create them manually.`);
 });
+
+// EOF marker to ensure Render parser sees complete file
