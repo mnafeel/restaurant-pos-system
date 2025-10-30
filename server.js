@@ -1063,7 +1063,6 @@ app.get('/api/debug/backup-all-data', authenticateToken, authorize(['owner']), (
           });
         });
       });
-      } // end function continueCreate
     });
   });
 });
