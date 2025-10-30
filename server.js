@@ -590,6 +590,12 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Order counters per shop (for human-friendly order numbers)
+  db.run(`CREATE TABLE IF NOT EXISTS order_counters (
+    shop_id INTEGER PRIMARY KEY,
+    last_number INTEGER DEFAULT 0
+  )`);
+
   // Reset requests table
   db.run(`CREATE TABLE IF NOT EXISTS reset_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2127,7 +2133,7 @@ app.post('/api/menu/:id/variants', authenticateToken, authorize(['admin', 'manag
 app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manager', 'admin']), (req, res) => {
   const { tableNumber, items, customer_name, customer_phone, notes, order_type, payment_status } = req.body;
   const orderId = uuidv4();
-  const orderNumber = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  let orderNumber = 'ORD-' + Date.now();
   
   console.log('Order creation request:', {
     tableNumber, order_type, payment_status, 
@@ -2143,6 +2149,38 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
   try {
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
+
+      // Generate human-friendly order number with shop prefix and counter
+      const shopId = req.user.shop_id;
+      const setAndContinue = (prefix, counter) => {
+        const padded = String(counter).padStart(4, '0');
+        orderNumber = `${prefix}${padded}`;
+      };
+      
+      if (shopId) {
+        db.get('SELECT name FROM shops WHERE id = ?', [shopId], (e1, shop) => {
+          const raw = (shop && shop.name) ? shop.name : 'Shop';
+          const letters = raw.replace(/[^A-Za-z]/g, '').toUpperCase();
+          const prefix = (letters.slice(0,2) || 'SH');
+          // ensure counter row
+          db.run('INSERT OR IGNORE INTO order_counters (shop_id, last_number) VALUES (?, 0)', [shopId], () => {
+            db.get('SELECT last_number FROM order_counters WHERE shop_id = ?', [shopId], (e2, row) => {
+              const next = (row?.last_number || 0) + 1;
+              db.run('UPDATE order_counters SET last_number = ? WHERE shop_id = ?', [next, shopId], () => {
+                setAndContinue(prefix, next);
+                continueCreate();
+              });
+            });
+          });
+        });
+        return; // wait for async then continueCreate()
+      }
+      // No shop id → fallback
+      setAndContinue('SH', Math.floor(Math.random()*9000)+1000);
+      
+      continueCreate();
+
+      function continueCreate() {
       
       let totalAmount = 0;
       items.forEach(item => {
