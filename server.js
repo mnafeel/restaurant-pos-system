@@ -4537,7 +4537,8 @@ app.get('/api/shops/:shopId/backup', authenticateToken, authorize(['admin', 'man
   // Include orders, order_items, bills
   tasks.push({ key: 'orders', sql: 'SELECT * FROM orders WHERE shop_id = ?', params: [shopId] });
   tasks.push({ key: 'order_items', sql: 'SELECT oi.* FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.shop_id = ?', params: [shopId] });
-  tasks.push({ key: 'bills', sql: 'SELECT * FROM bills WHERE shop_id = ?', params: [shopId] });
+  // Include bills by joining orders to capture legacy records with NULL shop_id on bills
+  tasks.push({ key: 'bills', sql: 'SELECT b.* FROM bills b JOIN orders o ON b.order_id = o.id WHERE o.shop_id = ?', params: [shopId] });
   let done = 0;
   let failed = false;
   tasks.forEach(t => {
