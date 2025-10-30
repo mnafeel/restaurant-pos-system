@@ -4544,6 +4544,31 @@ app.get('/api/shops/:shopId/backup', authenticateToken, authorize(['admin', 'man
     db.all(t.sql, t.params, (err, rows) => {
       if (failed) return;
       if (err) {
+        const msg = String(err.message || '');
+        if (msg.includes('no such table') || msg.includes('does not exist')) {
+          // Tolerate missing optional tables
+          result[t.key] = [];
+          done++;
+          if (done === tasks.length) {
+            // Attempt to embed images as base64 for menu items
+            try {
+              const images = {};
+              (result.menu_items || []).forEach(m => {
+                if (m.image_url) {
+                  const filePath = path.join(__dirname, m.image_url.startsWith('/') ? m.image_url.slice(1) : m.image_url);
+                  try {
+                    const data = fs.readFileSync(filePath);
+                    const b64 = 'data:image/*;base64,' + data.toString('base64');
+                    images[m.id] = { path: m.image_url, data: b64 };
+                  } catch(_) {}
+                }
+              });
+              result.images = images;
+            } catch(_) {}
+            return res.json(result);
+          }
+          return;
+        }
         failed = true;
         return res.status(500).json({ error: err.message });
       }
@@ -4720,13 +4745,42 @@ app.post('/api/reset-requests/:id/:action', authenticateToken, authorize(['owner
       db.run('INSERT INTO notifications (type, title, message, shop_id, user_id) VALUES (?,?,?,?,?)',
         ['reset_request_'+newStatus, 'Reset '+newStatus, `Reset request ${id} ${newStatus}`, reqRow.shop_id, reqRow.requested_by]);
       if (action === 'approve') {
-        // Perform reset
-        req.body = { confirm: 'RESET-' + String(reqRow.shop_id) };
-        req.params.shopId = String(reqRow.shop_id);
-        // call reset handler
-        // For simplicity, respond and let clients re-trigger reset endpoint if needed
+        // Perform reset immediately
+        const shopId = String(reqRow.shop_id);
+        const deletes = [
+          { sql: 'DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE shop_id = ?)', params: [shopId] },
+          { sql: 'DELETE FROM orders WHERE shop_id = ?', params: [shopId] },
+          { sql: 'DELETE FROM bills WHERE shop_id = ?', params: [shopId] },
+          { sql: 'DELETE FROM menu_variants WHERE menu_item_id IN (SELECT id FROM menu_items WHERE shop_id = ?)', params: [shopId] },
+          { sql: 'DELETE FROM menu_items WHERE shop_id = ?', params: [shopId] },
+          { sql: 'DELETE FROM tables WHERE shop_id = ?', params: [shopId] },
+          { sql: 'DELETE FROM categories WHERE shop_id = ?', params: [shopId] },
+          { sql: 'DELETE FROM taxes WHERE shop_id = ?', params: [shopId] }
+        ];
+        db.serialize(() => {
+          db.run('BEGIN TRANSACTION');
+          let idx2 = 0;
+          const next2 = () => {
+            if (idx2 >= deletes.length) {
+              return db.run('COMMIT', (cErr) => {
+                if (cErr) return res.status(500).json({ error: cErr.message });
+                return res.json({ message: 'Request approved and shop data reset completed' });
+              });
+            }
+            const d = deletes[idx2++];
+            db.run(d.sql, d.params, (dErr) => {
+              if (dErr) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: dErr.message });
+              }
+              next2();
+            });
+          };
+          next2();
+        });
+      } else {
+        res.json({ message: 'Request denied' });
       }
-      res.json({ message: 'Request '+newStatus });
     });
   });
 });
