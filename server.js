@@ -2173,7 +2173,7 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
             });
           });
         });
-        return; // wait for async then continueCreate()
+        // async branch will call continueCreate() when ready
       }
       // No shop id → fallback
       setAndContinue('SH', Math.floor(Math.random()*9000)+1000);
@@ -2476,6 +2476,9 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
                   });
               }
               
+              // Mark order as billed/paid as a safety in this flow too
+              db.run("UPDATE orders SET status = 'Billed', payment_status = 'paid', kds_status = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [orderId]);
+
               // Emit realtime updates
               io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
               io.emit('order-paid', { orderId, payment_method, totalAmount });
@@ -3015,7 +3018,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               }
               
               // Update order and table status
-              db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId]);
+              db.run("UPDATE orders SET status = 'Billed', payment_status = 'paid', kds_status = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [orderId]);
               db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId]);
 
               // Emit realtime updates
