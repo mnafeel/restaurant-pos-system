@@ -30,6 +30,9 @@ const io = socketIo(server, {
   }
 });
 
+// Runtime capability flags (set after DB init)
+let MENU_GST_COLUMNS = true;
+
 const PORT = process.env.PORT || 5002;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
@@ -755,6 +758,20 @@ db.serialize(() => {
     }
   } catch (e) {
     console.log('Postgres migration (gst columns) error (safe to ignore if already applied):', e?.message || e);
+  }
+
+  // Detect menu_items GST columns availability (works for SQLite and PostgreSQL)
+  try {
+    db.get('SELECT gst_applicable, gst_rate FROM menu_items LIMIT 1', [], (probeErr) => {
+      if (probeErr) {
+        console.log('GST columns not available on menu_items; item-wise GST disabled:', probeErr.message);
+        MENU_GST_COLUMNS = false;
+      } else {
+        MENU_GST_COLUMNS = true;
+      }
+    });
+  } catch (e) {
+    MENU_GST_COLUMNS = false;
   }
 
   // Migrate order_items table - add missing columns
@@ -1917,11 +1934,20 @@ app.get('/api/menu', authenticateToken, (req, res) => {
 app.post('/api/menu', authenticateToken, authorize(['admin', 'manager']), upload.single('image'), (req, res) => {
   const { name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, variants } = req.body;
   const image_url = req.file ? `/uploads/menu-items/${req.file.filename}` : null;
-  
-  db.run(`INSERT INTO menu_items (name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, image_url, shop_id) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, description, price, category, preparation_time || 15, stock_quantity || 0, tax_applicable !== false, gst_applicable !== 'false', gst_rate || null, image_url, req.user.shop_id || null], 
-    function(err) {
+
+  const baseCols = ['name','description','price','category','preparation_time','stock_quantity','tax_applicable','image_url','shop_id'];
+  const baseVals = [name, description, price, category, preparation_time || 15, stock_quantity || 0, tax_applicable !== false, image_url, req.user.shop_id || null];
+  let cols = baseCols.slice();
+  let placeholders = baseCols.map(() => '?');
+  let vals = baseVals.slice();
+  if (MENU_GST_COLUMNS) {
+    cols.splice(7, 0, 'gst_applicable', 'gst_rate'); // insert before image_url
+    placeholders.splice(7, 0, '?', '?');
+    vals.splice(7, 0, (gst_applicable !== 'false' && gst_applicable !== false), gst_rate || null);
+  }
+
+  const sql = `INSERT INTO menu_items (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`;
+  db.run(sql, vals, function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -1993,13 +2019,15 @@ app.put('/api/menu/:id', authenticateToken, authorize(['admin', 'manager']), upl
     updates.push('tax_applicable = ?');
     values.push(tax_applicable);
   }
-  if (gst_applicable !== undefined) {
-    updates.push('gst_applicable = ?');
-    values.push(gst_applicable);
-  }
-  if (gst_rate !== undefined) {
-    updates.push('gst_rate = ?');
-    values.push(gst_rate);
+  if (MENU_GST_COLUMNS) {
+    if (gst_applicable !== undefined) {
+      updates.push('gst_applicable = ?');
+      values.push(gst_applicable);
+    }
+    if (gst_rate !== undefined) {
+      updates.push('gst_rate = ?');
+      values.push(gst_rate);
+    }
   }
   if (req.file) {
     updates.push('image_url = ?');
