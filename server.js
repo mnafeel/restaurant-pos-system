@@ -2817,18 +2817,38 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
         
         // Calculate tax with GST setting and safeguards
         const shopId = order.shop_id || req.user.shop_id || null;
-        const gstSettingQuery = shopId
-          ? `SELECT value FROM shop_settings WHERE key = 'gst_enabled' AND shop_id = ?
-             UNION ALL SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`
-          : `SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`;
-        const gstParams = shopId ? [shopId] : [];
-        db.get(gstSettingQuery, gstParams, (gstErr, gstRow) => {
-          if (gstErr) {
-            return res.status(500).json({ error: gstErr.message });
+        const tryFetchGstEnabled = (cb) => {
+          // Fallback safely if shop_settings table is missing
+          if (shopId) {
+            const query = `SELECT value FROM shop_settings WHERE key = 'gst_enabled' AND shop_id = ?
+                           UNION ALL SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`;
+            db.get(query, [shopId], (e, row) => {
+              if (e && String(e.message || '').includes('no such table: shop_settings')) {
+                // Fallback to global settings
+                db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`, [], (e2, row2) => {
+                  if (e2) return cb(null, false); // default false
+                  return cb(null, String(row2?.value || 'false').toLowerCase() === 'true');
+                });
+              } else if (e) {
+                return cb(null, false);
+              } else {
+                return cb(null, String(row?.value || 'false').toLowerCase() === 'true');
+              }
+            });
+          } else {
+            db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`, [], (e, row) => {
+              if (e) return cb(null, false);
+              return cb(null, String(row?.value || 'false').toLowerCase() === 'true');
+            });
           }
-          const gstEnabled = String(gstRow?.value || 'true').toLowerCase() === 'true';
+        };
+        tryFetchGstEnabled((_, gstEnabled) => {
 
-          db.all('SELECT * FROM taxes WHERE is_active = true', [], (err, taxes) => {
+          // Load taxes, scoping by shop
+          const taxParams = [];
+          let taxWhere = 'WHERE is_active = true';
+          if (shopId) { taxWhere += ' AND shop_id = ?'; taxParams.push(shopId); }
+          db.all(`SELECT * FROM taxes ${taxWhere}`, taxParams, (err, taxes) => {
             if (err) {
               return res.status(500).json({ error: err.message });
             }
