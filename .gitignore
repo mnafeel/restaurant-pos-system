@@ -62,3 +62,8 @@ credentials.json
 token.json
 temp-backup.json
 backup.log
+
+# Build artifacts
+/dist/
+*.dmg
+*.exe
