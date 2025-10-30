@@ -959,7 +959,6 @@ app.get('/api/debug/status', (req, res) => {
         deployment: 'Render',
         timestamp: new Date().toISOString()
       });
-    });
   });
 });
 
