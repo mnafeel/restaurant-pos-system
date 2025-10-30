@@ -951,9 +951,9 @@ const OrderTaking = () => {
                       <button
                         onClick={handleSaveOrderToPending}
                         className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white py-5 px-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                        title="Hold"
                       >
                         <FiClock className="text-xl" />
-                        Hold Order
                       </button>
                       
                       {/* Submit/Pay Button */}
