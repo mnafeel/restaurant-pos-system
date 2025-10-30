@@ -4620,11 +4620,11 @@ app.post('/api/shops/:shopId/restore', authenticateToken, authorize(['admin', 'o
     insertTax.finalize();
 
     // menu items minimal fields; tolerate missing GST columns
-    const baseCols = MENU_GST_COLUMNS ? '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, image_url, shop_id)' : '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, image_url, shop_id)';
-    const placeholders = MENU_GST_COLUMNS ? '(?,?,?,?,?,?,?,?,?,?,?)' : '(?,?,?,?,?,?,?,?,)';
-    const sqlMenu = MENU_GST_COLUMNS
-      ? 'INSERT OR IGNORE INTO menu_items ' + baseCols + ' VALUES (?,?,?,?,?,?,?,?,?,?,?)'
-      : 'INSERT OR IGNORE INTO menu_items ' + baseCols + ' VALUES (?,?,?,?,?,?,?,?,)';
+    const baseCols = MENU_GST_COLUMNS
+      ? '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, image_url, shop_id)'
+      : '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, image_url, shop_id)';
+    const placeholders = MENU_GST_COLUMNS ? '(?,?,?,?,?,?,?,?,?,?,?)' : '(?,?,?,?,?,?,?,?,?)';
+    const sqlMenu = 'INSERT OR IGNORE INTO menu_items ' + baseCols + ' VALUES ' + placeholders;
     const insertItem = db.prepare(sqlMenu);
     (payload.menu_items || []).forEach(m => {
       if (MENU_GST_COLUMNS) {
