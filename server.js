@@ -2943,10 +2943,17 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               }
             }
 
+            // If GST is disabled, ignore any GST-like taxes entirely
+            const isGstName = (name) => typeof name === 'string' && /(cgst|sgst|igst|\bgst\b)/i.test(name);
+            const effectiveTaxes = (Array.isArray(taxes) ? taxes : []).filter(t => {
+              if (!gstEnabled && isGstName(t.name)) return false; // drop GST taxes when disabled
+              return true;
+            });
+
             // Table taxes (apply non-GST always; apply GST rows only if enabled and no item-wise GST was used)
-            taxes.forEach(tax => {
+            effectiveTaxes.forEach(tax => {
               if (tax.is_inclusive) return;
-              const isGST = typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst');
+              const isGST = isGstName(tax.name);
               if (isGST && !gstEnabled) return; // skip GST entirely if disabled
               // If item-wise GST already applied, skip GST table rows to avoid double tax
               if (isGST && gstSplit) return;
