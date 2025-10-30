@@ -91,10 +91,15 @@ const Settings = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
-      // 2) Save feature toggles and other system settings
-      await axios.post(`${apiBase}/api/settings/bulk`, settings, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // 2) Save feature toggles and other system settings (non-blocking)
+      try {
+        await axios.post(`${apiBase}/api/settings/bulk`, settings, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (bulkErr) {
+        console.warn('Settings bulk save failed (non-blocking):', bulkErr);
+        // Don't fail the whole save if feature toggles endpoint is temporarily unavailable
+      }
       
       // Refresh local shop info and currency display
       if (user?.shop_id) await fetchShopData();
