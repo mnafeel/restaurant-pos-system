@@ -558,31 +558,28 @@ const OrderTakingComplete = () => {
           const orderResponse = await axios.post('/api/orders', orderData, {
             headers: { Authorization: `Bearer ${token}` }
           });
-
-          // Create bill
-          billResponse = await axios.post('/api/bills', {
-            orderId: orderResponse.data.orderId,
-            payment_method: paymentMethod
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          try {
+            billResponse = await axios.post('/api/bills', {
+              orderId: orderResponse.data.orderId,
+              payment_method: paymentMethod
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (billErr) {
+            console.warn('Bill creation failed after paid order:', billErr);
+          }
 
           toast.success('Payment successful!');
-          // Refresh views
           fetchPendingOrders();
           fetchPaidBills();
           fetchTables();
           setView('menu');
-
-          // Clear cart
           setCart([]);
           setSelectedTable(null);
-        } catch (err) {
-          // If online request fails, treat as offline
-          console.log('Online request failed, switching to offline mode:', err);
+        } catch (orderErr) {
+          console.log('Order create failed, switching to offline mode:', orderErr);
           await queueOrderForSync(orderData);
           toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
-          
           const offlineOrder = {
             id: Date.now(),
             tableNumber,
@@ -640,7 +637,7 @@ const OrderTakingComplete = () => {
       });
       handlePrintBill(response.data);
     } catch (error) {
-      console.error('Error fetching bill:', error);
+      console.warn('Print skipped - bill not yet available:', error?.response?.status || error?.message);
     }
   };
 
