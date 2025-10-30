@@ -4484,6 +4484,139 @@ app.post('/api/print-queue', authenticateToken, (req, res) => {
     });
 });
 
+// ==================== SHOP BACKUP/RESTORE/RESET ====================
+
+// Per-shop backup (categories, menu_items, taxes, tables)
+app.get('/api/shops/:shopId/backup', authenticateToken, authorize(['admin', 'manager', 'owner']), (req, res) => {
+  const { shopId } = req.params;
+  const userShopId = req.user.shop_id;
+  if (userShopId && String(userShopId) !== String(shopId)) {
+    return res.status(403).json({ error: 'Forbidden: different shop' });
+  }
+
+  const result = { shop_id: Number(shopId), exported_at: new Date().toISOString() };
+  const tasks = [
+    { key: 'categories', sql: 'SELECT * FROM categories WHERE shop_id = ?', params: [shopId] },
+    { key: 'menu_items', sql: 'SELECT * FROM menu_items WHERE shop_id = ?', params: [shopId] },
+    { key: 'taxes', sql: 'SELECT * FROM taxes WHERE shop_id = ?', params: [shopId] },
+    { key: 'tables', sql: 'SELECT * FROM tables WHERE shop_id = ?', params: [shopId] }
+  ];
+  let done = 0;
+  let failed = false;
+  tasks.forEach(t => {
+    db.all(t.sql, t.params, (err, rows) => {
+      if (failed) return;
+      if (err) {
+        failed = true;
+        return res.status(500).json({ error: err.message });
+      }
+      result[t.key] = rows || [];
+      done++;
+      if (done === tasks.length) {
+        res.json(result);
+      }
+    });
+  });
+});
+
+// Per-shop restore (upsert basic refs; does not drop existing)
+app.post('/api/shops/:shopId/restore', authenticateToken, authorize(['admin', 'owner']), (req, res) => {
+  const { shopId } = req.params;
+  const userShopId = req.user.shop_id;
+  if (userShopId && String(userShopId) !== String(shopId)) {
+    return res.status(403).json({ error: 'Forbidden: different shop' });
+  }
+  const payload = req.body || {};
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, display_order, is_active, shop_id, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)');
+    (payload.categories || []).forEach(c => insertCategory.run(c.name, c.display_order || 0, c.is_active ? 1 : 0, shopId));
+    insertCategory.finalize();
+
+    const insertTable = db.prepare('INSERT OR IGNORE INTO tables (table_number, capacity, location, shop_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, COALESCE(?, "Free"), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
+    (payload.tables || []).forEach(t => insertTable.run(t.table_number, t.capacity || 4, t.location || 'main', shopId, t.status));
+    insertTable.finalize();
+
+    // taxes per-shop
+    const insertTax = db.prepare('INSERT OR IGNORE INTO taxes (name, rate, is_inclusive, is_active, shop_id, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)');
+    (payload.taxes || []).forEach(tx => insertTax.run(tx.name, tx.rate || 0, tx.is_inclusive ? 1 : 0, tx.is_active ? 1 : 0, shopId));
+    insertTax.finalize();
+
+    // menu items minimal fields; tolerate missing GST columns
+    const baseCols = MENU_GST_COLUMNS ? '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, image_url, shop_id)' : '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, image_url, shop_id)';
+    const placeholders = MENU_GST_COLUMNS ? '(?,?,?,?,?,?,?,?,?,?,?)' : '(?,?,?,?,?,?,?,?,)';
+    const sqlMenu = MENU_GST_COLUMNS
+      ? 'INSERT OR IGNORE INTO menu_items ' + baseCols + ' VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+      : 'INSERT OR IGNORE INTO menu_items ' + baseCols + ' VALUES (?,?,?,?,?,?,?,?,)';
+    const insertItem = db.prepare(sqlMenu);
+    (payload.menu_items || []).forEach(m => {
+      if (MENU_GST_COLUMNS) {
+        insertItem.run(m.name, m.description || '', m.price || 0, m.category || '', m.preparation_time || 15, m.stock_quantity || 0, (m.tax_applicable !== false), (m.gst_applicable !== false), m.gst_rate || null, m.image_url || null, shopId);
+      } else {
+        insertItem.run(m.name, m.description || '', m.price || 0, m.category || '', m.preparation_time || 15, m.stock_quantity || 0, (m.tax_applicable !== false), m.image_url || null, shopId);
+      }
+    });
+    insertItem.finalize();
+
+    db.run('COMMIT', (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      logAuditEvent(req.user.id, 'SHOP_RESTORED', 'shops', shopId, null, { counts: {
+        categories: (payload.categories || []).length,
+        tables: (payload.tables || []).length,
+        taxes: (payload.taxes || []).length,
+        menu_items: (payload.menu_items || []).length
+      }}, req);
+      res.json({ message: 'Restore completed' });
+    });
+  });
+});
+
+// Per-shop full data reset (dangerous)
+app.post('/api/shops/:shopId/reset', authenticateToken, authorize(['admin', 'owner']), (req, res) => {
+  const { shopId } = req.params;
+  const userShopId = req.user.shop_id;
+  if (userShopId && String(userShopId) !== String(shopId)) {
+    return res.status(403).json({ error: 'Forbidden: different shop' });
+  }
+  const { confirm } = req.body || {};
+  if (confirm !== 'RESET-' + String(shopId)) {
+    return res.status(400).json({ error: 'Confirmation token invalid' });
+  }
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    const deletes = [
+      { sql: 'DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE shop_id = ?)', params: [shopId] },
+      { sql: 'DELETE FROM orders WHERE shop_id = ?', params: [shopId] },
+      { sql: 'DELETE FROM bills WHERE shop_id = ?', params: [shopId] },
+      { sql: 'DELETE FROM menu_variants WHERE menu_item_id IN (SELECT id FROM menu_items WHERE shop_id = ?)', params: [shopId] },
+      { sql: 'DELETE FROM menu_items WHERE shop_id = ?', params: [shopId] },
+      { sql: 'DELETE FROM tables WHERE shop_id = ?', params: [shopId] },
+      { sql: 'DELETE FROM categories WHERE shop_id = ?', params: [shopId] },
+      { sql: 'DELETE FROM taxes WHERE shop_id = ?', params: [shopId] }
+    ];
+    let idx = 0;
+    const next = () => {
+      if (idx >= deletes.length) {
+        db.run('COMMIT', (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+          logAuditEvent(req.user.id, 'SHOP_RESET', 'shops', shopId, null, null, req);
+          return res.json({ message: 'Shop data reset completed' });
+        });
+        return;
+      }
+      const d = deletes[idx++];
+      db.run(d.sql, d.params, (err) => {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: err.message });
+        }
+        next();
+      });
+    };
+    next();
+  });
+});
+
 // Get pending print jobs
 app.get('/api/print-queue/pending', authenticateToken, (req, res) => {
   db.all('SELECT * FROM print_queue WHERE status = "pending" AND retry_count < 3 ORDER BY created_at ASC LIMIT 50',

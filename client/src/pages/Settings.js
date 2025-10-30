@@ -113,6 +113,53 @@ const Settings = () => {
     }
   };
 
+  // ========= Backup/Restore/Reset =========
+  const handleBackup = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`/api/shops/${user.shop_id}/backup`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shop-${user.shop_id}-backup.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Backup downloaded');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Backup failed');
+    }
+  };
+
+  const handleRestore = async (file) => {
+    try {
+      const token = localStorage.getItem('token');
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await axios.post(`/api/shops/${user.shop_id}/restore`, data, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Restore completed');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Restore failed');
+    }
+  };
+
+  const handleReset = async () => {
+    if (!window.confirm('This will delete categories, menu items, taxes, tables, orders and bills for this shop. Continue?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`/api/shops/${user.shop_id}/reset`, { confirm: `RESET-${user.shop_id}` }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Shop data reset completed');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Reset failed');
+    }
+  };
+
   const handleAddTax = async (e) => {
     e.preventDefault();
     try {
@@ -259,6 +306,18 @@ const Settings = () => {
           >
             <FaCog className="inline mr-2" />
             General
+          </button>
+
+          <button
+            onClick={() => setActiveTab('maintenance')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'maintenance'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <FaCog className="inline mr-2" />
+            Maintenance
           </button>
 
           <button
@@ -824,6 +883,25 @@ const Settings = () => {
                 Sales before this hour will count as the previous day. For example, if set to 6 AM, sales at 2:59 AM will show in yesterday's report.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Maintenance Tab */}
+      {activeTab === 'maintenance' && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Maintenance</h2>
+          <div className="p-4 border rounded-lg bg-yellow-50">
+            <div className="font-semibold mb-2">Shop Data Backup & Restore</div>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={handleBackup} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Download Backup</button>
+              <label className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer">
+                Restore from File
+                <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files && e.target.files[0] && handleRestore(e.target.files[0])} />
+              </label>
+              <button onClick={handleReset} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Full Data Reset (Shop)</button>
+            </div>
+            <p className="text-xs text-gray-600 mt-2">Backup/restore includes categories, menu items, taxes, and tables for this shop. Reset removes these plus orders and bills.</p>
           </div>
         </div>
       )}
