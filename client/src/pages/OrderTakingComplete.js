@@ -216,7 +216,8 @@ const OrderTakingComplete = () => {
       });
       setKitchenSystemEnabled(response.data.enable_kds === 'true');
       setTableManagementEnabled(response.data.enable_table_management === 'true');
-      setAutoPrintEnabled(response.data.auto_print_bill === 'true');
+      const globalAutoPrint = String(response.data.auto_print_bill).toLowerCase() === 'true';
+      setAutoPrintEnabled(globalAutoPrint);
     const defaultPayment = normalizePaymentMethod(response.data.default_payment_method || 'Cash');
     setDefaultPaymentMethod(defaultPayment);
     setPaymentMethod(prev => prev || defaultPayment);
@@ -225,8 +226,9 @@ const OrderTakingComplete = () => {
       try {
         const me = await axios.get('/api/users/me/settings', { headers: { Authorization: `Bearer ${token}` } });
         if (me.data && Object.prototype.hasOwnProperty.call(me.data, 'auto_print_bill_user')) {
-          const val = String(me.data.auto_print_bill_user).toLowerCase() === 'true';
-          setAutoPrintEnabled(val);
+          const userAuto = String(me.data.auto_print_bill_user).toLowerCase() === 'true';
+          // Respect global OFF strictly; only allow user override if global is ON
+          setAutoPrintEnabled(prev => prev ? userAuto : false);
         }
       } catch (_) {
         // ignore per-user settings fetch errors
