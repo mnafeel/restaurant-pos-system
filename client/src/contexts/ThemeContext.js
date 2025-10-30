@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../shared/api/axios';
 import { useLocation } from 'react-router-dom';
 
 const ThemeContext = createContext();
@@ -501,12 +502,22 @@ export const ThemeProvider = ({ children }) => {
   const [themeMode, setThemeMode] = useState('dark'); // dark, light, gold, teal, cafe
   const [currentTheme, setCurrentTheme] = useState(defaultDarkTheme);
 
-  // Load theme from localStorage on mount
+  // Load theme from API (fallback to localStorage)
   useEffect(() => {
-    const savedTheme = localStorage.getItem('themeMode');
-    if (savedTheme && themeModes[savedTheme]) {
-      setThemeMode(savedTheme);
-    }
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await api.get('/api/users/me/settings');
+        const mode = data?.theme_mode;
+        if (mounted && mode && themeModes[mode]) setThemeMode(mode);
+      } catch (e) {
+        const savedTheme = localStorage.getItem('themeMode');
+        if (savedTheme && themeModes[savedTheme]) {
+          setThemeMode(savedTheme);
+        }
+      }
+    })();
+    return () => { mounted = false; };
   }, []);
 
   // Update theme when path or mode changes
@@ -516,9 +527,14 @@ export const ThemeProvider = ({ children }) => {
     setCurrentTheme(theme);
   }, [location.pathname, themeMode]);
 
-  const changeTheme = (newMode) => {
+  const changeTheme = async (newMode) => {
     setThemeMode(newMode);
     localStorage.setItem('themeMode', newMode);
+    try {
+      await api.put('/api/users/me/settings', { theme_mode: newMode });
+    } catch (e) {
+      // Non-blocking
+    }
   };
 
   return (

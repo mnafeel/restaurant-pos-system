@@ -290,6 +290,18 @@ db.serialize(() => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Per-user settings (key-value)
+  db.run(`CREATE TABLE IF NOT EXISTS user_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, key),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  )`);
+
   // Tables table with enhanced fields
   db.run(`CREATE TABLE IF NOT EXISTS tables (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -303,6 +315,30 @@ db.serialize(() => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (current_order_id) REFERENCES orders (id)
   )`);
+
+  // Migrate tables: ensure shop_id exists
+  db.all("PRAGMA table_info(tables)", (err, columns) => {
+    if (!err && columns) {
+      const hasShopId = columns.some(col => col.name === 'shop_id');
+      if (!hasShopId) {
+        console.log('Adding shop_id column to tables table...');
+        db.run("ALTER TABLE tables ADD COLUMN shop_id INTEGER");
+      }
+    }
+  });
+  // Ensure unique table number per shop
+  try {
+    db.run('CREATE UNIQUE INDEX IF NOT EXISTS tables_shop_table_uniq ON tables (shop_id, table_number)');
+  } catch (e) {
+    console.log('Index creation note (tables_shop_table_uniq):', e?.message || e);
+  }
+  try {
+    if (db.type === 'postgres') {
+      db.run("ALTER TABLE tables ADD COLUMN IF NOT EXISTS shop_id INTEGER");
+    }
+  } catch (e) {
+    console.log('Postgres migration (tables.shop_id) note:', e?.message || e);
+  }
 
   // Categories table (shop-scoped)
   db.run(`CREATE TABLE IF NOT EXISTS categories (
@@ -389,8 +425,27 @@ db.serialize(() => {
     rate DECIMAL(5,2) NOT NULL,
     is_inclusive BOOLEAN DEFAULT 0,
     is_active BOOLEAN DEFAULT 1,
+    shop_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Migrate taxes: ensure shop_id exists
+  db.all("PRAGMA table_info(taxes)", (err, columns) => {
+    if (!err && columns) {
+      const hasShopId = columns.some(col => col.name === 'shop_id');
+      if (!hasShopId) {
+        console.log('Adding shop_id column to taxes table...');
+        db.run("ALTER TABLE taxes ADD COLUMN shop_id INTEGER");
+      }
+    }
+  });
+  try {
+    if (db.type === 'postgres') {
+      db.run("ALTER TABLE taxes ADD COLUMN IF NOT EXISTS shop_id INTEGER");
+    }
+  } catch (e) {
+    console.log('Postgres migration (taxes.shop_id) note:', e?.message || e);
+  }
 
   // Bills table with enhanced fields
   db.run(`CREATE TABLE IF NOT EXISTS bills (
@@ -1186,6 +1241,40 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
     });
 });
 
+// ========= USER SETTINGS (per-user key/value, e.g., theme) =========
+app.get('/api/users/me/settings', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  db.all('SELECT key, value FROM user_settings WHERE user_id = ?', [userId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    const settings = {};
+    (rows || []).forEach(r => {
+      settings[r.key] = r.value;
+    });
+    res.json(settings);
+  });
+});
+
+app.put('/api/users/me/settings', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const entries = Object.entries(req.body || {});
+  if (!entries.length) return res.json({ message: 'No changes' });
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    for (const [key, value] of entries) {
+      db.run(
+        'INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP',
+        [userId, key, String(value)]
+      );
+    }
+    db.run('COMMIT', (err) => {
+      if (err) return res.status(500).json({ error: 'Database error' });
+      res.json({ message: 'Settings saved' });
+    });
+  });
+});
+
 app.get('/api/users', authenticateToken, authorize(['admin', 'manager', 'owner']), (req, res) => {
   db.all('SELECT id, username, email, role, first_name, last_name, phone, is_active, created_at, shop_id FROM users ORDER BY created_at DESC', 
     [], (err, users) => {
@@ -1409,9 +1498,11 @@ app.get('/api/tables', authenticateToken, (req, res) => {
     return res.json(cachedData);
   }
   
-  const whereClause = userShopId ? `WHERE shop_id = ${userShopId} OR shop_id IS NULL` : '';
+  const params = [];
+  const whereClause = userShopId ? `WHERE shop_id = ?` : '';
+  if (userShopId) params.push(userShopId);
   
-  db.all(`SELECT * FROM tables ${whereClause} ORDER BY table_number`, (err, rows) => {
+  db.all(`SELECT * FROM tables ${whereClause} ORDER BY table_number`, params, (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -1446,6 +1537,7 @@ app.post('/api/tables', authenticateToken, authorize(['admin', 'manager']), (req
 app.put('/api/tables/:id/status', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { status, current_order_id } = req.body;
+  const userShopId = req.user.shop_id;
   
   const updates = ['status = ?', 'updated_at = CURRENT_TIMESTAMP'];
   const values = [status];
@@ -1455,9 +1547,14 @@ app.put('/api/tables/:id/status', authenticateToken, (req, res) => {
     values.push(current_order_id);
   }
   
-  values.push(id);
+  if (userShopId) {
+    values.push(id, userShopId);
+  } else {
+    values.push(id);
+  }
   
-  db.run(`UPDATE tables SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
+  const guard = userShopId ? ' AND shop_id = ?' : '';
+  db.run(`UPDATE tables SET ${updates.join(', ')} WHERE id = ?${guard}`, values, function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -1520,9 +1617,12 @@ app.post('/api/tables/split', authenticateToken, authorize(['cashier', 'admin', 
 // Delete table
 app.delete('/api/tables/:id', authenticateToken, authorize(['admin', 'manager']), (req, res) => {
   const { id } = req.params;
+  const userShopId = req.user.shop_id;
   
   // Check if table has active orders
-  db.get('SELECT current_order_id FROM tables WHERE id = ?', [id], (err, table) => {
+  const params = userShopId ? [id, userShopId] : [id];
+  const guard = userShopId ? ' AND shop_id = ?' : '';
+  db.get(`SELECT current_order_id FROM tables WHERE id = ?${guard}`, params, (err, table) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -1531,7 +1631,7 @@ app.delete('/api/tables/:id', authenticateToken, authorize(['admin', 'manager'])
       return res.status(400).json({ error: 'Cannot delete table with active orders' });
     }
     
-    db.run('DELETE FROM tables WHERE id = ?', [id], function(err) {
+    db.run(`DELETE FROM tables WHERE id = ?${guard}`, params, function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -1550,7 +1650,7 @@ app.get('/api/categories', authenticateToken, (req, res) => {
   const params = [];
   let whereClause = 'WHERE is_active = true';
   if (userShopId) {
-    whereClause += ' AND (shop_id = ? OR shop_id IS NULL)';
+    whereClause += ' AND shop_id = ?';
     params.push(userShopId);
   }
   
@@ -2575,7 +2675,11 @@ app.get('/api/kitchen/orders', authenticateToken, authorize(['chef', 'cashier', 
   
 // Get all taxes
 app.get('/api/taxes', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM taxes WHERE is_active = true ORDER BY name', [], (err, rows) => {
+  const userShopId = req.user.shop_id;
+  const params = [];
+  let where = 'WHERE is_active = true';
+  if (userShopId) { where += ' AND shop_id = ?'; params.push(userShopId); }
+  db.all(`SELECT * FROM taxes ${where} ORDER BY name`, params, (err, rows) => {
       if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -2586,9 +2690,9 @@ app.get('/api/taxes', authenticateToken, (req, res) => {
 // Create tax
 app.post('/api/taxes', authenticateToken, authorize(['admin', 'manager']), (req, res) => {
   const { name, rate, is_inclusive } = req.body;
-  
-  db.run('INSERT INTO taxes (name, rate, is_inclusive) VALUES (?, ?, ?)',
-    [name, rate, is_inclusive || 0], function(err) {
+  const userShopId = req.user.shop_id || null;
+  db.run('INSERT INTO taxes (name, rate, is_inclusive, shop_id) VALUES (?, ?, ?, ?)',
+    [name, rate, is_inclusive || 0, userShopId], function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -2627,9 +2731,10 @@ app.put('/api/taxes/:id', authenticateToken, authorize(['admin', 'manager']), (r
     return res.status(400).json({ error: 'No valid fields to update' });
   }
   
-  values.push(id);
-  
-  db.run(`UPDATE taxes SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
+  const userShopId = req.user.shop_id;
+  if (userShopId) { values.push(id, userShopId); } else { values.push(id); }
+  const guard = userShopId ? ' AND shop_id = ?' : '';
+  db.run(`UPDATE taxes SET ${updates.join(', ')} WHERE id = ?${guard}`, values, function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -2644,7 +2749,10 @@ app.delete('/api/taxes/:id', authenticateToken, authorize(['admin', 'manager']),
   const { id } = req.params;
   
   // Get tax details for audit log
-  db.get('SELECT * FROM taxes WHERE id = ?', [id], (err, tax) => {
+  const userShopId = req.user.shop_id;
+  const selParams = userShopId ? [id, userShopId] : [id];
+  const guard = userShopId ? ' AND shop_id = ?' : '';
+  db.get(`SELECT * FROM taxes WHERE id = ?${guard}`, selParams, (err, tax) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -2653,7 +2761,8 @@ app.delete('/api/taxes/:id', authenticateToken, authorize(['admin', 'manager']),
       return res.status(404).json({ error: 'Tax not found' });
     }
     
-    db.run('DELETE FROM taxes WHERE id = ?', [id], function(err) {
+    const delParams = userShopId ? [id, userShopId] : [id];
+    db.run(`DELETE FROM taxes WHERE id = ?${guard}`, delParams, function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
