@@ -253,7 +253,7 @@ const OrderTakingComplete = () => {
       }
       
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/orders?status=pending', {
+      const response = await axios.get('/api/orders/pending', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPendingOrders(response.data);
@@ -558,31 +558,28 @@ const OrderTakingComplete = () => {
           const orderResponse = await axios.post('/api/orders', orderData, {
             headers: { Authorization: `Bearer ${token}` }
           });
-
-          // Create bill
-          billResponse = await axios.post('/api/bills', {
-            orderId: orderResponse.data.orderId,
-            payment_method: paymentMethod
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          try {
+            billResponse = await axios.post('/api/bills', {
+              orderId: orderResponse.data.orderId,
+              payment_method: paymentMethod
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (billErr) {
+            console.warn('Bill creation failed after paid order:', billErr);
+          }
 
           toast.success('Payment successful!');
-          // Refresh views
           fetchPendingOrders();
           fetchPaidBills();
           fetchTables();
           setView('menu');
-
-          // Clear cart
           setCart([]);
           setSelectedTable(null);
-        } catch (err) {
-          // If online request fails, treat as offline
-          console.log('Online request failed, switching to offline mode:', err);
+        } catch (orderErr) {
+          console.log('Order create failed, switching to offline mode:', orderErr);
           await queueOrderForSync(orderData);
           toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
-          
           const offlineOrder = {
             id: Date.now(),
             tableNumber,
@@ -640,7 +637,7 @@ const OrderTakingComplete = () => {
       });
       handlePrintBill(response.data);
     } catch (error) {
-      console.error('Error fetching bill:', error);
+      console.warn('Print skipped - bill not yet available:', error?.response?.status || error?.message);
     }
   };
 
@@ -1186,7 +1183,7 @@ const OrderTakingComplete = () => {
                       style={{ background: 'rgba(255,193,7,0.2)', border: '2px solid rgb(255,193,7)' }}
                       title="Hold order"
                     >
-                      <FiPause className="inline text-lg mr-2" /> Hold
+                      <FiPause className="inline text-lg" />
                     </button>
 
                     {kitchenSystemEnabled && (

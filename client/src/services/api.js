@@ -65,7 +65,8 @@ export const api = {
     if (useLocalAPI()) {
       return await localAPI.getPendingOrders();
     } else {
-      const response = await axios.get('/api/orders?status=pending');
+      // Use dedicated pending endpoint which filters by payment_status='pending'
+      const response = await axios.get('/api/orders/pending');
       return response.data;
     }
   },
