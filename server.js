@@ -4606,34 +4606,48 @@ app.post('/api/shops/:shopId/restore', authenticateToken, authorize(['admin', 'o
   const payload = req.body || {};
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
-    const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, display_order, is_active, shop_id, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)');
-    (payload.categories || []).forEach(c => insertCategory.run(c.name, c.display_order || 0, c.is_active ? 1 : 0, shopId));
-    insertCategory.finalize();
+    // categories
+    (payload.categories || []).forEach(c => {
+      db.run('INSERT INTO categories (name, display_order, is_active, shop_id, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        [c.name, c.display_order || 0, c.is_active ? 1 : 0, shopId], (e)=>{/* ignore dup errors */});
+    });
 
-    const insertTable = db.prepare('INSERT OR IGNORE INTO tables (table_number, capacity, location, shop_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, COALESCE(?, "Free"), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
-    (payload.tables || []).forEach(t => insertTable.run(t.table_number, t.capacity || 4, t.location || 'main', shopId, t.status));
-    insertTable.finalize();
+    // tables
+    (payload.tables || []).forEach(t => {
+      db.run('INSERT INTO tables (table_number, capacity, location, shop_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, COALESCE(?, "Free"), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        [t.table_number, t.capacity || 4, t.location || 'main', shopId, t.status || 'Free'], (e)=>{});
+    });
 
-    // taxes per-shop
-    const insertTax = db.prepare('INSERT OR IGNORE INTO taxes (name, rate, is_inclusive, is_active, shop_id, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)');
-    (payload.taxes || []).forEach(tx => insertTax.run(tx.name, tx.rate || 0, tx.is_inclusive ? 1 : 0, tx.is_active ? 1 : 0, shopId));
-    insertTax.finalize();
+    // taxes
+    (payload.taxes || []).forEach(tx => {
+      db.run('INSERT INTO taxes (name, rate, is_inclusive, is_active, shop_id, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        [tx.name, tx.rate || 0, tx.is_inclusive ? 1 : 0, tx.is_active ? 1 : 0, shopId], (e)=>{});
+    });
 
-    // menu items minimal fields; tolerate missing GST columns
-    const baseCols = MENU_GST_COLUMNS
-      ? '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, image_url, shop_id)'
-      : '(name, description, price, category, preparation_time, stock_quantity, tax_applicable, image_url, shop_id)';
-    const placeholders = MENU_GST_COLUMNS ? '(?,?,?,?,?,?,?,?,?,?,?)' : '(?,?,?,?,?,?,?,?,?)';
-    const sqlMenu = 'INSERT OR IGNORE INTO menu_items ' + baseCols + ' VALUES ' + placeholders;
-    const insertItem = db.prepare(sqlMenu);
+    // settings and shop_settings (optional)
+    (payload.settings || []).forEach(s => {
+      db.run('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)', [s.key, s.value], ()=>{});
+    });
+    (payload.shop_settings || []).forEach(s => {
+      db.run('INSERT OR REPLACE INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)', [shopId, s.key, s.value], (e)=>{});
+    });
+
+    // menu items
     (payload.menu_items || []).forEach(m => {
       if (MENU_GST_COLUMNS) {
-        insertItem.run(m.name, m.description || '', m.price || 0, m.category || '', m.preparation_time || 15, m.stock_quantity || 0, (m.tax_applicable !== false), (m.gst_applicable !== false), m.gst_rate || null, m.image_url || null, shopId);
+        db.run('INSERT INTO menu_items (name, description, price, category, preparation_time, stock_quantity, tax_applicable, gst_applicable, gst_rate, image_url, shop_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+          [m.name, m.description || '', m.price || 0, m.category || '', m.preparation_time || 15, m.stock_quantity || 0, (m.tax_applicable !== false), (m.gst_applicable !== false), m.gst_rate || null, m.image_url || null, shopId], (e)=>{});
       } else {
-        insertItem.run(m.name, m.description || '', m.price || 0, m.category || '', m.preparation_time || 15, m.stock_quantity || 0, (m.tax_applicable !== false), m.image_url || null, shopId);
+        db.run('INSERT INTO menu_items (name, description, price, category, preparation_time, stock_quantity, tax_applicable, image_url, shop_id) VALUES (?,?,?,?,?,?,?,?,?)',
+          [m.name, m.description || '', m.price || 0, m.category || '', m.preparation_time || 15, m.stock_quantity || 0, (m.tax_applicable !== false), m.image_url || null, shopId], (e)=>{});
       }
     });
-    insertItem.finalize();
+
+    // variants (after items)
+    (payload.menu_variants || []).forEach(v => {
+      db.run('INSERT INTO menu_variants (menu_item_id, name, price_adjustment) VALUES (?, ?, ?)',
+        [v.menu_item_id, v.name, v.price_adjustment || 0], (e)=>{});
+    });
 
     // Restore images if embedded
     try {
