@@ -253,7 +253,7 @@ const OrderTakingComplete = () => {
       }
       
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/orders?status=pending', {
+      const response = await axios.get('/api/orders/pending', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPendingOrders(response.data);
