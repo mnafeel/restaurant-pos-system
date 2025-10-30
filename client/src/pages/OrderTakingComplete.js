@@ -391,7 +391,7 @@ const OrderTakingComplete = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      toast.success('Order held successfully!', { icon: '⏸️' });
+      toast.success('Order put on hold!', { icon: '⏸️' });
       setCart([]);
       setSelectedTable(null);
       fetchPendingOrders();
@@ -567,12 +567,19 @@ const OrderTakingComplete = () => {
             headers: { Authorization: `Bearer ${token}` }
           });
 
-          toast.success('Payment completed!', { icon: '✅' });
+          toast.success('Payment successful!');
+          // Refresh views
+          fetchPendingOrders();
           fetchPaidBills();
           fetchTables();
-        } catch (onlineError) {
+          setView('paid');
+
+          // Clear cart
+          setCart([]);
+          setSelectedTable(null);
+        } catch (err) {
           // If online request fails, treat as offline
-          console.log('Online request failed, switching to offline mode:', onlineError);
+          console.log('Online request failed, switching to offline mode:', err);
           await queueOrderForSync(orderData);
           toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
           
@@ -1179,7 +1186,7 @@ const OrderTakingComplete = () => {
                       style={{ background: 'rgba(255,193,7,0.2)', border: '2px solid rgb(255,193,7)' }}
                       title="Hold order"
                     >
-                      <FiPause className="inline text-lg" />
+                      <FiPause className="inline text-lg mr-2" /> Hold
                     </button>
 
                     {kitchenSystemEnabled && (
