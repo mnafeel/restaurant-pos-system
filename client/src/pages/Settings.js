@@ -73,6 +73,8 @@ const Settings = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const apiBase = process.env.REACT_APP_API_URL || axios.defaults.baseURL || '';
+
   const handleSaveSettings = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -85,12 +87,12 @@ const Settings = () => {
           email: shopData.email || '',
           currency: shopData.currency || 'INR'
         };
-        await axios.put(`/api/shops/${user.shop_id}`, payload, {
+        await axios.put(`${apiBase}/api/shops/${user.shop_id}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
       // 2) Save feature toggles and other system settings
-      await axios.post('/api/settings/bulk', settings, {
+      await axios.post(`${apiBase}/api/settings/bulk`, settings, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
