@@ -2174,11 +2174,12 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
           });
         });
         // async branch will call continueCreate() when ready
+        return;
+      } else {
+        // No shop id → fallback
+        setAndContinue('SH', Math.floor(Math.random()*9000)+1000);
+        continueCreate();
       }
-      // No shop id → fallback
-      setAndContinue('SH', Math.floor(Math.random()*9000)+1000);
-      
-      continueCreate();
 
       function continueCreate() {
       
