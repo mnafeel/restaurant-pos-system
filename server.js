@@ -1,4 +1,5 @@
 // Fixed SQL quotes for PostgreSQL - Deploy v2
+console.log('BOOT: server.js loaded (force-redeploy marker v3)');
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -590,6 +591,12 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Order counters per shop (for human-friendly order numbers)
+  db.run(`CREATE TABLE IF NOT EXISTS order_counters (
+    shop_id INTEGER PRIMARY KEY,
+    last_number INTEGER DEFAULT 0
+  )`);
+
   // Reset requests table
   db.run(`CREATE TABLE IF NOT EXISTS reset_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -953,7 +960,6 @@ app.get('/api/debug/status', (req, res) => {
         deployment: 'Render',
         timestamp: new Date().toISOString()
       });
-    });
   });
 });
 
@@ -2127,7 +2133,7 @@ app.post('/api/menu/:id/variants', authenticateToken, authorize(['admin', 'manag
 app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manager', 'admin']), (req, res) => {
   const { tableNumber, items, customer_name, customer_phone, notes, order_type, payment_status } = req.body;
   const orderId = uuidv4();
-  const orderNumber = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  let orderNumber = 'ORD-' + Date.now();
   
   console.log('Order creation request:', {
     tableNumber, order_type, payment_status, 
@@ -2141,93 +2147,85 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
   }
   
   try {
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-      
-      let totalAmount = 0;
-      items.forEach(item => {
-        totalAmount += (item.price + (item.variant_price_adjustment || 0)) * item.quantity;
-      });
-    
-    // Create order
-      console.log('Creating order with data:', {
-        orderId, orderNumber, tableNumber, 
-        staffId: req.user.id, totalAmount, 
-        orderType: order_type || 'Dine-In', 
-        paymentStatus: payment_status || 'pending',
-        shopId: req.user.shop_id
-      });
-      
-      // Set kds_status based on payment_status
-      const kdsStatus = payment_status === 'paid' ? null : 'Pending';
-      
-      db.run('INSERT INTO orders (id, order_number, table_number, created_by, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-        [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', kdsStatus, req.user.shop_id], function(err) {
-      if (err) {
-          console.error('Error creating order:', err);
-          console.error('Order creation error details:', err.message, err.code);
-        db.run('ROLLBACK');
-          return res.status(500).json({ error: 'Failed to create order: ' + err.message });
-      }
+    const shopId = req.user.shop_id;
 
-    // Add order items
-        let completed = 0;
-        items.forEach((item) => {
-          const finalPrice = item.price + (item.variant_price_adjustment || 0);
-          db.run('INSERT INTO order_items (order_id, menu_item_id, variant_id, quantity, unit_price, price, special_instructions, kds_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [orderId, item.menu_item_id, item.variant_id || null, item.quantity, item.price, finalPrice, item.special_instructions || '', kdsStatus], (err) => {
+    const createOrderWithNumber = () => {
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        let totalAmount = 0;
+        items.forEach(item => {
+          totalAmount += (item.price + (item.variant_price_adjustment || 0)) * item.quantity;
+        });
+
+        const kdsStatus = payment_status === 'paid' ? null : 'Pending';
+        db.run('INSERT INTO orders (id, order_number, table_number, created_by, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', kdsStatus, req.user.shop_id], function(err) {
           if (err) {
-            console.error('Order item insert error:', err);
             db.run('ROLLBACK');
-                return res.status(500).json({ error: 'Failed to create order items: ' + err.message });
-              }
-              
-              completed++;
-              if (completed === items.length) {
-                // Update table status only for Dine-In orders
-                if (order_type === 'Dine-In' && tableNumber && tableNumber !== 'Takeaway') {
-                  db.run('UPDATE tables SET status = \'Occupied\', current_order_id = ?, updated_at = CURRENT_TIMESTAMP WHERE table_number = ?',
-                    [orderId, tableNumber], (err) => {
+            return res.status(500).json({ error: 'Failed to create order: ' + err.message });
+          }
+
+          let completed = 0;
+          items.forEach((item) => {
+            const finalPrice = item.price + (item.variant_price_adjustment || 0);
+            db.run('INSERT INTO order_items (order_id, menu_item_id, variant_id, quantity, unit_price, price, special_instructions, kds_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [orderId, item.menu_item_id, item.variant_id || null, item.quantity, item.price, finalPrice, item.special_instructions || '', kdsStatus], (err) => {
               if (err) {
                 db.run('ROLLBACK');
-                        return res.status(500).json({ error: err.message });
-                      }
-                      
-                      completeOrder();
-                    });
-                } else {
-                  completeOrder();
-                }
-                
-                function completeOrder() {
-              db.run('COMMIT', (err) => {
-                if (err) {
-                      return res.status(500).json({ error: err.message });
-                    }
-                    
+                return res.status(500).json({ error: 'Failed to create order items: ' + err.message });
+              }
+              completed++;
+              if (completed === items.length) {
+                const finalize = () => {
+                  db.run('COMMIT', (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
                     logAuditEvent(req.user.id, 'ORDER_CREATED', 'orders', orderId, null, { tableNumber, items }, req);
-                    
-                    // Do NOT automatically notify kitchen - only when "Send to Kitchen" button is clicked
-                    // Kitchen notification happens via PUT /api/orders/:id/status endpoint
-                    
                     if (order_type === 'Dine-In' && tableNumber && tableNumber !== 'Takeaway') {
                       io.emit('table-status-updated', { table_number: tableNumber, status: 'Occupied' });
                     }
-                    
-                    // Emit new order event for kitchen display
                     if (payment_status === 'pending') {
                       io.emit('new-order', { orderId, tableNumber, order_type });
                       io.to('kitchen').emit('new-order', { orderId, tableNumber, order_type });
                     }
-                    
                     res.json({ orderId, totalAmount, message: 'Order created successfully' });
                   });
+                };
+                if (order_type === 'Dine-In' && tableNumber && tableNumber !== 'Takeaway') {
+                  db.run("UPDATE tables SET status = 'Occupied', current_order_id = ?, updated_at = CURRENT_TIMESTAMP WHERE table_number = ?",
+                    [orderId, tableNumber], (err) => {
+                      if (err) return res.status(500).json({ error: err.message });
+                      finalize();
+                    });
+                } else {
+                  finalize();
                 }
               }
             });
+          });
         });
       });
-    });
+    };
+
+    if (shopId) {
+      db.get('SELECT name FROM shops WHERE id = ?', [shopId], (e1, shop) => {
+        const raw = (shop && shop.name) ? shop.name : 'Shop';
+        const letters = raw.replace(/[^A-Za-z]/g, '').toUpperCase();
+        const prefix = (letters.slice(0,2) || 'SH');
+        db.run('INSERT OR IGNORE INTO order_counters (shop_id, last_number) VALUES (?, 0)', [shopId], () => {
+          db.get('SELECT last_number FROM order_counters WHERE shop_id = ?', [shopId], (e2, row) => {
+            const next = (row?.last_number || 0) + 1;
+            db.run('UPDATE order_counters SET last_number = ? WHERE shop_id = ?', [next, shopId], () => {
+              orderNumber = `${prefix}${String(next).padStart(4, '0')}`;
+              createOrderWithNumber();
+            });
+          });
+        });
+      });
+    } else {
+      orderNumber = `SH${Math.floor(Math.random()*9000 + 1000)}`;
+      createOrderWithNumber();
+    }
   } catch (error) {
     console.error('Order creation catch error:', error);
     return res.status(500).json({ error: 'Order creation failed: ' + error.message });
@@ -2438,6 +2436,9 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
                   });
               }
               
+              // Mark order as billed/paid as a safety in this flow too
+              db.run("UPDATE orders SET status = 'Billed', payment_status = 'paid', kds_status = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [orderId]);
+
               // Emit realtime updates
               io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
               io.emit('order-paid', { orderId, payment_method, totalAmount });
@@ -2977,7 +2978,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               }
               
               // Update order and table status
-              db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId]);
+              db.run("UPDATE orders SET status = 'Billed', payment_status = 'paid', kds_status = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [orderId]);
               db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId]);
 
               // Emit realtime updates
@@ -5019,3 +5020,5 @@ server.listen(PORT, () => {
   console.log(`Owner: username=owner, password=owner123`);
   console.log(`\nNote: No shops or other users exist. Owner must create them manually.`);
 });
+
+// EOF marker to ensure Render parser sees complete file
