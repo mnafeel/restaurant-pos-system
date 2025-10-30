@@ -216,8 +216,11 @@ const OrderTakingComplete = () => {
       });
       setKitchenSystemEnabled(response.data.enable_kds === 'true');
       setTableManagementEnabled(response.data.enable_table_management === 'true');
-      setAutoPrintEnabled(response.data.auto_print_bill === 'true');
-    const defaultPayment = normalizePaymentMethod(response.data.default_payment_method || 'Cash');
+      // Global auto-print flag
+      const globalAutoPrint = String(response.data.auto_print_bill).toLowerCase() === 'true';
+      // Start with global as the base
+      let effectiveAutoPrint = globalAutoPrint;
+      const defaultPayment = normalizePaymentMethod(response.data.default_payment_method || 'Cash');
     setDefaultPaymentMethod(defaultPayment);
     setPaymentMethod(prev => prev || defaultPayment);
 
@@ -225,12 +228,15 @@ const OrderTakingComplete = () => {
       try {
         const me = await axios.get('/api/users/me/settings', { headers: { Authorization: `Bearer ${token}` } });
         if (me.data && Object.prototype.hasOwnProperty.call(me.data, 'auto_print_bill_user')) {
-          const val = String(me.data.auto_print_bill_user).toLowerCase() === 'true';
-          setAutoPrintEnabled(val);
+          const userAutoPrint = String(me.data.auto_print_bill_user).toLowerCase() === 'true';
+          // Business rule: Global OFF must force OFF even if user override is ON
+          // Only if global is ON, allow user override to change it
+          effectiveAutoPrint = globalAutoPrint ? userAutoPrint : false;
         }
       } catch (_) {
         // ignore per-user settings fetch errors
       }
+      setAutoPrintEnabled(effectiveAutoPrint);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
