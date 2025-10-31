@@ -1314,9 +1314,9 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 app.get('/api/users/me/settings', authenticateToken, (req, res) => {
   const userId = req.user.id;
   db.all('SELECT key, value FROM user_settings WHERE user_id = ?', [userId], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
     const settings = {};
     (rows || []).forEach(r => {
       settings[r.key] = r.value;
@@ -2967,7 +2967,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           let taxWhere = 'WHERE is_active = true';
           if (shopId) { taxWhere += ' AND shop_id = ?'; taxParams.push(shopId); }
           db.all(`SELECT * FROM taxes ${taxWhere}`, taxParams, (err, taxes) => {
-            if (err) {
+        if (err) {
               return res.status(500).json({ error: err.message });
             }
 
@@ -2996,25 +2996,26 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               }
             }
 
-            // Table taxes (apply non-GST always; apply GST rows only if enabled and no item-wise GST was used)
-            taxes.forEach(tax => {
-              if (tax.is_inclusive) return;
-              const isGST = typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst');
-              if (isGST && !gstEnabled) return; // skip GST entirely if disabled
-              // If item-wise GST already applied, skip GST table rows to avoid double tax
-              if (isGST && gstSplit) return;
+            // Table taxes - only apply if GST/tax is enabled in settings
+            if (gstEnabled) {
+              taxes.forEach(tax => {
+                if (tax.is_inclusive) return;
+                const isGST = typeof tax.name === 'string' && tax.name.toLowerCase().includes('gst');
+                // If item-wise GST already applied, skip GST table rows to avoid double tax
+                if (isGST && gstSplit) return;
 
-              const rateNum = Number(tax.rate);
-              const rate = Number.isFinite(rateNum) ? rateNum : 0;
-              if (rate <= 0) return;
-              const baseAmount = (afterDiscount + serviceCharge);
-              const thisTax = (baseAmount * rate) / 100;
-              taxAmount += thisTax;
-              if (isGST) {
-                const half = +(thisTax / 2).toFixed(2);
-                gstSplit = { type: 'GST', rate: tax.rate, base_amount: +baseAmount.toFixed(2), cgst: half, sgst: half };
-              }
-            });
+                const rateNum = Number(tax.rate);
+                const rate = Number.isFinite(rateNum) ? rateNum : 0;
+                if (rate <= 0) return;
+                const baseAmount = (afterDiscount + serviceCharge);
+                const thisTax = (baseAmount * rate) / 100;
+                taxAmount += thisTax;
+                if (isGST) {
+                  const half = +(thisTax / 2).toFixed(2);
+                  gstSplit = { type: 'GST', rate: tax.rate, base_amount: +baseAmount.toFixed(2), cgst: half, sgst: half };
+                }
+              });
+            }
 
             const beforeRounding = afterDiscount + serviceCharge + taxAmount;
           const roundOff = Math.round(beforeRounding) - beforeRounding;
