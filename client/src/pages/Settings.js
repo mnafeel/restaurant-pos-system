@@ -76,6 +76,31 @@ const Settings = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  // Auto-save for critical toggles like auto_print_bill
+  const handleToggleAutoPrint = async () => {
+    const newValue = (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true';
+    handleUpdateSetting('auto_print_bill', newValue);
+    
+    // Immediately save to backend
+    try {
+      const token = localStorage.getItem('token');
+      const apiBase = process.env.REACT_APP_API_URL || axios.defaults.baseURL || '';
+      await axios.post(`${apiBase}/api/settings/bulk`, { 
+        ...settings, 
+        auto_print_bill: newValue 
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(`Auto-print ${newValue === 'true' ? 'enabled' : 'disabled'}`);
+      console.log('✅ Auto-print setting saved:', newValue);
+    } catch (error) {
+      console.error('Error saving auto-print setting:', error);
+      toast.error('Failed to save auto-print setting');
+      // Revert on error
+      handleUpdateSetting('auto_print_bill', settings.auto_print_bill || 'false');
+    }
+  };
+
   const apiBase = process.env.REACT_APP_API_URL || axios.defaults.baseURL || '';
 
   const handleSaveSettings = async () => {
@@ -737,7 +762,7 @@ const Settings = () => {
               </div>
               <button
                 type="button"
-                onClick={() => handleUpdateSetting('auto_print_bill', (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true')}
+                onClick={handleToggleAutoPrint}
                 aria-pressed={(settings.auto_print_bill || 'false') === 'true'}
                 className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
                 title={(settings.auto_print_bill || 'false') === 'true' ? 'Turn off auto-print' : 'Turn on auto-print'}
