@@ -2057,7 +2057,9 @@ app.put('/api/menu/:id', authenticateToken, authorize(['admin', 'manager']), upl
   }
   if (is_available !== undefined) {
     updates.push('is_available = ?');
-    values.push(is_available);
+    // Normalize: convert boolean true/false, string '1'/'0', or number 1/0 to 1/0
+    const normalized = (is_available === true || is_available === 1 || is_available === '1') ? 1 : 0;
+    values.push(normalized);
   }
   if (stock_quantity !== undefined) {
     updates.push('stock_quantity = ?');
