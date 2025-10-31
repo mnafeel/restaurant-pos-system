@@ -183,17 +183,27 @@ const MenuManager = () => {
   const toggleAvailability = async (item) => {
     try {
       const token = localStorage.getItem('token');
+      // Handle both boolean and numeric values
+      const currentStatus = item.is_available === true || item.is_available === 1 || item.is_available === '1';
+      const newStatus = currentStatus ? 0 : 1;
+      
+      console.log('Toggling availability:', { itemId: item.id, currentStatus, newStatus, raw: item.is_available });
+      
       await axios.put(`/api/menu/${item.id}`, {
-        is_available: item.is_available ? 0 : 1
+        is_available: newStatus
       }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-      toast.success(item.is_available ? 'Item marked as out of stock' : 'Item marked as available');
+      toast.success(currentStatus ? 'Item marked as out of stock' : 'Item marked as available');
       fetchMenuItems();
     } catch (error) {
       console.error('Error toggling availability:', error);
-      toast.error('Failed to update availability');
+      console.error('Error response:', error.response?.data);
+      toast.error('Failed to update availability: ' + (error.response?.data?.error || error.message));
     }
   };
 
