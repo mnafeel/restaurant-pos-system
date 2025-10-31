@@ -206,7 +206,7 @@ const MenuManager = () => {
     try {
       const token = localStorage.getItem('token');
       
-      await axios.put(`/api/menu/${item.id}`, {
+      const response = await axios.put(`/api/menu/${item.id}`, {
         is_available: newStatus
       }, {
         headers: { 
@@ -216,8 +216,16 @@ const MenuManager = () => {
       });
 
       toast.success(currentStatus ? 'Item marked as out of stock' : 'Item marked as available');
-      // Refresh in background to ensure sync (non-blocking)
-      fetchMenuItems();
+      
+      // Update state from server response (don't refresh all items to avoid race conditions)
+      // The optimistic update already set it correctly, but ensure it matches server
+      setMenuItems(prevItems => 
+        prevItems.map(prevItem => 
+          prevItem.id === item.id 
+            ? { ...prevItem, is_available: newStatus }
+            : prevItem
+        )
+      );
     } catch (error) {
       console.error('Error toggling availability:', error);
       console.error('Error response:', error.response?.data);
