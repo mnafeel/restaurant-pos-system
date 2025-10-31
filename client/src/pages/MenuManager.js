@@ -181,12 +181,21 @@ const MenuManager = () => {
   };
 
   const toggleAvailability = async (item) => {
+    // Optimistically update UI immediately for instant feedback
+    const currentStatus = item.is_available === true || item.is_available === 1 || item.is_available === '1';
+    const newStatus = currentStatus ? 0 : 1;
+    
+    // Update local state immediately
+    setMenuItems(prevItems => 
+      prevItems.map(prevItem => 
+        prevItem.id === item.id 
+          ? { ...prevItem, is_available: newStatus }
+          : prevItem
+      )
+    );
+    
     try {
       const token = localStorage.getItem('token');
-      // Handle both boolean and numeric values
-      const currentStatus = item.is_available === true || item.is_available === 1 || item.is_available === '1';
-      const newStatus = currentStatus ? 0 : 1;
-      
       console.log('Toggling availability:', { itemId: item.id, currentStatus, newStatus, raw: item.is_available });
       
       await axios.put(`/api/menu/${item.id}`, {
@@ -199,10 +208,21 @@ const MenuManager = () => {
       });
 
       toast.success(currentStatus ? 'Item marked as out of stock' : 'Item marked as available');
+      // Refresh in background to ensure sync (non-blocking)
       fetchMenuItems();
     } catch (error) {
       console.error('Error toggling availability:', error);
       console.error('Error response:', error.response?.data);
+      
+      // Revert optimistic update on error
+      setMenuItems(prevItems => 
+        prevItems.map(prevItem => 
+          prevItem.id === item.id 
+            ? { ...prevItem, is_available: currentStatus ? 1 : 0 }
+            : prevItem
+        )
+      );
+      
       toast.error('Failed to update availability: ' + (error.response?.data?.error || error.message));
     }
   };
