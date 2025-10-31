@@ -16,6 +16,15 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
+  // Set axios default token immediately if token exists in localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+      console.log('Token restored from localStorage');
+    }
+  }, []);
+
   // Setup axios interceptors for better error handling
   useEffect(() => {
     // Request interceptor - add token to all requests
@@ -32,17 +41,24 @@ export const AuthProvider = ({ children }) => {
       }
     );
 
-    // Response interceptor - handle 401 errors
+    // Response interceptor - handle 401/403 auth errors
     const responseInterceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
+        // Handle both 401 Unauthorized and 403 Forbidden (invalid/expired token)
+        if (error.response?.status === 401 || error.response?.status === 403) {
           // Only clear auth if we're not on the login endpoint
           if (!error.config.url?.includes('/api/auth/login')) {
-            console.log('Unauthorized - clearing auth');
-            localStorage.removeItem('token');
-            setToken(null);
-            setUser(null);
+            const errorMsg = error.response?.data?.error || '';
+            if (errorMsg.includes('token') || errorMsg.includes('Token') || errorMsg.includes('Invalid')) {
+              console.log('Token invalid/expired - clearing auth');
+              localStorage.removeItem('token');
+              localStorage.removeItem('cached_user');
+              delete axios.defaults.headers.common['Authorization'];
+              setToken(null);
+              setUser(null);
+              // Don't redirect automatically - let components handle it
+            }
           }
         }
         return Promise.reject(error);
