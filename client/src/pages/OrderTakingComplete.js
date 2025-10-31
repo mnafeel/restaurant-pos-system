@@ -216,25 +216,46 @@ const OrderTakingComplete = () => {
       });
       setKitchenSystemEnabled(response.data.enable_kds === 'true');
       setTableManagementEnabled(response.data.enable_table_management === 'true');
-      const globalAutoPrint = String(response.data.auto_print_bill).toLowerCase() === 'true';
+      
+      // Carefully parse auto_print_bill - only 'true' (string) should enable it
+      // Treat undefined, null, '', 'false', or any other value as OFF
+      const autoPrintValue = response.data.auto_print_bill;
+      console.log('🔧 Auto-print setting received:', { raw: autoPrintValue, type: typeof autoPrintValue });
+      const globalAutoPrint = (autoPrintValue !== undefined && 
+                                autoPrintValue !== null && 
+                                String(autoPrintValue).trim() !== '' && 
+                                String(autoPrintValue).toLowerCase() === 'true');
+      console.log('🔧 Auto-print parsed result:', globalAutoPrint);
       setAutoPrintEnabled(globalAutoPrint);
-    const defaultPayment = normalizePaymentMethod(response.data.default_payment_method || 'Cash');
-    setDefaultPaymentMethod(defaultPayment);
-    setPaymentMethod(prev => prev || defaultPayment);
+      
+      const defaultPayment = normalizePaymentMethod(response.data.default_payment_method || 'Cash');
+      setDefaultPaymentMethod(defaultPayment);
+      setPaymentMethod(prev => prev || defaultPayment);
 
-      // Per-user override for auto print
-      try {
-        const me = await axios.get('/api/users/me/settings', { headers: { Authorization: `Bearer ${token}` } });
-        if (me.data && Object.prototype.hasOwnProperty.call(me.data, 'auto_print_bill_user')) {
-          const userAuto = String(me.data.auto_print_bill_user).toLowerCase() === 'true';
-          // Respect global OFF strictly; only allow user override if global is ON
-          setAutoPrintEnabled(prev => prev ? userAuto : false);
+      // Per-user override for auto print - ONLY if global is ON
+      // If global is OFF, user override cannot enable it
+      if (globalAutoPrint) {
+        try {
+          const me = await axios.get('/api/users/me/settings', { headers: { Authorization: `Bearer ${token}` } });
+          if (me.data && Object.prototype.hasOwnProperty.call(me.data, 'auto_print_bill_user')) {
+            const userAutoValue = me.data.auto_print_bill_user;
+            const userAuto = (userAutoValue !== undefined && 
+                              userAutoValue !== null && 
+                              String(userAutoValue).trim() !== '' && 
+                              String(userAutoValue).toLowerCase() === 'true');
+            setAutoPrintEnabled(userAuto);
+          }
+        } catch (_) {
+          // ignore per-user settings fetch errors - keep global setting
         }
-      } catch (_) {
-        // ignore per-user settings fetch errors
+      } else {
+        // Global is OFF - ensure auto-print stays OFF regardless of user setting
+        setAutoPrintEnabled(false);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
+      // On error, default to OFF (safe default)
+      setAutoPrintEnabled(false);
     } finally {
       setIsLoadingSettings(false);
     }
