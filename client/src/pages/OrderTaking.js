@@ -213,25 +213,38 @@ const OrderTaking = () => {
   };
 
   const addToCart = (item) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id);
+    // Ensure price is a number
+    const itemPrice = parseFloat(item.price) || 0;
+    const variantAdjustment = parseFloat(item.variant_price_adjustment) || 0;
+    
+    const existingItem = cart.find(cartItem => 
+      cartItem.id === item.id && 
+      (cartItem.variant_price_adjustment || 0) === variantAdjustment
+    );
     
     if (existingItem) {
       setCart(cart.map(cartItem =>
-        cartItem.id === item.id
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
+        cartItem.id === item.id && (cartItem.variant_price_adjustment || 0) === variantAdjustment
+          ? { ...cartItem, quantity: parseInt(cartItem.quantity) + 1 }
           : cartItem
       ));
     } else {
-      setCart([...cart, { ...item, quantity: 1, variant_price_adjustment: 0 }]);
+      setCart([...cart, { 
+        ...item, 
+        price: itemPrice,
+        quantity: 1, 
+        variant_price_adjustment: variantAdjustment 
+      }]);
     }
   };
 
   const updateQuantity = (itemId, newQuantity) => {
-    if (newQuantity === 0) {
+    const quantity = parseInt(newQuantity) || 0;
+    if (quantity === 0) {
       setCart(cart.filter(item => item.id !== itemId));
     } else {
       setCart(cart.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
+        item.id === itemId ? { ...item, quantity: quantity } : item
       ));
     }
   };
@@ -241,9 +254,12 @@ const OrderTaking = () => {
   };
 
   const calculateTotal = () => {
-    return cart.reduce((total, item) => 
-      total + ((item.price + (item.variant_price_adjustment || 0)) * item.quantity), 0
-    );
+    return cart.reduce((total, item) => {
+      const price = parseFloat(item.price) || 0;
+      const variantAdjustment = parseFloat(item.variant_price_adjustment) || 0;
+      const quantity = parseInt(item.quantity) || 0;
+      return total + ((price + variantAdjustment) * quantity);
+    }, 0);
   };
 
   const handleSendToKitchen = async () => {
