@@ -23,11 +23,14 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    fetchSettings();
-    fetchTaxes();
-    if (user?.shop_id) {
-      fetchShopData();
+    if (user) {
+      fetchSettings();
+      fetchTaxes();
+      if (user?.shop_id) {
+        fetchShopData();
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchSettings = async () => {
@@ -716,33 +719,34 @@ const Settings = () => {
             Printer Configuration
           </h2>
           
-          {/* Auto-Print Setting - Prominent */}
+          {/* Auto-Print Setting - Prominent (Toggle) */}
           <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
-            <label className="flex items-start cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.auto_print_bill === 'true'}
-                onChange={(e) => handleUpdateSetting('auto_print_bill', e.target.checked ? 'true' : 'false')}
-                className="mr-3 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
-              />
-              <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <div className="mr-4">
                 <span className="text-lg font-bold text-gray-900 block mb-1">
                   🖨️ Auto-Print Bills After Payment
                 </span>
                 <p className="text-sm text-gray-700">
                   <strong>ON:</strong> Bills automatically print after payment (no popup). 
-                  <strong>OFF:</strong> Bills don't print (no popup, silent).
-                </p>
-                <p className="text-xs text-gray-600 mt-1">
-                  Simple toggle - when OFF, nothing happens. When ON, direct to printer. No alerts either way.
+                  <strong>OFF:</strong> Bills don't print.
                 </p>
                 <div className="mt-2 flex gap-4 text-xs">
                   <span className="px-2 py-1 bg-green-100 text-green-700 rounded">⚡ Faster checkout</span>
                   <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">🏃 Busy hours</span>
-                  <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">⏱️ Saves 5s/order</span>
                 </div>
               </div>
-            </label>
+              <button
+                type="button"
+                onClick={() => handleUpdateSetting('auto_print_bill', (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true')}
+                aria-pressed={(settings.auto_print_bill || 'false') === 'true'}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
+                title={(settings.auto_print_bill || 'false') === 'true' ? 'Turn off auto-print' : 'Turn on auto-print'}
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'translate-x-7' : 'translate-x-1'}`}
+                />
+              </button>
+            </div>
           </div>
           
           <h3 className="text-lg font-semibold mb-4 text-gray-700">Printer Hardware Settings</h3>
@@ -790,16 +794,18 @@ const Settings = () => {
               </>
             )}
 
-            <div className="md:col-span-2">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={settings.auto_print_bill === 'true'}
-                  onChange={(e) => handleUpdateSetting('auto_print_bill', e.target.checked ? 'true' : 'false')}
-                  className="mr-2"
+            <div className="md:col-span-2 flex items-center justify-between py-2">
+              <span className="text-sm font-medium text-gray-700">Auto-print bills on generation</span>
+              <button
+                type="button"
+                onClick={() => handleUpdateSetting('auto_print_bill', (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true')}
+                aria-pressed={(settings.auto_print_bill || 'false') === 'true'}
+                className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'translate-x-7' : 'translate-x-1'}`}
                 />
-                Auto-print bills on generation
-              </label>
+              </button>
             </div>
           </div>
         </div>
