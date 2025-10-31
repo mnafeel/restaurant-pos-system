@@ -1860,13 +1860,24 @@ app.get('/api/shops/:shopId/menu', authenticateToken, authorize(['owner']), (req
       return res.status(500).json({ error: err.message });
     }
     
-    const items = rows.map(item => ({
-      ...item,
-      variants: item.variants ? item.variants.split(',').map(v => {
-        const [id, name, price_adjustment] = v.split(':');
-        return { id: parseInt(id), name, price_adjustment: parseFloat(price_adjustment) };
-      }) : []
-    }));
+    // Normalize is_available to always return 1 or 0
+    const items = rows.map(item => {
+      let isAvailable = item.is_available;
+      if (isAvailable === true || isAvailable === 'true' || isAvailable === 1 || isAvailable === '1') {
+        isAvailable = 1;
+      } else {
+        isAvailable = 0;
+      }
+      
+      return {
+        ...item,
+        is_available: isAvailable, // Always return as 1 or 0
+        variants: item.variants ? item.variants.split(',').map(v => {
+          const [id, name, price_adjustment] = v.split(':');
+          return { id: parseInt(id), name, price_adjustment: parseFloat(price_adjustment) };
+        }) : []
+      };
+    });
     
     res.json(items);
   });
@@ -1966,14 +1977,25 @@ app.get('/api/menu', authenticateToken, (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     
-    // Parse variants
-    const items = rows.map(item => ({
-      ...item,
-      variants: item.variants ? item.variants.split(',').map(v => {
-        const [id, name, price_adjustment] = v.split(':');
-        return { id: parseInt(id), name, price_adjustment: parseFloat(price_adjustment) };
-      }) : []
-    }));
+    // Parse variants and normalize is_available
+    const items = rows.map(item => {
+      // Normalize is_available: ensure it's always 1 or 0 (not boolean true/false)
+      let isAvailable = item.is_available;
+      if (isAvailable === true || isAvailable === 'true' || isAvailable === 1 || isAvailable === '1') {
+        isAvailable = 1;
+      } else {
+        isAvailable = 0;
+      }
+      
+      return {
+        ...item,
+        is_available: isAvailable, // Always return as 1 or 0
+        variants: item.variants ? item.variants.split(',').map(v => {
+          const [id, name, price_adjustment] = v.split(':');
+          return { id: parseInt(id), name, price_adjustment: parseFloat(price_adjustment) };
+        }) : []
+      };
+    });
     
     // Cache the result
     setCachedData(cacheKey, items);
@@ -2099,6 +2121,13 @@ app.put('/api/menu/:id', authenticateToken, authorize(['admin', 'manager']), upl
     if (err) {
       return res.status(500).json({ error: err.message });
     }
+    
+    // Invalidate menu cache when item is updated
+    Object.keys(cache).forEach(key => {
+      if (key.startsWith('menu_')) {
+        delete cache[key];
+      }
+    });
     
     logAuditEvent(req.user.id, 'MENU_ITEM_UPDATED', 'menu_items', id, null, req.body, req);
     res.json({ message: 'Menu item updated successfully' });
