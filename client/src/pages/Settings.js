@@ -81,21 +81,24 @@ const Settings = () => {
     const newValue = (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true';
     handleUpdateSetting('auto_print_bill', newValue);
     
-    // Immediately save to backend
+    // Immediately save to backend using single-setting PUT endpoint
     try {
       const token = localStorage.getItem('token');
       const apiBase = process.env.REACT_APP_API_URL || axios.defaults.baseURL || '';
-      await axios.post(`${apiBase}/api/settings/bulk`, { 
-        ...settings, 
-        auto_print_bill: newValue 
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await axios.put(`${apiBase}/api/settings/auto_print_bill`, 
+        { value: newValue },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
       toast.success(`Auto-print ${newValue === 'true' ? 'enabled' : 'disabled'}`);
-      console.log('✅ Auto-print setting saved:', newValue);
+      console.log('✅ Auto-print setting saved:', newValue, response.data);
     } catch (error) {
       console.error('Error saving auto-print setting:', error);
-      toast.error('Failed to save auto-print setting');
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to save';
+      toast.error(`Failed to save: ${errorMsg}`);
       // Revert on error
       handleUpdateSetting('auto_print_bill', settings.auto_print_bill || 'false');
     }
