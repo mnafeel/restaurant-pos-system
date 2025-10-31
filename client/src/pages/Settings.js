@@ -23,11 +23,14 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    fetchSettings();
-    fetchTaxes();
-    if (user?.shop_id) {
-      fetchShopData();
+    if (user) {
+      fetchSettings();
+      fetchTaxes();
+      if (user?.shop_id) {
+        fetchShopData();
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchSettings = async () => {
@@ -734,13 +737,13 @@ const Settings = () => {
               </div>
               <button
                 type="button"
-                onClick={() => handleUpdateSetting('auto_print_bill', settings.auto_print_bill === 'true' ? 'false' : 'true')}
-                aria-pressed={settings.auto_print_bill === 'true'}
-                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200 ${settings.auto_print_bill === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
-                title={settings.auto_print_bill === 'true' ? 'Turn off auto-print' : 'Turn on auto-print'}
+                onClick={() => handleUpdateSetting('auto_print_bill', (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true')}
+                aria-pressed={(settings.auto_print_bill || 'false') === 'true'}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
+                title={(settings.auto_print_bill || 'false') === 'true' ? 'Turn off auto-print' : 'Turn on auto-print'}
               >
                 <span
-                  className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200 ${settings.auto_print_bill === 'true' ? 'translate-x-7' : 'translate-x-1'}`}
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'translate-x-7' : 'translate-x-1'}`}
                 />
               </button>
             </div>
@@ -795,12 +798,12 @@ const Settings = () => {
               <span className="text-sm font-medium text-gray-700">Auto-print bills on generation</span>
               <button
                 type="button"
-                onClick={() => handleUpdateSetting('auto_print_bill', settings.auto_print_bill === 'true' ? 'false' : 'true')}
-                aria-pressed={settings.auto_print_bill === 'true'}
-                className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-200 ${settings.auto_print_bill === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
+                onClick={() => handleUpdateSetting('auto_print_bill', (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true')}
+                aria-pressed={(settings.auto_print_bill || 'false') === 'true'}
+                className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
               >
                 <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${settings.auto_print_bill === 'true' ? 'translate-x-7' : 'translate-x-1'}`}
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'translate-x-7' : 'translate-x-1'}`}
                 />
               </button>
             </div>
