@@ -563,6 +563,29 @@ db.serialize(() => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Shop settings table (shop-specific overrides)
+  if (db.type === 'postgres') {
+    db.run(`CREATE TABLE IF NOT EXISTS shop_settings (
+      id SERIAL PRIMARY KEY,
+      shop_id INTEGER NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(shop_id, key),
+      FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+    )`);
+  } else {
+    db.run(`CREATE TABLE IF NOT EXISTS shop_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shop_id INTEGER NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(shop_id, key),
+      FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+    )`);
+  }
+
   // Audit logs table
   db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -4433,12 +4456,60 @@ app.put('/api/settings/:key', authenticateToken, authorize(['admin', 'manager'])
   const userShopId = req.user.shop_id;
   
   if (userShopId) {
-    // Shop-specific override
+    // Shop-specific override - create table if it doesn't exist
+    const createTableIfNeeded = () => {
+      if (db.type === 'postgres') {
+        db.run(`CREATE TABLE IF NOT EXISTS shop_settings (
+          id SERIAL PRIMARY KEY,
+          shop_id INTEGER NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(shop_id, key),
+          FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+        )`, (err) => {
+          if (err && !String(err.message || '').includes('already exists')) {
+            console.warn('Note creating shop_settings:', err?.message);
+          }
+        });
+      } else {
+        db.run(`CREATE TABLE IF NOT EXISTS shop_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          shop_id INTEGER NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(shop_id, key),
+          FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+        )`, (err) => {
+          if (err) console.warn('Note creating shop_settings:', err?.message);
+        });
+      }
+    };
+    
     const upsert = db.type === 'postgres'
       ? 'INSERT INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT (shop_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP'
       : 'INSERT OR REPLACE INTO shop_settings (shop_id, key, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)';
+    
     db.run(upsert, [userShopId, key, value], function(err) {
       if (err) {
+        const errMsg = String(err.message || '');
+        // If table doesn't exist, create it and retry
+        if (errMsg.includes('does not exist') || errMsg.includes('no such table')) {
+          console.log('Creating shop_settings table...');
+          createTableIfNeeded();
+          // Retry after a brief delay
+          setTimeout(() => {
+            db.run(upsert, [userShopId, key, value], function(retryErr) {
+              if (retryErr) {
+                return res.status(500).json({ error: 'Failed to save setting: ' + retryErr.message });
+              }
+              logAuditEvent(req.user.id, 'SHOP_SETTING_UPDATED', 'shop_settings', key, null, { key, value, shop_id: userShopId }, req);
+              return res.json({ message: 'Shop setting updated successfully' });
+            });
+          }, 100);
+          return;
+        }
         return res.status(500).json({ error: err.message });
       }
       logAuditEvent(req.user.id, 'SHOP_SETTING_UPDATED', 'shop_settings', key, null, { key, value, shop_id: userShopId }, req);
