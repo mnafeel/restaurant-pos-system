@@ -793,20 +793,6 @@ const Settings = () => {
                 </div>
               </>
             )}
-
-            <div className="md:col-span-2 flex items-center justify-between py-2">
-              <span className="text-sm font-medium text-gray-700">Auto-print bills on generation</span>
-              <button
-                type="button"
-                onClick={() => handleUpdateSetting('auto_print_bill', (settings.auto_print_bill || 'false') === 'true' ? 'false' : 'true')}
-                aria-pressed={(settings.auto_print_bill || 'false') === 'true'}
-                className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'bg-green-500' : 'bg-gray-300'}`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${(settings.auto_print_bill || 'false') === 'true' ? 'translate-x-7' : 'translate-x-1'}`}
-                />
-              </button>
-            </div>
           </div>
         </div>
       )}
