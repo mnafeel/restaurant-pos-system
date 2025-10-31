@@ -181,11 +181,20 @@ const MenuManager = () => {
   };
 
   const toggleAvailability = async (item) => {
-    // Optimistically update UI immediately for instant feedback
-    const currentStatus = item.is_available === true || item.is_available === 1 || item.is_available === '1';
+    // Find current item in state to get most up-to-date value
+    const currentItem = menuItems.find(i => i.id === item.id) || item;
+    const currentStatus = currentItem.is_available === true || currentItem.is_available === 1 || currentItem.is_available === '1';
     const newStatus = currentStatus ? 0 : 1;
     
-    // Update local state immediately
+    console.log('Toggling availability:', { 
+      itemId: item.id, 
+      currentStatus, 
+      newStatus, 
+      raw: currentItem.is_available,
+      fromState: currentItem.is_available 
+    });
+    
+    // Update local state immediately for instant feedback
     setMenuItems(prevItems => 
       prevItems.map(prevItem => 
         prevItem.id === item.id 
@@ -196,7 +205,6 @@ const MenuManager = () => {
     
     try {
       const token = localStorage.getItem('token');
-      console.log('Toggling availability:', { itemId: item.id, currentStatus, newStatus, raw: item.is_available });
       
       await axios.put(`/api/menu/${item.id}`, {
         is_available: newStatus
@@ -214,7 +222,7 @@ const MenuManager = () => {
       console.error('Error toggling availability:', error);
       console.error('Error response:', error.response?.data);
       
-      // Revert optimistic update on error
+      // Revert optimistic update on error - restore original status
       setMenuItems(prevItems => 
         prevItems.map(prevItem => 
           prevItem.id === item.id 
@@ -510,15 +518,18 @@ const MenuManager = () => {
               )}
               
               <div className="absolute top-2 right-2">
-                {item.is_available ? (
-                  <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                    Available
-                  </span>
-                ) : (
-                  <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                    Out of Stock
-                  </span>
-                )}
+                {(() => {
+                  const isAvailable = item.is_available === true || item.is_available === 1 || item.is_available === '1';
+                  return isAvailable ? (
+                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                      Available
+                    </span>
+                  ) : (
+                    <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                      Out of Stock
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 
@@ -545,24 +556,34 @@ const MenuManager = () => {
               <div className="mb-3 pb-3 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-gray-700">Availability</span>
-                  <button
-                    onClick={() => toggleAvailability(item)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                      item.is_available 
-                        ? 'bg-green-500 focus:ring-green-500' 
-                        : 'bg-gray-300 focus:ring-gray-400'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        item.is_available ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
+                  {(() => {
+                    const isAvailable = item.is_available === true || item.is_available === 1 || item.is_available === '1';
+                    return (
+                      <button
+                        onClick={() => toggleAvailability(item)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                          isAvailable 
+                            ? 'bg-green-500 focus:ring-green-500' 
+                            : 'bg-gray-300 focus:ring-gray-400'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            isAvailable ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })()}
                 </div>
-                <span className={`text-xs font-medium ${item.is_available ? 'text-green-600' : 'text-gray-500'}`}>
-                  {item.is_available ? '● In Stock' : '● Out of Stock'}
-                </span>
+                {(() => {
+                  const isAvailable = item.is_available === true || item.is_available === 1 || item.is_available === '1';
+                  return (
+                    <span className={`text-xs font-medium ${isAvailable ? 'text-green-600' : 'text-gray-500'}`}>
+                      {isAvailable ? '● In Stock' : '● Out of Stock'}
+                    </span>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
