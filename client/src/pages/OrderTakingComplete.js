@@ -312,38 +312,14 @@ const OrderTakingComplete = () => {
 
   const fetchPaidBills = async () => {
     try {
-      if (!navigator.onLine) {
-        // Use cached paid bills when offline
-        const cachedBills = await getCachedPaidBills();
-        if (cachedBills && cachedBills.length > 0) {
-          setPaidBills(cachedBills);
-          console.log('Using cached paid bills:', cachedBills.length);
-          return;
-        }
-      }
-      
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/bills?filter=today', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setPaidBills(response.data);
-      
-      // Cache paid bills for offline use
-      await cachePaidBills(response.data);
+      setPaidBills(response.data || []);
     } catch (error) {
       console.error('Error fetching paid bills:', error);
-      
-      // Try to use cached bills as fallback
-      try {
-        const cachedBills = await getCachedPaidBills();
-        if (cachedBills && cachedBills.length > 0) {
-          setPaidBills(cachedBills);
-          console.log('Using cached paid bills as fallback:', cachedBills.length);
-          toast.info('Showing cached bills - some may be outdated');
-        }
-      } catch (cacheError) {
-        console.error('Error loading cached paid bills:', cacheError);
-      }
+      setPaidBills([]);
     }
   };
 
