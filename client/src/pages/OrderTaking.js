@@ -229,10 +229,10 @@ const OrderTaking = () => {
           : cartItem
       ));
     } else {
-      setCart([...cart, { 
+      setCart([...cart, {
         ...item, 
         price: itemPrice,
-        quantity: 1, 
+        quantity: 1,
         variant_price_adjustment: variantAdjustment 
       }]);
     }
@@ -656,7 +656,7 @@ const OrderTaking = () => {
                 <FiPrinter />
                 Paid Bills
               </button>
-              <button
+                <button
                 onClick={handleNewOrder}
                 className="px-6 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold transition shadow-lg flex items-center gap-2"
               >
@@ -851,7 +851,7 @@ const OrderTaking = () => {
                       <FiSend className="text-green-600" />
                     </div>
                     <span className="font-bold text-gray-800">Items</span>
-                    {cart.length > 0 && (
+      {cart.length > 0 && (
                       <button
                         onClick={() => {
                           if (window.confirm('Clear all items from cart?')) {
