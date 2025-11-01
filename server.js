@@ -3254,47 +3254,65 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
              discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, finalBillNumber, billISTTime], function(err) {
               if (err) {
                 const errMsg = String(err.message || '');
-                // If columns don't exist, try without CGST/SGST and add them later
-                if (errMsg.includes('does not exist') || errMsg.includes('no such column') || errMsg.includes('cgst') || errMsg.includes('sgst')) {
-                  console.log('⚠️ CGST/SGST columns not found, inserting without them and attempting migration...');
+                // If columns don't exist, try without them and add them later
+                if (errMsg.includes('does not exist') || errMsg.includes('no such column') || errMsg.includes('cgst') || errMsg.includes('sgst') || errMsg.includes('bill_number')) {
+                  console.log('⚠️ Missing columns detected, attempting migration...', errMsg);
                   
                   // Try to add columns first (for PostgreSQL)
                   if (db.type === 'postgres') {
                     db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS cgst DECIMAL(10,2) DEFAULT 0", (alterErr1) => {
                       db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS sgst DECIMAL(10,2) DEFAULT 0", (alterErr2) => {
-                        // Retry the insert after adding columns
-                        db.run(insertWithGST,
-                          [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-                           discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, finalBillNumber, billISTTime], 
-                          function(retryErr) {
-                            if (retryErr) {
-                              console.error('Retry insert error:', retryErr);
-                              return res.status(500).json({ error: 'Failed to create bill: ' + retryErr.message });
+                        db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_number TEXT", (alterErr3) => {
+                          // Retry the insert after adding columns
+                          db.run(insertWithGST,
+                            [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
+                             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, finalBillNumber, billISTTime], 
+                            function(retryErr) {
+                              if (retryErr) {
+                                console.error('Retry insert error:', retryErr);
+                                return res.status(500).json({ error: 'Failed to create bill: ' + retryErr.message });
+                              }
+                              // Continue with success handling...
+                              return handleBillSuccess();
                             }
-                            // Continue with success handling...
-                            return handleBillSuccess();
-                          }
-                        );
+                          );
+                        });
                       });
                     });
                     return; // Exit early, will continue in callback
                   } else {
-                    // For SQLite, insert without CGST/SGST for now (they'll be added by migration)
-                    const insertWithoutGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-                      discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, bill_number, printed_count, last_printed_at, created_at) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
-                    
-                    db.run(insertWithoutGST,
-                      [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-                       discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, finalBillNumber, billISTTime], 
-                      function(sqliteErr) {
-                        if (sqliteErr) {
-                          console.error('SQLite insert error:', sqliteErr);
-                          return res.status(500).json({ error: sqliteErr.message });
+                    // For SQLite, try to add missing columns first, then retry insert
+                    db.run("ALTER TABLE bills ADD COLUMN cgst DECIMAL(10,2) DEFAULT 0", (e1) => {});
+                    db.run("ALTER TABLE bills ADD COLUMN sgst DECIMAL(10,2) DEFAULT 0", (e2) => {});
+                    db.run("ALTER TABLE bills ADD COLUMN bill_number TEXT", (e3) => {
+                      // Retry with all columns after adding bill_number
+                      db.run(insertWithGST,
+                        [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
+                         discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, finalBillNumber, billISTTime],
+                        function(sqliteRetryErr) {
+                          if (sqliteRetryErr) {
+                            // If still fails, fall back to insert without bill_number
+                            const insertWithoutGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
+                              discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, printed_count, last_printed_at, created_at) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
+                            
+                            db.run(insertWithoutGST,
+                              [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
+                               discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, billISTTime], 
+                              function(finalErr) {
+                                if (finalErr) {
+                                  console.error('SQLite final insert error:', finalErr);
+                                  return res.status(500).json({ error: finalErr.message });
+                                }
+                                return handleBillSuccess();
+                              }
+                            );
+                          } else {
+                            return handleBillSuccess();
+                          }
                         }
-                        return handleBillSuccess();
-                      }
-                    );
+                      );
+                    });
                     return; // Exit early
                   }
                 } else {
