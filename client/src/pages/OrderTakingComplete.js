@@ -612,113 +612,39 @@ const OrderTakingComplete = () => {
         }))
       };
 
-      let billResponse = null;
+      // Create order
+      const orderResponse = await axios.post('/api/orders', orderData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Create bill
+      const billResponse = await axios.post('/api/bills', {
+        orderId: orderResponse.data.orderId,
+        payment_method: paymentMethod
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-      if (navigator.onLine) {
-        // Online: Process payment normally
-        try {
-          const orderResponse = await axios.post('/api/orders', orderData, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          try {
-            billResponse = await axios.post('/api/bills', {
-              orderId: orderResponse.data.orderId,
-              payment_method: paymentMethod
-            }, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-          } catch (billErr) {
-            console.warn('Bill creation failed after paid order:', billErr);
-          }
+      // Refresh all data
+      await Promise.all([
+        fetchPendingOrders(),
+        fetchPaidBills(),
+        fetchTables()
+      ]);
 
-          toast.success('Payment successful!');
-          fetchPendingOrders();
-          fetchPaidBills();
-          fetchTables();
-          setView('menu');
-          setCart([]);
-          setSelectedTable(null);
-        } catch (orderErr) {
-          console.log('Order create failed, switching to offline mode:', orderErr);
-          await queueOrderForSync(orderData);
-          toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
-          const offlineOrder = {
-            id: Date.now(),
-            tableNumber,
-            order_type: orderData.order_type,
-            items: orderData.items,
-            timestamp: new Date().toISOString(),
-            status: 'offline_paid',
-            payment_method: paymentMethod
-          };
-          setOfflineOrders(prev => [...prev, offlineOrder]);
-        }
-      } else {
-        // Offline: Queue for sync and create local bill record
-        await queueOrderForSync(orderData);
-        
-        // Calculate totals locally for offline bill
-        const subtotal = cart.reduce((sum, item) => {
-          const price = parseFloat(item.price) || 0;
-          const variantAdjustment = parseFloat(item.variant_price_adjustment) || 0;
-          const quantity = parseInt(item.quantity) || 0;
-          return sum + ((price + variantAdjustment) * quantity);
-        }, 0);
-        
-        // Create local bill record for offline display
-        const localBill = {
-          id: `offline_${Date.now()}`,
-          order_id: `offline_order_${Date.now()}`,
-          table_number: tableNumber,
-          subtotal: subtotal,
-          tax_amount: 0, // Tax will be calculated on sync
-          service_charge: 0,
-          discount_amount: 0,
-          total_amount: subtotal,
-          payment_method: paymentMethod,
-          payment_status: 'paid',
-          order_type: orderData.order_type,
-          created_at: new Date().toISOString(),
-          items: cart.map(item => ({
-            menu_item_id: item.id,
-            item_name: item.name,
-            quantity: item.quantity,
-            price: item.price
-          })),
-          offline: true
-        };
-        
-        // Cache paid bill locally (append mode to keep existing bills)
-        const { cachePaidBills, getCachedPaidBills } = await import('../utils/offlineStorage');
-        await cachePaidBills([localBill], true); // true = append mode
-        
-        toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
-        
-        // Add to local offline orders display
-        const offlineOrder = {
-          id: Date.now(),
-          tableNumber,
-          order_type: orderData.order_type,
-          items: orderData.items,
-          timestamp: new Date().toISOString(),
-          status: 'offline_paid',
-          payment_method: paymentMethod
-        };
-        setOfflineOrders(prev => [...prev, offlineOrder]);
-        
-        // Refresh paid bills to show offline bill
-        fetchPaidBills();
+      // Auto-print if enabled
+      if (autoPrintEnabled && billResponse?.data?.billId) {
+        setTimeout(() => {
+          handlePrintBillById(billResponse.data.billId);
+        }, 500);
       }
 
+      // Reset cart and view
       setCart([]);
       setSelectedTable(null);
+      setView('menu');
       
-      // Simple auto-print - only if enabled and online
-      if (autoPrintEnabled && navigator.onLine && billResponse) {
-        handlePrintBillById(billResponse.data.billId);
-        toast.success('Bill printed!', { icon: '🖨️', duration: 2000 });
-      }
-      // If disabled, don't print and don't ask - clean and simple!
+      toast.success('Payment completed!', { icon: '✅', duration: 2000 });
     } catch (error) {
       console.error('Error processing payment:', error);
       console.error('Error response:', error.response?.data);
@@ -752,6 +678,7 @@ const OrderTakingComplete = () => {
 
   // Pay from pending order with selected payment method
   const handlePayPendingOrder = async () => {
+    setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post('/api/bills', {
@@ -761,17 +688,24 @@ const OrderTakingComplete = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      toast.success('Payment completed!');
+      // Refresh all data
+      await Promise.all([
+        fetchPendingOrders(),
+        fetchPaidBills(),
+        fetchTables()
+      ]);
+
       setShowPaymentModal(false);
       setPendingPaymentOrderId(null);
-      fetchPendingOrders();
-      fetchPaidBills();
-      fetchTables(); // Refresh tables to update status
+      
+      toast.success('Payment completed!', { icon: '✅', duration: 2000 });
     } catch (error) {
       console.error('Error paying order:', error);
       console.error('Error response:', error.response?.data);
       const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
       toast.error(errorMsg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
