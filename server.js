@@ -801,6 +801,8 @@ db.serialize(() => {
     if (db.type === 'postgres') {
       db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_applicable BOOLEAN DEFAULT TRUE");
       db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_rate DECIMAL(5,2)");
+      db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS cgst DECIMAL(10,2) DEFAULT 0");
+      db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS sgst DECIMAL(10,2) DEFAULT 0");
     }
   } catch (e) {
     console.log('Postgres migration (gst columns) error (safe to ignore if already applied):', e?.message || e);
@@ -873,6 +875,19 @@ db.serialize(() => {
       if (!hasOrderType) {
         console.log('Adding order_type column to bills table...');
         db.run("ALTER TABLE bills ADD COLUMN order_type TEXT DEFAULT 'Dine-In'");
+      }
+      
+      const hasCgst = columns.some(col => col.name === 'cgst');
+      const hasSgst = columns.some(col => col.name === 'sgst');
+      
+      if (!hasCgst) {
+        console.log('Adding cgst column to bills table...');
+        db.run("ALTER TABLE bills ADD COLUMN cgst DECIMAL(10,2) DEFAULT 0");
+      }
+      
+      if (!hasSgst) {
+        console.log('Adding sgst column to bills table...');
+        db.run("ALTER TABLE bills ADD COLUMN sgst DECIMAL(10,2) DEFAULT 0");
       }
     }
   });
@@ -2467,11 +2482,11 @@ app.put('/api/orders/:orderId/payment', authenticateToken, authorize(['cashier',
           db.run(`INSERT INTO bills (
             id, order_id, table_number, subtotal, tax_amount, 
             service_charge, discount_amount, total_amount, 
-            payment_method, payment_status, staff_id, shop_id, order_type, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            payment_method, payment_status, staff_id, shop_id, order_type, cgst, sgst, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [billId, orderId, order.table_number || 'N/A', subtotal, taxAmount, 
              serviceCharge, discountAmount, totalAmount, 
-             payment_method, 'paid', req.user.id, order.shop_id || null, order.order_type || 'Dine-In', currentISTTimestamp],
+             payment_method, 'paid', req.user.id, order.shop_id || null, order.order_type || 'Dine-In', 0, 0, currentISTTimestamp],
             (err) => {
               if (err) {
                 console.error('Error creating bill:', err);
@@ -3024,11 +3039,25 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                 const baseAmount = (afterDiscount + serviceCharge);
                 const thisTax = (baseAmount * rate) / 100;
                 taxAmount += thisTax;
+                // When GST is enabled, always split tax into CGST/SGST
                 if (isGST) {
                   const half = +(thisTax / 2).toFixed(2);
                   gstSplit = { type: 'GST', rate: tax.rate, base_amount: +baseAmount.toFixed(2), cgst: half, sgst: half };
                 }
               });
+            }
+
+            // When GST is enabled, split total taxAmount into CGST and SGST (if not already split)
+            if (gstEnabled && taxAmount > 0 && !gstSplit) {
+              const half = +(taxAmount / 2).toFixed(2);
+              const baseAmount = (afterDiscount + serviceCharge);
+              gstSplit = { 
+                type: 'GST', 
+                rate: null, 
+                base_amount: +baseAmount.toFixed(2), 
+                cgst: half, 
+                sgst: half 
+              };
             }
 
             console.log('💰 Tax Calculation Result:', { 
@@ -3039,6 +3068,8 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
               taxAmount, 
               itemWiseTax: itemWiseTax || 0,
               taxesCount: taxes?.length || 0,
+              cgst: gstSplit?.cgst || 0,
+              sgst: gstSplit?.sgst || 0,
               orderId: order.id 
             });
 
@@ -3046,12 +3077,15 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           const roundOff = Math.round(beforeRounding) - beforeRounding;
           const totalAmount = Math.round(beforeRounding);
           
-          // Insert bill with shop_id from order
+          // Insert bill with shop_id from order, including CGST and SGST
+          const cgstAmount = gstSplit?.cgst || 0;
+          const sgstAmount = gstSplit?.sgst || 0;
+          
           db.run(`INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, printed_count, last_printed_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
+            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, cgst, sgst, printed_count, last_printed_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
             [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id], function(err) {
+             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount], function(err) {
               if (err) {
                 return res.status(500).json({ error: err.message });
               }

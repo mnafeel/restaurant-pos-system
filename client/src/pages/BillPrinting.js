@@ -183,7 +183,13 @@ const BillPrinting = () => {
             ${bill.service_charge > 0 ? `
               <div class="total-line">Service Charge: $${bill.service_charge.toFixed(2)}</div>
             ` : ''}
-            <div class="total-line">Tax (GST): $${bill.tax_amount.toFixed(2)}</div>
+            ${bill.cgst > 0 || bill.sgst > 0 ? `
+              <div class="total-line">CGST: $${(bill.cgst || 0).toFixed(2)}</div>
+              <div class="total-line">SGST: $${(bill.sgst || 0).toFixed(2)}</div>
+              <div class="total-line">Total Tax (GST): $${bill.tax_amount.toFixed(2)}</div>
+            ` : bill.tax_amount > 0 ? `
+              <div class="total-line">Tax: $${bill.tax_amount.toFixed(2)}</div>
+            ` : ''}
             ${bill.round_off && Math.abs(bill.round_off) > 0.01 ? `
               <div class="total-line">Round Off: $${bill.round_off.toFixed(2)}</div>
             ` : ''}
@@ -478,10 +484,27 @@ const BillPrinting = () => {
                     </div>
                   )}
                   
-                  <div className="flex justify-between text-sm">
-                    <span>Tax (GST):</span>
-                    <span className="font-medium">${bill.tax_amount.toFixed(2)}</span>
-                  </div>
+                  {bill.cgst > 0 || bill.sgst > 0 ? (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span>CGST:</span>
+                        <span className="font-medium">${(bill.cgst || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>SGST:</span>
+                        <span className="font-medium">${(bill.sgst || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span>Total Tax (GST):</span>
+                        <span className="font-medium">${bill.tax_amount.toFixed(2)}</span>
+                      </div>
+                    </>
+                  ) : bill.tax_amount > 0 ? (
+                    <div className="flex justify-between text-sm">
+                      <span>Tax:</span>
+                      <span className="font-medium">${bill.tax_amount.toFixed(2)}</span>
+                    </div>
+                  ) : null}
                   
                   {bill.round_off && Math.abs(bill.round_off) > 0.01 && (
                     <div className="flex justify-between text-sm">
