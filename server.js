@@ -225,6 +225,51 @@ const formatIndianDate = (date) => {
   return moment(date).tz('Asia/Kolkata').format('DD/MM/YYYY hh:mm A');
 };
 
+// Utility function to generate bill number based on shop name
+// Format: First 2 letters of shop name (uppercase) + sequential number (001, 002, etc.)
+// Example: Shop "Nafeel" -> "NA001", "NA002", etc.
+const generateBillNumber = (shopName, shopId, callback) => {
+  if (!shopName || shopName.length < 2) {
+    // Fallback to shop ID if shop name is too short
+    const prefix = shopId ? String(shopId).padStart(2, '0').substring(0, 2).toUpperCase() : 'BL';
+    shopName = prefix + 'SHOP';
+  }
+  
+  // Get first 2 letters of shop name (uppercase)
+  const prefix = shopName.substring(0, 2).toUpperCase().replace(/[^A-Z]/g, '') || 'BL';
+  
+  // Find the last bill number with this prefix for this shop
+  const query = `SELECT bill_number FROM bills 
+                 WHERE shop_id = ? 
+                 AND bill_number LIKE ? 
+                 ORDER BY bill_number DESC 
+                 LIMIT 1`;
+  
+  db.get(query, [shopId, `${prefix}%`], (err, lastBill) => {
+    if (err) {
+      console.error('Error fetching last bill number:', err);
+      // Fallback to 001 if query fails
+      return callback(null, `${prefix}001`);
+    }
+    
+    if (!lastBill || !lastBill.bill_number) {
+      // First bill for this shop - start at 001
+      return callback(null, `${prefix}001`);
+    }
+    
+    // Extract the number part from the last bill number (e.g., "NA123" -> 123)
+    const lastNumber = parseInt(lastBill.bill_number.replace(/^[A-Z]{2}/, '')) || 0;
+    const nextNumber = lastNumber + 1;
+    
+    // Format as 3 digits (001, 002, etc.)
+    const formattedNumber = String(nextNumber).padStart(3, '0');
+    const billNumber = `${prefix}${formattedNumber}`;
+    
+    console.log(`📋 Generated bill number: ${billNumber} (shop: ${shopName}, prefix: ${prefix}, last: ${lastBill.bill_number})`);
+    callback(null, billNumber);
+  });
+};
+
 // Utility function to get business day date
 // If current time is before business day start hour (e.g., 6 AM), it counts as previous day
 const getBusinessDayDate = (date, startHour = 6) => {
@@ -822,6 +867,10 @@ db.serialize(() => {
           ALTER TABLE bills ADD COLUMN sgst DECIMAL(10,2) DEFAULT 0;
           RAISE NOTICE 'SGST column added to bills table';
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bills' AND column_name='bill_number') THEN
+          ALTER TABLE bills ADD COLUMN bill_number TEXT;
+          RAISE NOTICE 'bill_number column added to bills table';
+        END IF;
       END $$;
     `, (err) => {
       if (err) {
@@ -833,8 +882,11 @@ db.serialize(() => {
         db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS sgst DECIMAL(10,2) DEFAULT 0", (err2) => {
           if (!err2) console.log('✅ SGST column added');
         });
+        db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_number TEXT", (err3) => {
+          if (!err3) console.log('✅ bill_number column added');
+        });
       } else {
-        console.log('✅ CGST and SGST columns verified/added to bills table');
+        console.log('✅ CGST, SGST, and bill_number columns verified/added to bills table');
       }
     });
   }
@@ -919,6 +971,12 @@ db.serialize(() => {
       if (!hasSgst) {
         console.log('Adding sgst column to bills table...');
         db.run("ALTER TABLE bills ADD COLUMN sgst DECIMAL(10,2) DEFAULT 0");
+      }
+      
+      const hasBillNumber = columns.some(col => col.name === 'bill_number');
+      if (!hasBillNumber) {
+        console.log('Adding bill_number column to bills table...');
+        db.run("ALTER TABLE bills ADD COLUMN bill_number TEXT");
       }
     }
   });
@@ -2961,7 +3019,25 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
     
     console.log('✅ Order found:', { orderId: order.id, status: order.status, shopId: order.shop_id });
     
-      // Get order items (tolerate missing GST columns)
+    // Get shop name for bill number generation
+    const shopId = order.shop_id || req.user.shop_id || null;
+    db.get('SELECT name FROM shops WHERE id = ?', [shopId], (shopErr, shop) => {
+      if (shopErr) {
+        console.error('Error fetching shop:', shopErr);
+        // Continue without shop name, will use fallback
+      }
+      
+      const shopName = shop?.name || 'SHOP';
+      console.log('🏪 Shop info:', { shopId, shopName });
+      
+      // Generate bill number based on shop name
+      generateBillNumber(shopName, shopId, (billErr, billNumber) => {
+        if (billErr) {
+          console.error('Error generating bill number:', billErr);
+        }
+        console.log('📋 Generated bill number:', billNumber);
+        
+        // Get order items (tolerate missing GST columns)
         const gstCols = MENU_GST_COLUMNS ? ', mi.gst_applicable, mi.gst_rate' : '';
         const itemsSql = `SELECT oi.*, mi.tax_applicable${gstCols}
       FROM order_items oi
@@ -3122,56 +3198,60 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           const cgstAmount = gstSplit?.cgst || 0;
           const sgstAmount = gstSplit?.sgst || 0;
           
-          // Success handler function (defined before use so it's accessible from all paths)
-          const handleBillSuccess = () => {
-            // Update order status and payment_status to 'paid' so it's removed from pending orders
-            db.run('UPDATE orders SET status = \'Billed\', payment_status = \'paid\' WHERE id = ?', [orderId], (updateErr) => {
-              if (updateErr) {
-                console.error('Error updating order status:', updateErr);
-              } else {
-                console.log('✅ Order marked as paid and removed from pending:', orderId);
-              }
-            });
-            db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId], (tableErr) => {
-              if (tableErr) {
-                console.error('Error updating table status:', tableErr);
-              }
-            });
-
-            // Emit realtime updates
-            io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
-            io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
-            io.emit('stats-updated', { shop_id: order.shop_id });
+            // Get current IST time for accurate bill timestamp
+            const billISTTime = moment().tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss');
+            console.log('📅 Bill creation time (IST):', billISTTime);
             
-            logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
+            // Make billNumber available in this scope
+            const finalBillNumber = billNumber || 'BL001';
+            
+            // Success handler function (defined before use so it's accessible from all paths)
+            const handleBillSuccess = () => {
+              // Update order status and payment_status to 'paid' so it's removed from pending orders
+              db.run('UPDATE orders SET status = \'Billed\', payment_status = \'paid\' WHERE id = ?', [orderId], (updateErr) => {
+                if (updateErr) {
+                  console.error('Error updating order status:', updateErr);
+                } else {
+                  console.log('✅ Order marked as paid and removed from pending:', orderId);
+                }
+              });
+              db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId], (tableErr) => {
+                if (tableErr) {
+                  console.error('Error updating table status:', tableErr);
+                }
+              });
+
+              // Emit realtime updates
+              io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
+              io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
+              io.emit('stats-updated', { shop_id: order.shop_id });
+              
+              logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
         
         res.json({
           billId,
-              orderId,
+                billNumber: finalBillNumber,
+                orderId,
           tableNumber: order.table_number,
           subtotal,
-              discountAmount,
-              serviceCharge,
+                discountAmount,
+                serviceCharge,
           taxAmount,
-              gstSplit,
-              roundOff,
+                gstSplit,
+                roundOff,
           totalAmount,
-              message: 'Bill generated successfully'
-            });
-          };
-          
-          // Get current IST time for accurate bill timestamp
-          const billISTTime = moment().tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss');
-          console.log('📅 Bill creation time (IST):', billISTTime);
-          
-          // First, try inserting with CGST/SGST columns
-          const insertWithGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, cgst, sgst, printed_count, last_printed_at, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
-          
-          db.run(insertWithGST,
+                message: 'Bill generated successfully'
+              });
+            };
+            
+            // First, try inserting with CGST/SGST columns and bill_number
+            const insertWithGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
+              discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, cgst, sgst, bill_number, printed_count, last_printed_at, created_at) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
+            
+            db.run(insertWithGST,
             [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, billISTTime], function(err) {
+             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, finalBillNumber, billISTTime], function(err) {
               if (err) {
                 const errMsg = String(err.message || '');
                 // If columns don't exist, try without CGST/SGST and add them later
@@ -3185,7 +3265,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                         // Retry the insert after adding columns
                         db.run(insertWithGST,
                           [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-                           discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, billISTTime], 
+                           discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, finalBillNumber, billISTTime], 
                           function(retryErr) {
                             if (retryErr) {
                               console.error('Retry insert error:', retryErr);
@@ -3201,12 +3281,12 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                   } else {
                     // For SQLite, insert without CGST/SGST for now (they'll be added by migration)
                     const insertWithoutGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-                      discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, printed_count, last_printed_at, created_at) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
+                      discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, bill_number, printed_count, last_printed_at, created_at) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
                     
                     db.run(insertWithoutGST,
                       [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-                       discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, billISTTime], 
+                       discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, finalBillNumber, billISTTime], 
                       function(sqliteErr) {
                         if (sqliteErr) {
                           console.error('SQLite insert error:', sqliteErr);
@@ -3229,6 +3309,8 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           });
         });
       });
+      });
+    });
   });
 });
 
@@ -3252,6 +3334,7 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
   const query = `
     SELECT 
       b.*,
+      COALESCE(b.bill_number, 'BL001') as bill_number,
       o.table_number,
       o.order_number,
       o.customer_name,
