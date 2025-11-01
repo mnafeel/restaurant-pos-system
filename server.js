@@ -2929,10 +2929,6 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
         
         const afterDiscount = subtotal - discountAmount;
         
-        // Calculate service charge
-        const serviceChargeRate = service_charge_rate || 5.0;
-        const serviceCharge = (afterDiscount * serviceChargeRate) / 100;
-        
         // Calculate tax with GST setting and safeguards
         const shopId = order.shop_id || req.user.shop_id || null;
         const tryFetchGstEnabled = (cb) => {
@@ -2985,6 +2981,13 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
             let taxAmount = 0;
             let gstSplit = null;
             let itemWiseTax = 0; // Initialize outside if block so it's always defined
+            
+            // Calculate service charge - only if GST/tax is enabled
+            let serviceCharge = 0;
+            if (gstEnabled) {
+              const serviceChargeRate = service_charge_rate || 5.0;
+              serviceCharge = (afterDiscount * serviceChargeRate) / 100;
+            }
 
             // Item-wise GST (only if enabled)
             if (gstEnabled && Array.isArray(items)) {
