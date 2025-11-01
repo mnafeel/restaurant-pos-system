@@ -2984,10 +2984,10 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
 
             let taxAmount = 0;
             let gstSplit = null;
+            let itemWiseTax = 0; // Initialize outside if block so it's always defined
 
             // Item-wise GST (only if enabled)
             if (gstEnabled && Array.isArray(items)) {
-              let itemWiseTax = 0;
               items.forEach(it => {
                 const gstApplicable = it.gst_applicable === 1 || it.gst_applicable === true;
                 const rateNum = Number(it.gst_rate);
