@@ -407,7 +407,12 @@ const OrderTakingComplete = () => {
       fetchTables();
     } catch (error) {
       console.error('Error holding order:', error);
-      toast.error(error.response?.data?.error || 'Failed to hold order');
+      // Check if it's a network error
+      if (!error.response) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to hold order');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -504,53 +509,23 @@ const OrderTakingComplete = () => {
         }))
       };
 
-      if (navigator.onLine) {
-        // Online: Send to server
-        try {
-          await axios.post('/api/orders', orderData, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
-          fetchPendingOrders();
-          fetchTables();
-        } catch (onlineError) {
-          // If online request fails, treat as offline
-          console.log('Online request failed, switching to offline mode:', onlineError);
-          await queueOrderForSync(orderData);
-          toast.success('Order saved offline! Will sync when online.', { icon: '💾' });
-          
-          const offlineOrder = {
-            id: Date.now(),
-            tableNumber,
-            order_type: orderData.order_type,
-            items: orderData.items,
-            timestamp: new Date().toISOString(),
-            status: 'offline'
-          };
-          setOfflineOrders(prev => [...prev, offlineOrder]);
-        }
-      } else {
-        // Offline: Queue for sync
-        await queueOrderForSync(orderData);
-        toast.success('Order saved offline! Will sync when online.', { icon: '💾' });
-        
-        // Add to local offline orders display
-        const offlineOrder = {
-          id: Date.now(),
-          tableNumber,
-          order_type: orderData.order_type,
-          items: orderData.items,
-          timestamp: new Date().toISOString(),
-          status: 'offline'
-        };
-        setOfflineOrders(prev => [...prev, offlineOrder]);
-      }
-
+      await axios.post('/api/orders', orderData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success('Sent to kitchen!', { icon: '👨‍🍳' });
+      fetchPendingOrders();
+      fetchTables();
       setCart([]);
       setSelectedTable(null);
     } catch (error) {
       console.error('Error sending to kitchen:', error);
-      toast.error(error.response?.data?.error || 'Failed to send to kitchen');
+      // Check if it's a network error
+      if (!error.response) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to send to kitchen');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -624,8 +599,13 @@ const OrderTakingComplete = () => {
     } catch (error) {
       console.error('Error processing payment:', error);
       console.error('Error response:', error.response?.data);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
-      toast.error(errorMsg);
+      // Check if it's a network error
+      if (!error.response) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
+        toast.error(errorMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -678,8 +658,13 @@ const OrderTakingComplete = () => {
     } catch (error) {
       console.error('Error paying order:', error);
       console.error('Error response:', error.response?.data);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
-      toast.error(errorMsg);
+      // Check if it's a network error
+      if (!error.response) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
+        toast.error(errorMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }
