@@ -658,7 +658,19 @@ const OrderTakingComplete = () => {
 
   // Pay from pending order with selected payment method
   const handlePayPendingOrder = async () => {
+    if (!pendingPaymentOrderId) {
+      toast.error('No order selected for payment');
+      return;
+    }
+    
+    if (!paymentMethod) {
+      toast.error('Please select a payment method');
+      return;
+    }
+    
     setIsSubmitting(true);
+    console.log('💳 Paying pending order:', { orderId: pendingPaymentOrderId, paymentMethod });
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post('/api/bills', {
@@ -667,6 +679,8 @@ const OrderTakingComplete = () => {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      console.log('✅ Payment successful:', response.data);
 
       // Refresh all data
       await Promise.all([

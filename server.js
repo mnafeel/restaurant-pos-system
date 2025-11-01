@@ -2942,14 +2942,20 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
   const { orderId, discount_amount, discount_type, discount_reason, service_charge_rate, tax_ids, payment_method } = req.body;
   const billId = uuidv4();
   
+  console.log('📄 Creating bill for order:', { orderId, payment_method, billId, userId: req.user.id });
+  
   db.get('SELECT * FROM orders WHERE id = ?', [orderId], (err, order) => {
     if (err) {
+      console.error('❌ Error fetching order:', err);
       return res.status(500).json({ error: err.message });
     }
     
     if (!order) {
+      console.error('❌ Order not found:', orderId);
       return res.status(404).json({ error: 'Order not found' });
     }
+    
+    console.log('✅ Order found:', { orderId: order.id, status: order.status, shopId: order.shop_id });
     
       // Get order items (tolerate missing GST columns)
         const gstCols = MENU_GST_COLUMNS ? ', mi.gst_applicable, mi.gst_rate' : '';
@@ -3112,6 +3118,42 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           const cgstAmount = gstSplit?.cgst || 0;
           const sgstAmount = gstSplit?.sgst || 0;
           
+          // Success handler function (defined before use so it's accessible from all paths)
+          const handleBillSuccess = () => {
+            // Update order and table status
+            db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId], (updateErr) => {
+              if (updateErr) {
+                console.error('Error updating order status:', updateErr);
+              }
+            });
+            db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId], (tableErr) => {
+              if (tableErr) {
+                console.error('Error updating table status:', tableErr);
+              }
+            });
+
+            // Emit realtime updates
+            io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
+            io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
+            io.emit('stats-updated', { shop_id: order.shop_id });
+            
+            logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
+      
+            res.json({
+              billId,
+              orderId,
+              tableNumber: order.table_number,
+              subtotal,
+              discountAmount,
+              serviceCharge,
+              taxAmount,
+              gstSplit,
+              roundOff,
+              totalAmount,
+              message: 'Bill generated successfully'
+            });
+          };
+          
           // First, try inserting with CGST/SGST columns
           const insertWithGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
             discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, cgst, sgst, printed_count, last_printed_at) 
@@ -3136,6 +3178,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                            discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount], 
                           function(retryErr) {
                             if (retryErr) {
+                              console.error('Retry insert error:', retryErr);
                               return res.status(500).json({ error: 'Failed to create bill: ' + retryErr.message });
                             }
                             // Continue with success handling...
@@ -3156,6 +3199,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                        discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id], 
                       function(sqliteErr) {
                         if (sqliteErr) {
+                          console.error('SQLite insert error:', sqliteErr);
                           return res.status(500).json({ error: sqliteErr.message });
                         }
                         return handleBillSuccess();
@@ -3164,39 +3208,12 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                     return; // Exit early
                   }
                 } else {
+                  console.error('Bill insert error:', err);
                   return res.status(500).json({ error: err.message });
                 }
               }
               
-              // Success handler function
-              const handleBillSuccess = () => {
-                // Update order and table status
-                db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId]);
-                db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId]);
-
-                // Emit realtime updates
-                io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
-                io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
-                io.emit('stats-updated', { shop_id: order.shop_id });
-                
-                logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
-          
-                res.json({
-                  billId,
-                  orderId,
-                  tableNumber: order.table_number,
-                  subtotal,
-                  discountAmount,
-                  serviceCharge,
-                  taxAmount,
-                  gstSplit,
-                  roundOff,
-                  totalAmount,
-                  message: 'Bill generated successfully'
-                });
-              };
-              
-              // Call success handler for normal path
+              // Call success handler for normal path (no error)
               handleBillSuccess();
             });
           });
