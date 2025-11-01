@@ -797,15 +797,46 @@ db.serialize(() => {
   });
 
   // Postgres-safe migrations for new columns
-  try {
-    if (db.type === 'postgres') {
-      db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_applicable BOOLEAN DEFAULT TRUE");
-      db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_rate DECIMAL(5,2)");
-      db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS cgst DECIMAL(10,2) DEFAULT 0");
-      db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS sgst DECIMAL(10,2) DEFAULT 0");
-    }
-  } catch (e) {
-    console.log('Postgres migration (gst columns) error (safe to ignore if already applied):', e?.message || e);
+  if (db.type === 'postgres') {
+    // Check and add menu_items GST columns
+    db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_applicable BOOLEAN DEFAULT TRUE", (err) => {
+      if (err && !String(err.message || '').includes('already exists') && !String(err.message || '').includes('duplicate')) {
+        console.log('Postgres migration note (gst_applicable):', err?.message || err);
+      }
+    });
+    db.run("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS gst_rate DECIMAL(5,2)", (err) => {
+      if (err && !String(err.message || '').includes('already exists') && !String(err.message || '').includes('duplicate')) {
+        console.log('Postgres migration note (gst_rate):', err?.message || err);
+      }
+    });
+    
+    // Check and add bills CGST/SGST columns - using DO block to check existence first
+    db.run(`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bills' AND column_name='cgst') THEN
+          ALTER TABLE bills ADD COLUMN cgst DECIMAL(10,2) DEFAULT 0;
+          RAISE NOTICE 'CGST column added to bills table';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bills' AND column_name='sgst') THEN
+          ALTER TABLE bills ADD COLUMN sgst DECIMAL(10,2) DEFAULT 0;
+          RAISE NOTICE 'SGST column added to bills table';
+        END IF;
+      END $$;
+    `, (err) => {
+      if (err) {
+        console.log('Postgres migration (CGST/SGST) error, trying simple ALTER:', err?.message || err);
+        // Fallback to simple ALTER if DO block fails
+        db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS cgst DECIMAL(10,2) DEFAULT 0", (err1) => {
+          if (!err1) console.log('✅ CGST column added');
+        });
+        db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS sgst DECIMAL(10,2) DEFAULT 0", (err2) => {
+          if (!err2) console.log('✅ SGST column added');
+        });
+      } else {
+        console.log('✅ CGST and SGST columns verified/added to bills table');
+      }
+    });
   }
 
   // Detect menu_items GST columns availability (works for SQLite and PostgreSQL)
@@ -3081,39 +3112,92 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           const cgstAmount = gstSplit?.cgst || 0;
           const sgstAmount = gstSplit?.sgst || 0;
           
-          db.run(`INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
+          // First, try inserting with CGST/SGST columns
+          const insertWithGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
             discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, cgst, sgst, printed_count, last_printed_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`;
+          
+          db.run(insertWithGST,
             [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
              discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount], function(err) {
               if (err) {
-                return res.status(500).json({ error: err.message });
+                const errMsg = String(err.message || '');
+                // If columns don't exist, try without CGST/SGST and add them later
+                if (errMsg.includes('does not exist') || errMsg.includes('no such column') || errMsg.includes('cgst') || errMsg.includes('sgst')) {
+                  console.log('⚠️ CGST/SGST columns not found, inserting without them and attempting migration...');
+                  
+                  // Try to add columns first (for PostgreSQL)
+                  if (db.type === 'postgres') {
+                    db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS cgst DECIMAL(10,2) DEFAULT 0", (alterErr1) => {
+                      db.run("ALTER TABLE bills ADD COLUMN IF NOT EXISTS sgst DECIMAL(10,2) DEFAULT 0", (alterErr2) => {
+                        // Retry the insert after adding columns
+                        db.run(insertWithGST,
+                          [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
+                           discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount], 
+                          function(retryErr) {
+                            if (retryErr) {
+                              return res.status(500).json({ error: 'Failed to create bill: ' + retryErr.message });
+                            }
+                            // Continue with success handling...
+                            return handleBillSuccess();
+                          }
+                        );
+                      });
+                    });
+                    return; // Exit early, will continue in callback
+                  } else {
+                    // For SQLite, insert without CGST/SGST for now (they'll be added by migration)
+                    const insertWithoutGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
+                      discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, printed_count, last_printed_at) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`;
+                    
+                    db.run(insertWithoutGST,
+                      [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
+                       discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id], 
+                      function(sqliteErr) {
+                        if (sqliteErr) {
+                          return res.status(500).json({ error: sqliteErr.message });
+                        }
+                        return handleBillSuccess();
+                      }
+                    );
+                    return; // Exit early
+                  }
+                } else {
+                  return res.status(500).json({ error: err.message });
+                }
               }
               
-              // Update order and table status
-              db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId]);
-              db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId]);
+              // Success handler function
+              const handleBillSuccess = () => {
+                // Update order and table status
+                db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId]);
+                db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId]);
 
-              // Emit realtime updates
-              io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
-              io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
-              io.emit('stats-updated', { shop_id: order.shop_id });
+                // Emit realtime updates
+                io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
+                io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
+                io.emit('stats-updated', { shop_id: order.shop_id });
+                
+                logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
+          
+                res.json({
+                  billId,
+                  orderId,
+                  tableNumber: order.table_number,
+                  subtotal,
+                  discountAmount,
+                  serviceCharge,
+                  taxAmount,
+                  gstSplit,
+                  roundOff,
+                  totalAmount,
+                  message: 'Bill generated successfully'
+                });
+              };
               
-              logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
-        
-        res.json({
-          billId,
-                orderId,
-          tableNumber: order.table_number,
-          subtotal,
-                discountAmount,
-                serviceCharge,
-          taxAmount,
-          gstSplit,
-                roundOff,
-          totalAmount,
-                message: 'Bill generated successfully'
-              });
+              // Call success handler for normal path
+              handleBillSuccess();
             });
           });
         });
