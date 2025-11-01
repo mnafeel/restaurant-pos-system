@@ -3108,6 +3108,7 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
     SELECT 
       b.*,
       o.table_number,
+      o.order_number,
       o.customer_name,
       o.customer_phone,
       u.first_name || ' ' || u.last_name as staff_name
@@ -3115,7 +3116,7 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
     JOIN orders o ON b.order_id = o.id
     LEFT JOIN users u ON b.staff_id = u.id
     ${whereClause}
-    ORDER BY b.created_at DESC
+    ORDER BY b.created_at DESC, o.order_number DESC
   `;
   
   db.all(query, params, (err, bills) => {
