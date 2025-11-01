@@ -340,18 +340,21 @@ export const getCachedPendingOrders = async () => {
   return getAllFromStore(STORES.PENDING_ORDERS);
 };
 
-// Cache paid bills
-export const cachePaidBills = async (bills) => {
+// Cache paid bills (can append or replace)
+export const cachePaidBills = async (bills, append = false) => {
   const db = await initDB();
   const transaction = db.transaction([STORES.PAID_BILLS], 'readwrite');
   const store = transaction.objectStore(STORES.PAID_BILLS);
   
-  // Clear existing paid bills
-  store.clear();
+  // Clear existing paid bills only if not appending
+  if (!append) {
+    store.clear();
+  }
   
   // Add new paid bills with timestamp
   bills.forEach(bill => {
-    store.add({
+    // Use put instead of add to update if exists (for offline bills)
+    store.put({
       ...bill,
       timestamp: Date.now(),
       cached: true
@@ -360,7 +363,7 @@ export const cachePaidBills = async (bills) => {
   
   return new Promise((resolve, reject) => {
     transaction.oncomplete = () => {
-      console.log('Paid bills cached successfully');
+      console.log('Paid bills cached successfully', append ? '(appended)' : '(replaced)');
       resolve();
     };
     transaction.onerror = () => {
