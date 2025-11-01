@@ -2261,8 +2261,12 @@ app.post('/api/orders', authenticateToken, authorize(['cashier', 'chef', 'manage
       // Set kds_status based on payment_status
       const kdsStatus = payment_status === 'paid' ? null : 'Pending';
       
-      db.run('INSERT INTO orders (id, order_number, table_number, created_by, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-        [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', kdsStatus, req.user.shop_id], function(err) {
+      // Get current time in IST (Asia/Kolkata) timezone for accurate order time
+      const currentISTTime = moment().tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss');
+      console.log('📅 Order creation time (IST):', currentISTTime);
+      
+      db.run('INSERT INTO orders (id, order_number, table_number, created_by, total_amount, customer_name, customer_phone, notes, order_type, payment_status, kds_status, shop_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+        [orderId, orderNumber, tableNumber, req.user.id, totalAmount, customer_name, customer_phone, notes, order_type || 'Dine-In', payment_status || 'pending', kdsStatus, req.user.shop_id, currentISTTime], function(err) {
       if (err) {
           console.error('Error creating order:', err);
           console.error('Order creation error details:', err.message, err.code);
@@ -3140,30 +3144,34 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
             io.emit('stats-updated', { shop_id: order.shop_id });
             
             logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
-      
-            res.json({
-              billId,
+        
+        res.json({
+          billId,
               orderId,
-              tableNumber: order.table_number,
-              subtotal,
+          tableNumber: order.table_number,
+          subtotal,
               discountAmount,
               serviceCharge,
-              taxAmount,
+          taxAmount,
               gstSplit,
               roundOff,
-              totalAmount,
+          totalAmount,
               message: 'Bill generated successfully'
             });
           };
           
+          // Get current IST time for accurate bill timestamp
+          const billISTTime = moment().tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss');
+          console.log('📅 Bill creation time (IST):', billISTTime);
+          
           // First, try inserting with CGST/SGST columns
           const insertWithGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, cgst, sgst, printed_count, last_printed_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`;
+            discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, cgst, sgst, printed_count, last_printed_at, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
           
           db.run(insertWithGST,
             [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount], function(err) {
+             discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, billISTTime], function(err) {
               if (err) {
                 const errMsg = String(err.message || '');
                 // If columns don't exist, try without CGST/SGST and add them later
@@ -3177,7 +3185,7 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                         // Retry the insert after adding columns
                         db.run(insertWithGST,
                           [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-                           discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount], 
+                           discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, cgstAmount, sgstAmount, billISTTime], 
                           function(retryErr) {
                             if (retryErr) {
                               console.error('Retry insert error:', retryErr);
@@ -3193,12 +3201,12 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                   } else {
                     // For SQLite, insert without CGST/SGST for now (they'll be added by migration)
                     const insertWithoutGST = `INSERT INTO bills (id, order_id, table_number, subtotal, tax_amount, service_charge, 
-                      discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, printed_count, last_printed_at) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`;
+                      discount_amount, discount_type, discount_reason, round_off, total_amount, payment_method, payment_status, staff_id, order_type, shop_id, printed_count, last_printed_at, created_at) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)`;
                     
                     db.run(insertWithoutGST,
                       [billId, orderId, order.table_number, subtotal, taxAmount, serviceCharge, discountAmount, 
-                       discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id], 
+                       discount_type, discount_reason, roundOff, totalAmount, payment_method || 'Cash', 'paid', req.user.id, order.order_type, order.shop_id, billISTTime], 
                       function(sqliteErr) {
                         if (sqliteErr) {
                           console.error('SQLite insert error:', sqliteErr);
