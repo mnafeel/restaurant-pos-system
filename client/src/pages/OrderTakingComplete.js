@@ -407,11 +407,19 @@ const OrderTakingComplete = () => {
       fetchTables();
     } catch (error) {
       console.error('Error holding order:', error);
-      // Check if it's a network error
-      if (!error.response) {
+      // Check error type more accurately
+      if (error.response) {
+        // Server responded with error status
+        toast.error(error.response?.data?.error || `Failed to hold order (${error.response.status})`);
+      } else if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+        // True network error (no connection or timeout)
         toast.error('Network error. Please check your connection and try again.');
+      } else if (error.request) {
+        // Request was made but no response received (server might be down)
+        toast.error('Server is not responding. Please try again in a moment.');
       } else {
-        toast.error(error.response?.data?.error || 'Failed to hold order');
+        // Other error
+        toast.error(error.message || 'Failed to hold order');
       }
     } finally {
       setIsSubmitting(false);
@@ -520,11 +528,19 @@ const OrderTakingComplete = () => {
       setSelectedTable(null);
     } catch (error) {
       console.error('Error sending to kitchen:', error);
-      // Check if it's a network error
-      if (!error.response) {
+      // Check error type more accurately
+      if (error.response) {
+        // Server responded with error status
+        toast.error(error.response?.data?.error || `Failed to send to kitchen (${error.response.status})`);
+      } else if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+        // True network error (no connection or timeout)
         toast.error('Network error. Please check your connection and try again.');
+      } else if (error.request) {
+        // Request was made but no response received (server might be down)
+        toast.error('Server is not responding. Please try again in a moment.');
       } else {
-        toast.error(error.response?.data?.error || 'Failed to send to kitchen');
+        // Other error
+        toast.error(error.message || 'Failed to send to kitchen');
       }
     } finally {
       setIsSubmitting(false);
@@ -599,12 +615,20 @@ const OrderTakingComplete = () => {
     } catch (error) {
       console.error('Error processing payment:', error);
       console.error('Error response:', error.response?.data);
-      // Check if it's a network error
-      if (!error.response) {
-        toast.error('Network error. Please check your connection and try again.');
-      } else {
+      // Check error type more accurately
+      if (error.response) {
+        // Server responded with error status
         const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
         toast.error(errorMsg);
+      } else if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+        // True network error (no connection or timeout)
+        toast.error('Network error. Please check your connection and try again.');
+      } else if (error.request) {
+        // Request was made but no response received (server might be down)
+        toast.error('Server is not responding. Please try again in a moment.');
+      } else {
+        // Other error
+        toast.error(error.message || 'Failed to process payment');
       }
     } finally {
       setIsSubmitting(false);
@@ -658,12 +682,20 @@ const OrderTakingComplete = () => {
     } catch (error) {
       console.error('Error paying order:', error);
       console.error('Error response:', error.response?.data);
-      // Check if it's a network error
-      if (!error.response) {
-        toast.error('Network error. Please check your connection and try again.');
-      } else {
+      // Check error type more accurately
+      if (error.response) {
+        // Server responded with error status
         const errorMsg = error.response?.data?.error || error.message || 'Failed to process payment';
         toast.error(errorMsg);
+      } else if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+        // True network error (no connection or timeout)
+        toast.error('Network error. Please check your connection and try again.');
+      } else if (error.request) {
+        // Request was made but no response received (server might be down)
+        toast.error('Server is not responding. Please try again in a moment.');
+      } else {
+        // Other error
+        toast.error(error.message || 'Failed to process payment');
       }
     } finally {
       setIsSubmitting(false);
