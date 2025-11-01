@@ -167,41 +167,51 @@ const OrderTakingComplete = () => {
     try {
       setIsLoadingMenu(true);
       
-      if (!navigator.onLine) {
-        // Use cached menu when offline
-        const cachedMenu = await getCachedMenuItems();
-        if (cachedMenu && cachedMenu.length > 0) {
-          setMenuItems(cachedMenu);
-          console.log('Using cached menu items:', cachedMenu.length);
-          return;
+      // Always try to fetch menu when online to ensure cache is fresh
+      if (navigator.onLine) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.get('/api/menu?include_unavailable=true', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setMenuItems(response.data);
+          
+          // Always cache menu items for offline use (even if error later)
+          try {
+            await cacheMenuItems(response.data);
+            console.log('Menu cached successfully:', response.data.length, 'items');
+          } catch (cacheError) {
+            console.warn('Failed to cache menu items:', cacheError);
+            // Don't fail if caching fails
+          }
+          
+          return; // Success - exit early
+        } catch (onlineError) {
+          console.warn('Online menu fetch failed, trying cache:', onlineError);
+          // Fall through to try cache
         }
       }
       
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/menu', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setMenuItems(response.data);
-      
-      // Cache menu items for offline use
-      await cacheMenuItems(response.data);
+      // Offline or online fetch failed - use cached menu
+      const cachedMenu = await getCachedMenuItems();
+      if (cachedMenu && cachedMenu.length > 0) {
+        setMenuItems(cachedMenu);
+        console.log('Using cached menu items:', cachedMenu.length);
+        
+        if (!navigator.onLine) {
+          toast.info(`Using cached menu (${cachedMenu.length} items). Some features may be limited.`, { 
+            icon: '📦',
+            duration: 3000 
+          });
+        }
+      } else {
+        toast.error('Menu not available. Please check your connection.', { 
+          icon: '⚠️' 
+        });
+      }
     } catch (error) {
       console.error('Error fetching menu:', error);
-      
-      // Try to use cached menu as fallback
-      try {
-        const cachedMenu = await getCachedMenuItems();
-        if (cachedMenu && cachedMenu.length > 0) {
-          setMenuItems(cachedMenu);
-          console.log('Using cached menu as fallback:', cachedMenu.length);
-          toast.info('Using cached menu - some items may be outdated');
-        } else {
-          toast.error('Failed to load menu');
-        }
-      } catch (cacheError) {
-        console.error('Error loading cached menu:', cacheError);
-        toast.error('Failed to load menu');
-      }
+      toast.error('Failed to load menu');
     } finally {
       setIsLoadingMenu(false);
     }
@@ -435,23 +445,52 @@ const OrderTakingComplete = () => {
       
       if (queue.length > 0) {
         console.log(`Syncing ${queue.length} offline orders...`);
+        let syncedCount = 0;
+        let errorCount = 0;
         
         for (const item of queue) {
           try {
             const token = localStorage.getItem('token');
-            await axios.post('/api/orders', item.data, {
+            const orderData = item.data;
+            
+            // Create order
+            const orderResponse = await axios.post('/api/orders', orderData, {
               headers: { Authorization: `Bearer ${token}` }
             });
             
+            // If order was paid offline, also create the bill
+            if (orderData.payment_status === 'paid') {
+              try {
+                await axios.post('/api/bills', {
+                  orderId: orderResponse.data.orderId,
+                  payment_method: orderData.payment_method || 'Cash'
+                }, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                console.log('Synced paid order with bill:', item.id);
+              } catch (billError) {
+                console.error('Error creating bill for synced order:', item.id, billError);
+                // Don't fail the sync if bill creation fails - order is still synced
+              }
+            }
+            
             await markAsSynced(item.id);
+            syncedCount++;
             console.log('Synced order:', item.id);
           } catch (error) {
             console.error('Failed to sync order:', item.id, error);
+            errorCount++;
           }
         }
         
-        toast.success(`Synced ${queue.length} offline orders`);
-        fetchPendingOrders();
+        if (syncedCount > 0) {
+          toast.success(`Synced ${syncedCount} offline order${syncedCount > 1 ? 's' : ''}`);
+          fetchPendingOrders();
+          fetchPaidBills();
+        }
+        if (errorCount > 0) {
+          toast.error(`Failed to sync ${errorCount} order${errorCount > 1 ? 's' : ''}`);
+        }
       }
     } catch (error) {
       console.error('Error syncing offline orders:', error);
@@ -615,8 +654,44 @@ const OrderTakingComplete = () => {
           setOfflineOrders(prev => [...prev, offlineOrder]);
         }
       } else {
-        // Offline: Queue for sync
+        // Offline: Queue for sync and create local bill record
         await queueOrderForSync(orderData);
+        
+        // Calculate totals locally for offline bill
+        const subtotal = cart.reduce((sum, item) => {
+          const price = parseFloat(item.price) || 0;
+          const variantAdjustment = parseFloat(item.variant_price_adjustment) || 0;
+          const quantity = parseInt(item.quantity) || 0;
+          return sum + ((price + variantAdjustment) * quantity);
+        }, 0);
+        
+        // Create local bill record for offline display
+        const localBill = {
+          id: `offline_${Date.now()}`,
+          order_id: `offline_order_${Date.now()}`,
+          table_number: tableNumber,
+          subtotal: subtotal,
+          tax_amount: 0, // Tax will be calculated on sync
+          service_charge: 0,
+          discount_amount: 0,
+          total_amount: subtotal,
+          payment_method: paymentMethod,
+          payment_status: 'paid',
+          order_type: orderData.order_type,
+          created_at: new Date().toISOString(),
+          items: cart.map(item => ({
+            menu_item_id: item.id,
+            item_name: item.name,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          offline: true
+        };
+        
+        // Cache paid bill locally (append mode to keep existing bills)
+        const { cachePaidBills, getCachedPaidBills } = await import('../utils/offlineStorage');
+        await cachePaidBills([localBill], true); // true = append mode
+        
         toast.success('Payment saved offline! Will sync when online.', { icon: '💾' });
         
         // Add to local offline orders display
@@ -630,6 +705,9 @@ const OrderTakingComplete = () => {
           payment_method: paymentMethod
         };
         setOfflineOrders(prev => [...prev, offlineOrder]);
+        
+        // Refresh paid bills to show offline bill
+        fetchPaidBills();
       }
 
       setCart([]);
