@@ -2938,29 +2938,40 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
         const tryFetchGstEnabled = (cb) => {
           // Fallback safely if shop_settings table is missing
           if (shopId) {
-            const query = `SELECT value FROM shop_settings WHERE key = 'gst_enabled' AND shop_id = ?
-                           UNION ALL SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`;
-            db.get(query, [shopId], (e, row) => {
+            // First try shop_settings (non-null value only), then fallback to global settings
+            db.get(`SELECT value FROM shop_settings WHERE key = 'gst_enabled' AND shop_id = ? AND value IS NOT NULL AND value != ''`, [shopId], (e, shopRow) => {
               if (e && String(e.message || '').includes('no such table: shop_settings')) {
-                // Fallback to global settings
-                db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`, [], (e2, row2) => {
-                  if (e2) return cb(null, false); // default false
-                  return cb(null, String(row2?.value || 'false').toLowerCase() === 'true');
+                // Table doesn't exist - try global settings
+                db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' AND value IS NOT NULL AND value != '' LIMIT 1`, [], (e2, row2) => {
+                  if (e2 || !row2) return cb(null, false); // default false if error or no row
+                  return cb(null, String(row2.value || 'false').toLowerCase() === 'true');
                 });
               } else if (e) {
-                return cb(null, false);
+                // Error querying shop_settings - try global as fallback
+                db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' AND value IS NOT NULL AND value != '' LIMIT 1`, [], (e2, row2) => {
+                  if (e2 || !row2) return cb(null, false);
+                  return cb(null, String(row2.value || 'false').toLowerCase() === 'true');
+                });
+              } else if (shopRow && shopRow.value) {
+                // Found shop-specific setting
+                return cb(null, String(shopRow.value).toLowerCase() === 'true');
               } else {
-                return cb(null, String(row?.value || 'false').toLowerCase() === 'true');
+                // No shop setting found - try global
+                db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' AND value IS NOT NULL AND value != '' LIMIT 1`, [], (e2, row2) => {
+                  if (e2 || !row2) return cb(null, false); // default false
+                  return cb(null, String(row2.value || 'false').toLowerCase() === 'true');
+                });
               }
             });
           } else {
-            db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' LIMIT 1`, [], (e, row) => {
-              if (e) return cb(null, false);
-              return cb(null, String(row?.value || 'false').toLowerCase() === 'true');
+            db.get(`SELECT value FROM settings WHERE key = 'gst_enabled' AND value IS NOT NULL AND value != '' LIMIT 1`, [], (e, row) => {
+              if (e || !row) return cb(null, false); // default false if error or no setting found
+              return cb(null, String(row.value || 'false').toLowerCase() === 'true');
             });
           }
         };
         tryFetchGstEnabled((_, gstEnabled) => {
+          console.log('📊 GST Setting Check:', { shopId, gstEnabled, orderId: order.id });
 
           // Load taxes, scoping by shop
           const taxParams = [];
@@ -3016,6 +3027,17 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                 }
               });
             }
+
+            console.log('💰 Tax Calculation Result:', { 
+              gstEnabled, 
+              subtotal, 
+              afterDiscount, 
+              serviceCharge, 
+              taxAmount, 
+              itemWiseTax: itemWiseTax || 0,
+              taxesCount: taxes?.length || 0,
+              orderId: order.id 
+            });
 
             const beforeRounding = afterDiscount + serviceCharge + taxAmount;
           const roundOff = Math.round(beforeRounding) - beforeRounding;
