@@ -3120,10 +3120,12 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
           
           // Success handler function (defined before use so it's accessible from all paths)
           const handleBillSuccess = () => {
-            // Update order and table status
-            db.run('UPDATE orders SET status = \'Billed\' WHERE id = ?', [orderId], (updateErr) => {
+            // Update order status and payment_status to 'paid' so it's removed from pending orders
+            db.run('UPDATE orders SET status = \'Billed\', payment_status = \'paid\' WHERE id = ?', [orderId], (updateErr) => {
               if (updateErr) {
                 console.error('Error updating order status:', updateErr);
+              } else {
+                console.log('✅ Order marked as paid and removed from pending:', orderId);
               }
             });
             db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId], (tableErr) => {
