@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../shared/api/axios';
+import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 
 const ThemeContext = createContext();
@@ -507,7 +507,10 @@ export const ThemeProvider = ({ children }) => {
     let mounted = true;
     (async () => {
       try {
-        const { data } = await api.get('/api/users/me/settings');
+        const token = localStorage.getItem('token');
+        const { data } = await axios.get('/api/users/me/settings', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const mode = data?.theme_mode;
         if (mounted && mode && themeModes[mode]) setThemeMode(mode);
       } catch (e) {
@@ -531,7 +534,10 @@ export const ThemeProvider = ({ children }) => {
     setThemeMode(newMode);
     localStorage.setItem('themeMode', newMode);
     try {
-      await api.put('/api/users/me/settings', { theme_mode: newMode });
+      const token = localStorage.getItem('token');
+      await axios.put('/api/users/me/settings', { theme_mode: newMode }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
     } catch (e) {
       // Non-blocking
     }
