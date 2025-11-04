@@ -3228,40 +3228,46 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
             
             // Success handler function (defined before use so it's accessible from all paths)
             const handleBillSuccess = () => {
-              // Update order status and payment_status to 'paid' so it's removed from pending orders
-              db.run('UPDATE orders SET status = \'Billed\', payment_status = \'paid\' WHERE id = ?', [orderId], (updateErr) => {
+              // Update order status and payment_status to 'paid' FIRST (before sending response)
+              // This ensures the order is removed from pending list before the client refreshes
+              db.run('UPDATE orders SET status = \'Billed\', payment_status = \'paid\', updated_at = CURRENT_TIMESTAMP WHERE id = ?', [orderId], (updateErr) => {
                 if (updateErr) {
-                  console.error('Error updating order status:', updateErr);
+                  console.error('❌ Error updating order status:', updateErr);
+                  // Still send response but log the error
+                  // Don't fail the entire request if order update fails
                 } else {
                   console.log('✅ Order marked as paid and removed from pending:', orderId);
                 }
-              });
-              db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId], (tableErr) => {
-                if (tableErr) {
-                  console.error('Error updating table status:', tableErr);
-                }
-              });
+                
+                // Update table status (non-blocking)
+                db.run('UPDATE tables SET status = \'Billed\' WHERE current_order_id = ?', [orderId], (tableErr) => {
+                  if (tableErr) {
+                    console.error('Error updating table status:', tableErr);
+                  }
+                });
 
-              // Emit realtime updates
-              io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
-              io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
-              io.emit('stats-updated', { shop_id: order.shop_id });
-              
-              logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
+                // Emit realtime updates
+                io.emit('bill-created', { billId, orderId, shop_id: order.shop_id, totalAmount });
+                io.emit('order-paid', { orderId, payment_method: payment_method || 'Cash', totalAmount });
+                io.emit('stats-updated', { shop_id: order.shop_id });
+                
+                logAuditEvent(req.user.id, 'BILL_CREATED', 'bills', billId, null, { orderId, totalAmount }, req);
         
-        res.json({
-          billId,
-                billNumber: finalBillNumber,
-                orderId,
-          tableNumber: order.table_number,
-          subtotal,
-                discountAmount,
-                serviceCharge,
-          taxAmount,
-                gstSplit,
-                roundOff,
-          totalAmount,
-                message: 'Bill generated successfully'
+                // Send response AFTER order is updated (inside callback to ensure order is marked as paid)
+                res.json({
+                  billId,
+                  billNumber: finalBillNumber,
+                  orderId,
+                  tableNumber: order.table_number,
+                  subtotal,
+                  discountAmount,
+                  serviceCharge,
+                  taxAmount,
+                  gstSplit,
+                  roundOff,
+                  totalAmount,
+                  message: 'Bill generated successfully'
+                });
               });
             };
             
