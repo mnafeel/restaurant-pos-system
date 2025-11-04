@@ -239,11 +239,30 @@ const generateBillNumber = (shopName, shopId, callback) => {
   const prefix = shopName.substring(0, 2).toUpperCase().replace(/[^A-Z]/g, '') || 'BL';
   
   // Find the last bill number with this prefix for this shop
-  const query = `SELECT bill_number FROM bills 
-                 WHERE shop_id = ? 
-                 AND bill_number LIKE ? 
-                 ORDER BY bill_number DESC 
-                 LIMIT 1`;
+  // Only count bills that have bill_number set (not NULL or empty)
+  let query;
+  if (db.type === 'postgres') {
+    query = `SELECT bill_number FROM bills 
+               WHERE shop_id = ? 
+               AND bill_number IS NOT NULL 
+               AND bill_number != ''
+               AND bill_number LIKE ?
+               ORDER BY 
+                 CAST(SUBSTRING(bill_number FROM '[0-9]+$') AS INTEGER) DESC,
+                 bill_number DESC
+               LIMIT 1`;
+  } else {
+    // SQLite: extract number part and order by numeric value
+    query = `SELECT bill_number FROM bills 
+               WHERE shop_id = ? 
+               AND bill_number IS NOT NULL 
+               AND bill_number != ''
+               AND bill_number LIKE ?
+               ORDER BY 
+                 CAST(SUBSTR(bill_number, 3) AS INTEGER) DESC,
+                 bill_number DESC
+               LIMIT 1`;
+  }
   
   db.get(query, [shopId, `${prefix}%`], (err, lastBill) => {
     if (err) {
@@ -258,7 +277,9 @@ const generateBillNumber = (shopName, shopId, callback) => {
     }
     
     // Extract the number part from the last bill number (e.g., "NA123" -> 123)
-    const lastNumber = parseInt(lastBill.bill_number.replace(/^[A-Z]{2}/, '')) || 0;
+    // Use regex to get all digits at the end
+    const match = lastBill.bill_number.match(/(\d+)$/);
+    const lastNumber = match ? parseInt(match[1]) : 0;
     const nextNumber = lastNumber + 1;
     
     // Format as 3 digits (001, 002, etc.)
@@ -3276,9 +3297,9 @@ app.post('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admi
                               return handleBillSuccess();
                             }
                           );
-                        });
-                      });
-                    });
+      });
+  });
+});
                     return; // Exit early, will continue in callback
                   } else {
                     // For SQLite, try to add missing columns first, then retry insert
@@ -3352,11 +3373,12 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
   const query = `
     SELECT 
       b.*,
-      COALESCE(b.bill_number, 'BL001') as bill_number,
+      b.bill_number,
       o.table_number,
       o.order_number,
       o.customer_name,
       o.customer_phone,
+      o.shop_id as order_shop_id,
       u.first_name || ' ' || u.last_name as staff_name
     FROM bills b
     JOIN orders o ON b.order_id = o.id
@@ -3374,38 +3396,99 @@ app.get('/api/bills', authenticateToken, authorize(['cashier', 'manager', 'admin
       return res.json([]);
     }
     
-    // Fetch items for each bill
-    let completed = 0;
-    const billsWithItems = [];
+    // Generate proper bill numbers for bills that don't have them
+    let billsNeedingNumbers = bills.filter(b => !b.bill_number);
+    let processedCount = 0;
+    const totalToProcess = billsNeedingNumbers.length;
     
-    bills.forEach((bill) => {
-      db.all(`SELECT oi.*, mi.name as item_name
-        FROM order_items oi
-        JOIN menu_items mi ON oi.menu_item_id = mi.id
-        WHERE oi.order_id = ?`, [bill.order_id], (err, items) => {
-          if (err) {
-            console.error('Error fetching bill items:', err);
-            items = [];
+    if (totalToProcess === 0) {
+      // All bills have numbers, proceed normally
+      fetchBillItems();
+      return;
+    }
+    
+    // Process each bill that needs a number
+    billsNeedingNumbers.forEach((bill) => {
+      const billShopId = bill.shop_id || bill.order_shop_id || userShopId;
+      if (billShopId) {
+        db.get('SELECT name FROM shops WHERE id = ?', [billShopId], (shopErr, shop) => {
+          if (!shopErr && shop && shop.name) {
+            generateBillNumber(shop.name, billShopId, (genErr, generatedBillNumber) => {
+              if (!genErr && generatedBillNumber) {
+                // Update the bill in database
+                db.run('UPDATE bills SET bill_number = ? WHERE id = ?', [generatedBillNumber, bill.id], (updateErr) => {
+                  if (!updateErr) {
+                    bill.bill_number = generatedBillNumber;
+                    console.log(`✅ Updated bill ${bill.id} with bill number: ${generatedBillNumber}`);
+                  }
+                  processedCount++;
+                  if (processedCount === totalToProcess) {
+                    fetchBillItems();
+                  }
+                });
+              } else {
+                // Fallback to shop name prefix
+                const prefix = shop.name.substring(0, 2).toUpperCase().replace(/[^A-Z]/g, '') || 'BL';
+                bill.bill_number = `${prefix}001`;
+                processedCount++;
+                if (processedCount === totalToProcess) {
+                  fetchBillItems();
+                }
+              }
+            });
+          } else {
+            // No shop found, use fallback
+            bill.bill_number = 'BL001';
+            processedCount++;
+            if (processedCount === totalToProcess) {
+              fetchBillItems();
+            }
           }
-          
-          billsWithItems.push({
-            ...bill,
-            order_type: bill.order_type || 'Dine-In',
-            items: (items || []).map(item => ({
-              menu_item_id: item.menu_item_id,
-              item_name: item.item_name,
-              quantity: item.quantity,
-              unit_price: item.price,
-              total_price: item.quantity * item.price
-            }))
-          });
-          
-          completed++;
-          if (completed === bills.length) {
-            res.json(billsWithItems);
-          }
-      });
+        });
+      } else {
+        // No shop ID
+        bill.bill_number = 'BL001';
+        processedCount++;
+        if (processedCount === totalToProcess) {
+          fetchBillItems();
+        }
+      }
     });
+    
+    function fetchBillItems() {
+      // Fetch items for each bill
+      let completed = 0;
+      const billsWithItems = [];
+      
+      bills.forEach((bill) => {
+        db.all(`SELECT oi.*, mi.name as item_name
+          FROM order_items oi
+          JOIN menu_items mi ON oi.menu_item_id = mi.id
+          WHERE oi.order_id = ?`, [bill.order_id], (err, items) => {
+            if (err) {
+              console.error('Error fetching bill items:', err);
+              items = [];
+            }
+            
+            billsWithItems.push({
+              ...bill,
+              order_type: bill.order_type || 'Dine-In',
+              items: (items || []).map(item => ({
+                menu_item_id: item.menu_item_id,
+                item_name: item.item_name,
+                quantity: item.quantity,
+                unit_price: item.price,
+                total_price: item.quantity * item.price
+              }))
+            });
+            
+            completed++;
+            if (completed === bills.length) {
+              res.json(billsWithItems);
+            }
+          });
+      });
+    }
   });
 });
 
