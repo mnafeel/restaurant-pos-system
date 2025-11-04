@@ -39,6 +39,7 @@ const OrderTakingComplete = () => {
   const [orderType, setOrderType] = useState('dine-in');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [processingOrderId, setProcessingOrderId] = useState(null);
   const [showCart, setShowCart] = useState(false);
   const [view, setView] = useState('menu'); // 'menu', 'pending', 'paid'
   const [pendingOrders, setPendingOrders] = useState([]);
@@ -650,6 +651,10 @@ const OrderTakingComplete = () => {
 
   // Show payment modal for pending order
   const showPendingPaymentModal = (orderId) => {
+    // Prevent opening modal if already processing
+    if (isSubmitting || processingOrderId) {
+      return;
+    }
     setPendingPaymentOrderId(orderId);
     // Ensure a payment method is selected (use default if empty)
     setPaymentMethod(prev => prev || defaultPaymentMethod || 'Cash');
@@ -658,6 +663,11 @@ const OrderTakingComplete = () => {
 
   // Pay from pending order with selected payment method
   const handlePayPendingOrder = async () => {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      return;
+    }
+    
     if (!pendingPaymentOrderId) {
       toast.error('No order selected for payment');
       return;
@@ -669,30 +679,39 @@ const OrderTakingComplete = () => {
     }
     
     setIsSubmitting(true);
+    setProcessingOrderId(pendingPaymentOrderId);
     console.log('💳 Paying pending order:', { orderId: pendingPaymentOrderId, paymentMethod });
     
     try {
       const token = localStorage.getItem('token');
+      
+      // Create bill with timeout to prevent hanging
       const response = await axios.post('/api/bills', {
         orderId: pendingPaymentOrderId,
         payment_method: paymentMethod
       }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 30000 // 30 second timeout
       });
 
       console.log('✅ Payment successful:', response.data);
 
-      // Refresh all data
-      await Promise.all([
+      // Close modal immediately for better UX
+      setShowPaymentModal(false);
+      setPendingPaymentOrderId(null);
+      setProcessingOrderId(null);
+      
+      toast.success('Payment completed!', { icon: '✅', duration: 2000 });
+
+      // Refresh data in background (non-blocking)
+      Promise.all([
         fetchPendingOrders(),
         fetchPaidBills(),
         fetchTables()
-      ]);
-
-      setShowPaymentModal(false);
-      setPendingPaymentOrderId(null);
-      
-      toast.success('Payment completed!', { icon: '✅', duration: 2000 });
+      ]).catch(err => {
+        console.error('Error refreshing data:', err);
+        // Non-blocking - data will refresh on next manual refresh
+      });
     } catch (error) {
       console.error('Error paying order:', error);
       console.error('Error response:', error.response?.data);
@@ -713,6 +732,7 @@ const OrderTakingComplete = () => {
       }
     } finally {
       setIsSubmitting(false);
+      setProcessingOrderId(null);
     }
   };
 
@@ -1346,11 +1366,21 @@ const OrderTakingComplete = () => {
 
                   <button
                     onClick={() => showPendingPaymentModal(order.id)}
-                    className="py-3 text-white font-semibold rounded-xl"
+                    disabled={isSubmitting || processingOrderId === order.id}
+                    className={`py-3 text-white font-semibold rounded-xl transition-all ${
+                      isSubmitting || processingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:scale-105'
+                    }`}
                     style={{ background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)` }}
-                    title="Pay now"
+                    title={isSubmitting || processingOrderId === order.id ? 'Processing...' : 'Pay now'}
                   >
-                    <FiCheck className="inline" />
+                    {processingOrderId === order.id ? (
+                      <svg className="animate-spin h-5 w-5 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <FiCheck className="inline" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -1513,36 +1543,59 @@ const OrderTakingComplete = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-3 mb-6">
-                {['Cash', 'Card', 'UPI'].map((method) => (
-                  <button
-                    key={method}
-                    onClick={() => setPaymentMethod(method)}
-                    className={`py-4 rounded-xl font-semibold transition-all ${
-                      paymentMethod === method ? 'text-white shadow-lg' : `${currentTheme.textColor} opacity-60`
-                    }`}
-                    style={paymentMethod === method ? {
-                      background: currentTheme.accentColor,
-                      boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
-                    } : { background: 'rgba(255,255,255,0.1)' }}
-                  >
-                    {method === 'Cash' && <FiDollarSign className="block mx-auto text-2xl mb-1" />}
-                    {method === 'Card' && <FiCreditCard className="block mx-auto text-2xl mb-1" />}
-                    {method === 'UPI' && <div className="block mx-auto text-2xl mb-1">📱</div>}
-                    {method}
-                  </button>
-                ))}
+                {['Cash', 'Card', 'UPI'].map((method) => {
+                  const handleMethodSelect = () => {
+                    if (!isSubmitting) {
+                      setPaymentMethod(method);
+                    }
+                  };
+                  return (
+                    <button
+                      key={method}
+                      onClick={handleMethodSelect}
+                      disabled={isSubmitting}
+                      className={`py-4 rounded-xl font-semibold transition-all ${
+                        paymentMethod === method ? 'text-white shadow-lg' : `${currentTheme.textColor} opacity-60`
+                      } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}`}
+                      style={paymentMethod === method ? {
+                        background: currentTheme.accentColor,
+                        boxShadow: `0 4px 20px ${currentTheme.accentColor}50`
+                      } : { background: 'rgba(255,255,255,0.1)' }}
+                    >
+                      {method === 'Cash' && <FiDollarSign className="block mx-auto text-2xl mb-1" />}
+                      {method === 'Card' && <FiCreditCard className="block mx-auto text-2xl mb-1" />}
+                      {method === 'UPI' && <div className="block mx-auto text-2xl mb-1">📱</div>}
+                      {method}
+                    </button>
+                  );
+                })}
               </div>
 
               <button
                 onClick={handlePayPendingOrder}
-                className="w-full py-4 text-white font-bold text-lg rounded-xl shadow-lg"
+                disabled={isSubmitting || !paymentMethod}
+                className={`w-full py-4 text-white font-bold text-lg rounded-xl shadow-lg transition-all ${
+                  isSubmitting || !paymentMethod ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl transform hover:scale-105'
+                }`}
                 style={{
                   background: `linear-gradient(to right, ${currentTheme.accentColor}, ${currentTheme.accentColor}DD)`,
                   boxShadow: `0 8px 30px ${currentTheme.accentColor}50`
                 }}
               >
-                <FiCheck className="inline mr-2" />
-                Confirm Payment
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <FiCheck className="inline mr-2" />
+                    Confirm Payment
+                  </>
+                )}
               </button>
             </motion.div>
           </motion.div>
